@@ -15,20 +15,12 @@
 ---============================================================================
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then failed = failed + 1; print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want))) end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 local function read(p) local f = io.open(p, 'rb'); if not f then return nil end local t = f:read('*a'); f:close(); return t end
-local function win(p) return (p:gsub('/', '\\')) end
-local function list(dir)
-    local out, p = {}, io.popen('dir /b "' .. win(dir) .. '" 2>nul')
-    for l in p:lines() do out[#out + 1] = l end
-    p:close(); return out
-end
+local list = T.listdir
 windower = {addon_path = './', get_dir = list, dir_exists = function(d) return #list(d) > 0 or os.rename(d, d) ~= nil end,
-    create_dir = function(d) os.execute('mkdir "' .. win(d) .. '" 2>nul') end}
+    create_dir = function(d) T.mkdir(d) end}
 local JobAdder = require('shared/utils/atelier/job_adder')
 
 -- 1. the templates ------------------------------------------------------------------------------------------
@@ -113,15 +105,15 @@ end
 check('templates checked', templates >= 20, true)
 
 -- 2. a job added in a temporary Windower folder -----------------------------------------------------------
-local root = (os.getenv('TEMP') .. '/job_adder_test_' .. os.time() .. '/'):gsub('\\', '/')
+local root = T.tmpdir('job_adder_test') .. '/'
 local data = root .. 'data/'
-os.execute('mkdir "' .. win(data .. '_master/entry') .. '" 2>nul')
-os.execute('xcopy /e /i /q "' .. win('_master/config/whm') .. '" "' .. win(data .. '_master/config/whm') .. '" >nul')
-os.execute('mkdir "' .. win(data .. '_master/sets') .. '" 2>nul')
+T.mkdir(data .. '_master/entry')
+T.copytree('_master/config/whm', data .. '_master/config/whm')
+T.mkdir(data .. '_master/sets')
 local function copy(a, b) local f = io.open(b, 'wb'); f:write(read(a)); f:close() end
 copy('_master/entry/Tetsouo_WHM.lua', data .. '_master/entry/Tetsouo_WHM.lua')
 copy('_master/sets/whm_sets.lua', data .. '_master/sets/whm_sets.lua')
-os.execute('mkdir "' .. win(data .. 'Kaories/_common') .. '" 2>nul')
+T.mkdir(data .. 'Kaories/_common')
 local f = io.open(data .. 'character_db.lua', 'wb')
 f:write("return {\n    Kaories = {\n        jobs = { 'RDM', 'COR', 'GEO', 'PLD' },\n        role = 'alt',\n    },\n}\n"); f:close()
 windower.addon_path = root
@@ -154,7 +146,7 @@ check('character_db not doubled', select(2, (read(data .. 'character_db.lua') or
 check('a character with its settings gets no _common/ files', read(data .. 'Kaories/_common/combat/RECAST_CONFIG.lua'), nil)
 
 -- 3. a character with no folder at all: its settings come with its first job, and it goes into character_db
-os.execute('xcopy /e /i /q "' .. win('_master/config_global') .. '" "' .. win(data .. '_master/config_global') .. '" >nul')
+T.copytree('_master/config_global', data .. '_master/config_global')
 f = io.open(data .. 'character_db.lua', 'wb')
 f:write("local CharDB = {}\nlocal CHARACTERS = {\n    Kaories = {\n        jobs = { 'RDM' },\n        role = 'alt',\n    },\n}\nreturn CharDB\n"); f:close()
 local r3 = JobAdder.add('WHM', 'Newbie')
@@ -182,9 +174,8 @@ JobAdder.add('WHM', 'Newbie')
 check('  its settings kept on a second add', read(data .. 'Newbie/_common/combat/RECAST_CONFIG.lua'), '-- mine')
 check('  not added twice to character_db', select(2, (read(data .. 'character_db.lua') or ''):gsub('Newbie = {', '')), 1)
 -- a folder in the older layout (config/ at its root) gets no _common/: CharPaths would then look there for all
-os.execute('mkdir "' .. win(data .. 'Oldone/config') .. '" 2>nul')
+T.mkdir(data .. 'Oldone/config')
 JobAdder.add('WHM', 'Oldone')
 check('old layout: no _common/ made', read(data .. 'Oldone/_common/combat/RECAST_CONFIG.lua'), nil)
-os.execute('rmdir /s /q "' .. win(root) .. '" 2>nul')
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.rmtree(root)
+T.done()

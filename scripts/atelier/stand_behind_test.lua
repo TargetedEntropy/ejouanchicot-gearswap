@@ -23,11 +23,9 @@ package.loaded['shared/utils/core/job_config'] = {get = function(_, key, default
 end}
 local SB = dofile('shared/jobs/geo/functions/logic/stand_behind.lua')
 
-local fails = 0
-local function check(name, ok, detail)
-    if not ok then fails = fails + 1 end
-    print((ok and 'ok   ' or 'FAIL ') .. name .. (detail and (': ' .. detail) or ''))
-end
+local T = dofile('scripts/lib/testlib.lua')
+T.verbose = true
+local check = T.ok
 local function near(a, b) return math.abs(a - b) < 1e-9 end
 
 -- Silmaril, as written: melee range, the Auto_Distance offset, then Calculate_Offset "Back"
@@ -488,5 +486,4 @@ do
     SB.stop('test')
 end
 
-print(fails == 0 and 'ALL OK' or (fails .. ' FAILED'))
-os.exit(fails == 0 and 0 or 1)
+T.done()

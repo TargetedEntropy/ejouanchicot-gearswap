@@ -7,21 +7,14 @@
 ---============================================================================
 -- Offline check of shared/utils/core/log_keeper.lua in a temporary Windower folder. Run from GearSwap/data with lua5.1.
 package.path = './?.lua;' .. package.path
-local root = (os.getenv('TEMP') .. '/log_keeper_test_' .. os.time() .. '/'):gsub('\\', '/')
-local function win(p) return (p:gsub('/', '\\')) end
-local function mkdir(p) os.execute('mkdir "' .. win(p) .. '" 2>nul') end
+local T = dofile('scripts/lib/testlib.lua')
+local root = T.tmpdir('log_keeper_test') .. '/'
+local mkdir = T.mkdir
 local function write(p, n) local f = assert(io.open(p, 'wb')); f:write(string.rep('x', n)); f:close() end
 local function exists(p) local f = io.open(p, 'rb'); if f then f:close() return true end return false end
-windower = {addon_path = root, get_dir = function(dir)
-    local out, p = {}, io.popen('dir /b "' .. win(dir) .. '" 2>nul')
-    for l in p:lines() do out[#out + 1] = l end
-    p:close(); return out end}
+windower = {addon_path = root, get_dir = T.listdir}
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then failed = failed + 1; print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want))) end
-end
+local check = T.eq
 local LK = require('shared/utils/core/log_keeper')
 local logs = root .. 'data/Tetsouo/logs/'
 for _, d in ipairs({'craft', 'fights', 'enhtest', 'sortie', 'rolls'}) do mkdir(logs .. d) end
@@ -60,6 +53,5 @@ for topic, want in pairs({craft = true, rolls = true, dualbox = true, trace = fa
 end
 check('prune_once twice: the second does nothing', (function() LK.prune_once('Tetsouo'); return windower._logs_pruned.Tetsouo end)(), true)
 
-os.execute('rmdir /s /q "' .. win(root) .. '" 2>nul')
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.rmtree(root)
+T.done()

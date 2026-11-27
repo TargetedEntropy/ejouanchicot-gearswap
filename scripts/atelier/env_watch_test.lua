@@ -15,14 +15,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 windower = {_load_gen = 0}
 local Watch = require('shared/utils/debug/env_watch')
@@ -62,5 +56,4 @@ windower.deep, windower.big = nil, nil
 windower.kept, windower.list = nil, nil
 check('freed once nothing holds them', #Watch.survivors(), 0)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

@@ -16,14 +16,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 package.loaded['shared/utils/messages/message_formatter'] =
     setmetatable({}, {__index = function() return function() end end})
@@ -87,5 +81,4 @@ check('pool empty: no charge', StratagemCharges.has_charge(), false)
 player = {main_job = 'WAR', main_job_level = 99, sub_job = 'SAM', sub_job_level = 49}
 check('no Scholar: 0', StratagemCharges.available(), 0)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

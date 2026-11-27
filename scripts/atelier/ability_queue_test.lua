@@ -15,20 +15,16 @@
 ---============================================================================
 package.path = './?.lua;' .. package.path
 
-local fails = 0
-local function check(name, got, want)
-    local ok = got == want
-    if not ok then fails = fails + 1 end
-    print((ok and 'ok   ' or 'FAIL ') .. name .. (ok and '' or (': got ' .. tostring(got) .. ', wanted ' .. tostring(want))))
-end
+local T = dofile('scripts/lib/testlib.lua')
+T.verbose = true
+local check = T.eq
 
 -- a virtual clock: scheduled work runs at its time, in order
 local now, sent, jobs, traces = 0, {}, {}, {}
 os.clock = function() return now end
-coroutine.schedule = function(fn, d) jobs[#jobs + 1] = {at = now + (d or 0), fn = fn} end
+coroutine.schedule = function(fn, d) T.push(jobs, {at = now + (d or 0), fn = fn}) end
 local function run(limit)
     while #jobs > 0 do
-        table.sort(jobs, function(a, b) return a.at < b.at end)
         if limit and jobs[1].at > limit then now = limit return end
         local job = table.remove(jobs, 1)
         now = job.at
@@ -272,5 +268,4 @@ run()
 check('late effect: sent once', count(BOG), 1)
 check('  counted as gone through', ended == 'went through' or ended == 'went through (on recast)', true)
 
-print(fails == 0 and 'ALL OK' or (fails .. ' FAILED'))
-os.exit(fails == 0 and 0 or 1)
+T.done()

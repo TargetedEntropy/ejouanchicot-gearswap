@@ -15,15 +15,9 @@
 ---============================================================================
 
 package.path = './?.lua;' .. package.path
-local failed = 0
-local function check(what, got, want)
-    if got ~= want then
-        failed = failed + 1
-        print(('FAIL %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    else
-        print('ok   ' .. what)
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+T.verbose = true
+local check = T.eq
 
 local saved = os.tmpname() .. '_lockstyle_pieces.lua'
 local events = {}
@@ -117,5 +111,5 @@ run_all()
 check('stopped: only the set in hand was asked', #sent, 1)
 
 os.remove(saved)
-print(failed == 0 and '\nthe pieces of a lockstyle are read and kept, set by set' or ('\n' .. failed .. ' check(s) failed'))
-os.exit(failed == 0 and 0 or 1)
+if T.failed == 0 then print('\nthe pieces of a lockstyle are read and kept, set by set') end
+T.done()

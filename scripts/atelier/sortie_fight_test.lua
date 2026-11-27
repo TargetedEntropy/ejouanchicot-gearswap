@@ -15,14 +15,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 local CFG = {alt = 'Kaories', profile_root = 'Kaories/Sortie/GEO/',
     orders = {off = {command = 'sm off'}, judgment = {command = 'gs c judgment'}},
@@ -36,10 +30,9 @@ local CFG = {alt = 'Kaories', profile_root = 'Kaories/Sortie/GEO/',
 -- every command with the time it goes out: scheduled work runs at its delay, in time order
 local now, sent, queue = 0, {}, {}
 send_command = function(cmd) sent[#sent + 1] = {at = now, cmd = cmd} end
-coroutine.schedule = function(fn, delay) queue[#queue + 1] = {at = now + (delay or 0), fn = fn} end
+coroutine.schedule = function(fn, delay) T.push(queue, {at = now + (delay or 0), fn = fn}) end
 local function run_queue(limit)
     while #queue > 0 do
-        table.sort(queue, function(a, b) return a.at < b.at end)
         if limit and queue[1].at > limit then now = limit return end
         local job = table.remove(queue, 1)
         now = job.at
@@ -226,7 +219,7 @@ sent, now = {}, 0
 Sortie.handle({'melee'}); run_queue()
 check('plain target: follow off', has('send Kaories sm follow off') ~= nil, true)
 
-if failed > 0 then print(lines()) end
+if T.failed > 0 then print(lines()) end
 -- no fight_ja (Leshonn, Gartell): Full Circle, then the profile 1.5 s later; full_circle = false: at once
 CFG.targets.prepfc = {profile = 'Leshonn', indi = 'Indi-Frailty', prep = {profile = 'LeshonnPrep', indi = 'Indi-Focus'}}
 sent, noted, now, queue = {}, {}, 0, {}
@@ -252,5 +245,4 @@ Sortie.handle({'melee'}); run_queue()
 check('no fc first: no Full Circle', has('send Kaories /ja "Full Circle" <me>'), nil)
 check('no fc first: profile at once', has('send Kaories sm load Kaories/Sortie/GEO/Melee'), 0)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

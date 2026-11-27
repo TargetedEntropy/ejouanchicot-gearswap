@@ -15,14 +15,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- Every module the command file loads is a table that accepts anything
 local any = setmetatable({}, {__index = function() return function() return false end end})
@@ -89,5 +83,4 @@ check('other element: no follow', #sent, n)
 for _, q in ipairs(queue) do if q.delay ~= 2 then q.fn() end end
 check('timer follows', sent[#sent], 'sm follow Tetsouo')
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

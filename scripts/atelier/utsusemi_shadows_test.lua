@@ -12,11 +12,8 @@
 --- @date Created: 2026-10-28
 ---============================================================================
 package.path = './?.lua;' .. package.path
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then failed = failed + 1; print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want))) end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 local sent = {}
 send_command = function(cmd) sent[#sent + 1] = cmd end
 local U = require('shared/utils/midcast/utsusemi_shadows')
@@ -39,5 +36,4 @@ sent = {}
 U.on_midcast({id = 339, english = 'Utsusemi: Ni'})
 check('Ni: nothing cancelled', #sent, 0)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

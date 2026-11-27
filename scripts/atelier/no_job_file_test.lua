@@ -11,15 +11,11 @@
 --- @author ejouanchicot
 --- @date Created: 2026-10-25
 ---============================================================================
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then failed = failed + 1; print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want))) end
-end
-local function win(p) return (p:gsub('/', '\\')) end
-local root = (os.getenv('TEMP') .. '/no_job_file_test_' .. os.time() .. '/'):gsub('\\', '/')
-os.execute('mkdir "' .. win(root .. 'data/atelier') .. '" 2>nul')
-os.execute('mkdir "' .. win(root .. 'data/Kaories') .. '" 2>nul')
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
+local root = T.tmpdir('no_job_file_test') .. '/'
+T.mkdir(root .. 'data/atelier')
+T.mkdir(root .. 'data/Kaories')
 
 -- the fake socket: a server whose accept() hands the queued requests, a client that reads one and keeps the answer
 local queue, answers = {}, {}
@@ -106,6 +102,5 @@ check('/addjob answers', add:match('^HTTP/1.1 (%d+)'), '200')
 check('/addjob reached job_adder', add:find('"error":"template"', 1, true) ~= nil, true)
 check('/reload answers', ask('POST', '/reload'):match('^HTTP/1.1 (%d+)'), '200')
 
-os.execute('rmdir /s /q "' .. win(root) .. '" 2>nul')
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.rmtree(root)
+T.done()

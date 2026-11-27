@@ -17,21 +17,14 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- a clock of our own for coroutine.schedule
 local now, queue = 0, {}
-coroutine.schedule = function(fn, delay) queue[#queue + 1] = {at = now + delay, fn = fn} end
+coroutine.schedule = function(fn, delay) T.push(queue, {at = now + delay, fn = fn}) end
 local function run_until(t)
     while true do
-        table.sort(queue, function(a, b) return a.at < b.at end)
         local nxt = queue[1]
         if not nxt or nxt.at > t then break end
         table.remove(queue, 1)
@@ -118,5 +111,4 @@ EntryKit.sub_job_change('WAR', 'NIN')
 check('subjob change with the game job', calls[1], 'change WAR/DNC')
 check('subjob change without player', calls[2], 'change WAR/NIN')
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

@@ -14,14 +14,8 @@
 --- @date Created: 2026-10-15
 ---============================================================================
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- the shape of _master/config/whm/WHM_CURE_CONFIG.lua
 local CURE_CONFIG = {
@@ -144,5 +138,4 @@ check('RDM without the file: no mode', env.state.CureAutoTier, nil)
 check('RDM without the file: Cure IV left', mod.retier({name = 'Cure IV', action_type = 'Magic', target = {id = 9, raw = '<t>'}}, {}), false)
 check('RDM without the file: nothing sent', #sent, 0)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

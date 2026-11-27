@@ -17,14 +17,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 package.loaded['shared/utils/core/char_paths'] = {file = function() return nil end}
 package.loaded['resources'] = {spells = {}}
@@ -70,5 +64,4 @@ got = paths(function()
 end)
 check('filled sets.precast.FC: its piece', got['sets.precast.FC'] and got['sets.precast.FC'].pieces.head.name, 'Carmine Mask +1')
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

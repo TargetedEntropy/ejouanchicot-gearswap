@@ -16,7 +16,6 @@
 ---============================================================================
 
 local saved = os.tmpname() .. '_ui_settings.lua'
-local failed = 0
 
 package.path = './?.lua;' .. package.path
 package.preload['shared/utils/core/char_paths'] = function() return {writable = function() return saved end} end
@@ -37,14 +36,9 @@ local function load(cfg)
     return require('shared/config/ui_settings')
 end
 
-local function check(what, got, want)
-    if got ~= want then
-        failed = failed + 1
-        print(('FAIL %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    else
-        print('ok   ' .. what)
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+T.verbose = true
+local check = T.eq
 
 -- 1. no saved file: seeded from the config
 os.remove(saved)
@@ -87,5 +81,5 @@ check('then a change in UI_CONFIG is taken', UI.get_background().a, 200)
 check('and its position is still kept', UI.get_position().x, 100)
 
 os.remove(saved)
-print(failed == 0 and '\nthe saved settings follow UI_CONFIG only where it changed' or ('\n' .. failed .. ' check(s) failed'))
-os.exit(failed == 0 and 0 or 1)
+if T.failed == 0 then print('\nthe saved settings follow UI_CONFIG only where it changed') end
+T.done()

@@ -15,14 +15,8 @@
 --- @date Created: 2026-10-12
 ---============================================================================
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- a clock of our own: scheduled calls run in the order of their time
 local now, tasks = 0, {}
@@ -97,5 +91,4 @@ run_until(now + 60)
 check('stopped: the watched loads still count theirs', Ghosts.report()[1].loads >= before, true)
 
 os.time = real_time
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

@@ -17,14 +17,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 package.loaded['shared/utils/messages/message_formatter'] = {}
 package.loaded['shared/utils/equipment/weapon_resolver'] = {}
@@ -114,5 +108,4 @@ sets.idle.PDT = nil
 e, i = wear('PDT', 'MDT')
 check('PDT with no sets.idle.PDT: the engaged base', e, 'sets.engaged')
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

@@ -16,14 +16,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- The game: bags of fixed size, a slot holds an item id or 0
 local INV, W1, W3, W4, W8 = 0, 8, 11, 12, 16
@@ -138,5 +132,4 @@ run()
 check('no room earlier: the spill stays in the last bag', count(W8), 2)
 check('no room earlier: nothing in the inventory', count(INV), 0)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

@@ -16,14 +16,8 @@
 --- @date Created: 2026-10-31
 ---============================================================================
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- Mote's mode (libs/Modes.lua), what PLD_STATES.lua uses of it
 function M(t)
@@ -116,5 +110,4 @@ for _, file in ipairs({'_master/config/pld/PLD_KEYBINDS.lua', 'Tetsouo/pld/keys/
     check(tag .. ' PDT: no Ctrl+Numpad8', pdt['^numpad8'], nil)
 end
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()
