@@ -49,14 +49,9 @@ end
 --- defined cleanup_midcast and before the custom states wrap it, so the
 --- player's custom gear still goes on last.
 function MidcastFallback.install()
-    if rawget(_G, '_midcast_fallback_installed') then return end
-    local original = rawget(_G, 'cleanup_midcast')
-    if type(original) ~= 'function' then return end
-    _G._midcast_fallback_installed = true
-    _G.cleanup_midcast = function(spell, spellMap, eventArgs)
-        MidcastFallback.route(spell, eventArgs)
-        return original(spell, spellMap, eventArgs)
-    end
+    require('shared/utils/core/action_hooks').add('midcast_fallback', 'cleanup_midcast', {
+        before = function(spell, _, eventArgs) MidcastFallback.route(spell, eventArgs) end,
+    })
 end
 
 return MidcastFallback

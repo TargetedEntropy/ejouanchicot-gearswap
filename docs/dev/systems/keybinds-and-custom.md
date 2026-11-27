@@ -479,7 +479,7 @@ Per-module functions (attached by `create`): `get_active_binds()` -> active, yie
 | OptionalStateCommands | `create(cfg)` -> `{handle}` | Same |
 | CombatMode | `is_on()` | `Optional.value() == 'On'` |
 | CombatMode | `apply()` | Lock or free the weapon slots |
-| CombatMode | `install_hook()` | Wrap `handle_equipping_gear` once per sandbox (`_G._combat_mode_hook`) |
+| CombatMode | `install_hook()` | Register the `combat_mode` layer on `handle_equipping_gear` (`ActionHooks`, outermost) |
 | CombatMode | `attach`, `settings`, `settings_path`, `is_shown`, `_optional` | From the optional state |
 | CustomStates | `load(job, binds)` -> count | Read, validate, create states, append keys; cached per sandbox |
 | CustomStates | `install_hooks()` | See above |

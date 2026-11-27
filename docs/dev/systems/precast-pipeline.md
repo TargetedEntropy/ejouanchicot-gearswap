@@ -42,15 +42,15 @@ function (`file` `function`); a raw `:NNN` is given only where the line itself m
 | `shared/utils/weaponskill/weaponskill_manager.lua` | 133 | Range formula and Amnesia check; exported as `_G.WeaponSkillManager` |
 | `shared/utils/precast/tp_bonus_handler.lua` | 93 | `live_tp()` (TP read from the game), computes TP gear into `_G.temp_tp_bonus_gear` |
 | `shared/utils/weaponskill/tp_bonus_calculator.lua` | 283 | `decide` (the TP pieces worth their gain) and `calculate` (the thresholds rule); exported as `_G.TPBonusCalculator` |
-| `shared/utils/weaponskill/tp_piece_decision.lua` | 241 | Pure decision: the Atelier's table, the fTP formula, the thresholds; `_G.TPPieceDecision` |
-| `shared/utils/weaponskill/tp_pieces_table.lua` | 114 | Reads the played job's `<Char>/atelier/overrides/tp_pieces_<JOB>.lua` as data, once per load (`forget()` after the Atelier writes one); `file(job)` gives the name |
+| `shared/utils/weaponskill/tp_piece_decision.lua` | 262 | Pure decision: the Atelier's table, the fTP formula, the thresholds; `_G.TPPieceDecision` |
+| `shared/utils/weaponskill/tp_pieces_table.lua` | 133 | Reads the played job's `<Char>/atelier/overrides/tp_pieces_<JOB>.lua` as data, once per load (`forget()` after the Atelier writes one); `file(job)` gives the name |
 | `shared/utils/weaponskill/weapon_tp_bonus.lua` | 94 | `WeaponTP.of(weapon, tp_config)`: a weapon's TP Bonus, from the job's TP config, else the game's description and your gear scan |
 | `shared/utils/weaponskill/game_facts.lua` | 96 | Values a TP config leaves on `'auto'` (merits, job point gifts such as Fencer's, a piece owned), read from the game; nil outside it |
 | `shared/utils/weaponskill/ws_slots.lua` | 159 | `//gs c ws1..ws9` (WAR) and `ws`, `ws1..` (PLD): weaponskill slots rebuilt per weapon |
 | `shared/utils/precast/tier_refiner.lua` | 230 | TierRefiner: cast the highest learned tier whose recast and MP allow it |
 | `shared/data/spells/RDM_ENFEEBLE_TIERS.lua` | 55 | Tier table for RDM enfeebles (`get(family)`) |
 | `shared/data/spells/NUKE_TIERS.lua` | 56 | Tier table for nukes I-V, the GEO -ra nukes and Aspir (`get(family)`) |
-| `shared/utils/precast/cast_time.lua` | 349 | CastTime: cast-time estimate from the gear actually sent; `cleanup_precast` hook, `PRECAST` trace line |
+| `shared/utils/precast/cast_time.lua` | 346 | CastTime: cast-time estimate from the gear actually sent; `cleanup_precast` hook, `PRECAST` trace line |
 | `shared/utils/precast/flurry_tracker.lua` | 73 | FlurryTracker: Flurry I / II on this character, for `sets.precast.RA.Flurry1/2` |
 | `shared/hooks/init_ability_messages.lua` | 100 | Wraps `user_post_precast`: job ability messages |
 | `shared/hooks/init_ws_messages.lua` | 141 | Wraps `user_post_precast`: weaponskill messages |
@@ -175,11 +175,16 @@ trace log (`PRECAST ... -> sets.precast.FC.Cure`).
 
 ### The job_precast contract
 
-Every job's `job_precast` follows this order (WAR shown; deviations below):
+Every job but RDM gets its `job_precast` and `job_post_precast` from
+`PrecastPipeline.hooks(job, steps)` (`shared/utils/precast/precast_pipeline.lua`):
+the order below is written once there, and a job hands in only its own steps
+(`before_cooldown`, `cooldown`, `after_cooldown`, `after_ws`, `before_tp_gear`,
+`after_tp_gear`, and `load` for its own modules). WAR, DRG, NIN and PUP have none.
+RDM keeps its own staged `job_precast` (debug stages, `combat_mode.apply()` first).
 
 ```mermaid
 flowchart TD
-    A["job_precast(spell, action, spellMap, eventArgs)"] --> B["ensure_modules_loaded()"]
+    A["job_precast(spell, action, spellMap, eventArgs)"] --> B["PrecastPipeline: load (first action), steps.load"]
     B --> C{"PrecastGuard.guard_precast"}
     C -- "blocked (cancel set)" --> X["return"]
     C -- "not blocked" --> T{"tier exception? (BRD songs, WHM cures, COR rolls, RDM/GEO/BLM tiers)"}
@@ -191,18 +196,21 @@ flowchart TD
     F --> G
     D -- "other" --> G
     G -- yes --> X
-    G -- no --> H["job logic + AbilityHelper (Majesty, Saboteur, Climactic...)"]
+    G -- no --> H["steps.after_cooldown: job logic + AbilityHelper (Majesty, Saboteur...) - true stops"]
     H --> I{"WSPrecastHandler.handle (range, AutoJump on /DRG, TP)"}
     I -- "false (cancelled)" --> X
-    I -- "true" --> J["job-specific precast gear"]
+    I -- "true" --> J["steps.after_ws: job-specific precast gear"]
     J --> K["Mote default_precast (unless handled)"]
     K --> L["user_post_precast: ability / WS message hooks"]
-    L --> M["job_post_precast: WSPrecastHandler.apply_tp_gear"]
+    L --> M["job_post_precast: steps.before_tp_gear, WSPrecastHandler.apply_tp_gear, steps.after_tp_gear"]
     M --> N["cleanup_precast chain (belt, TH, custom, cast time)"]
 ```
 
-The `action_type` dispatch in front of `CooldownChecker` is repeated in all 22
-`[JOB]_PRECAST.lua` files; `CooldownChecker` itself has no dispatcher.
+The `action_type` dispatch in front of `CooldownChecker` is `PrecastPipeline.cooldown`;
+a job that chooses which check applies calls `PrecastPipeline.ability_cooldown` /
+`spell_cooldown` (BLM, SCH) from its `cooldown` step. The three shared modules are
+required with no pcall at the first action: a broken one is an error, never a guard
+silently skipped.
 
 | Job | Deviation (function) |
 |---|---|
@@ -328,8 +336,8 @@ then `RecastAnnounce.on_refused(spell, nil)`.
 
 The tolerance comes from `local RECAST_CONFIG = _G.RECAST_CONFIG or {}`, captured
 once when the module is first executed (`cooldown_checker.lua:28`). With `ModuleCache`
-installed (`INIT_SYSTEMS.lua`, top) that first execution is the lazy `require` in the
-job's `ensure_modules_loaded()`, which happens after the entry point has set
+installed (`INIT_SYSTEMS.lua`, top) that first execution is the lazy `require` in
+`PrecastPipeline`'s `load()` at the first action, which happens after the entry point has set
 `_G.RECAST_CONFIG`. Without `RECAST_CONFIG` the checker falls back to `recast > 0`
 and AbilityHelper to `recast < 1`.
 
@@ -577,7 +585,7 @@ base tier (name without numeral).
 ### CastTime (end of every precast)
 
 `CastTime.install_hook()` (called from `INIT_SYSTEMS.lua`, after the custom states
-hook) wraps `cleanup_precast` once per load (`_G._cast_time_hook`). After the inner
+hook) registers the `cast_time` layer on `cleanup_precast` (`ActionHooks`, once per load). After the inner
 chain has run, and only if the action was not cancelled:
 
 - for `action_type == 'Magic'`, `CastTime.estimate(spell, precast_gear())` and store
@@ -946,7 +954,7 @@ schema above. Jobs pass `_G.<JOB>TPConfig or {}`; an empty config yields no TP g
 | `windower._recast_announce_last` | `recast_announce.lua` | survives `gs reload`; reset by `//lua reload gearswap` |
 | `windower._flurry_level` | `flurry_tracker.lua` | survives `gs reload`; cleared when Flurry is not up |
 | `_G._flurry_listening` | `flurry_tracker.lua` | one listener per load |
-| `_G._precast_cast_time`, `_G._cast_time_owned`, `_G._cast_time_hook` | `cast_time.lua` | per sandbox |
+| `_G._precast_cast_time`, `_G._cast_time_owned` | `cast_time.lua` | per sandbox |
 | `windower._hook_wraps` | the three hook files | survives reloads (diagnostic counter) |
 | `modules_loaded` + cached module refs | `ws_precast_handler.lua`, `tp_bonus_handler.lua` | module-level |
 | `_G.temp_tp_bonus_gear` | written by `calculate_tp_gear`, cleared by `apply_tp_gear` | sandbox global; left set if the WS is cancelled after the calculation, overwritten by the next WS |
@@ -972,7 +980,7 @@ cure item, TierRefiner's replacement), which cannot be cancelled and outlive a
 - `INIT_SYSTEMS.lua` installs `ModuleCache` before any of these modules are required,
   calls `AutoMedicine.ensure()`, installs the cleanup wrappers, and 3 s after each load
   re-requires PrecastGuard, CooldownChecker and WSPrecastHandler and reports a load
-  failure (each job's `ensure_modules_loaded` would otherwise swallow it).
+  failure (PrecastPipeline would otherwise raise it only at the first action).
 - Trace: `WSTP`, `TP`, `PRECAST` lines; see [commands-and-debug.md](commands-and-debug.md).
 - Midcast side of the lifecycle: [midcast-and-buffs.md](midcast-and-buffs.md).
 - Jobs: [DNC](../jobs/dnc.md), [BLM](../jobs/blm.md), [BRD](../jobs/brd.md),

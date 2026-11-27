@@ -126,7 +126,7 @@ local EXPECTED = {
     CustomStates = true, HPPriority = true, JobSyncWatchdog = true,
     KeybindManager = true, MessageSortie = true, MessageTempBind = true,
     SortieCommands = true, TempBinds = true, TraceLog = true,
-    _alt_window_display = true, _alt_window_prefs = true, _alt_window_dead = true, _midcast_routed = true, _midcast_fallback_installed = true,
+    _alt_window_display = true, _alt_window_prefs = true, _alt_window_dead = true, _midcast_routed = true, __action_hook_layers = true, __action_hooks_built = true,
     geo_escort_on_aftercast = true, thf_range_locked = true,
     _treasure = true, _treasure_engaged_by_job = true, _treasure_installed = true,
     _hud_job_config = true, _lockstyle_pieces_listening = true,}

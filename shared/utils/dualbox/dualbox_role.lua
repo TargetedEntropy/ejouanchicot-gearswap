@@ -23,8 +23,7 @@
 local DualBoxRole = {}
 
 local function messages()
-    local ok, m = pcall(require, 'shared/utils/messages/formatters/system/message_altgroup')
-    return ok and m or nil
+    return require('shared/utils/messages/formatters/system/message_altgroup')
 end
 
 local function my_name()

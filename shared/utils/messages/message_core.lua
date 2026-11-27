@@ -68,9 +68,11 @@ end
 --- "[RDM/DRK] " in front of a message, or "" when the player turned the job
 --- tag off (UI_CONFIG.lua chat.job_tag = false, //gs c ui jobtag off).
 --- @return string
+local ChatPalette
 function MessageCore.job_prefix()
-    local ok, ChatPalette = pcall(require, 'shared/utils/messages/chat_palette')
-    if ok and ChatPalette and not ChatPalette.show_job_tag() then return "" end
+    -- loaded at the first message, not at this file's load (chat_palette reads the HUD settings)
+    ChatPalette = ChatPalette or require('shared/utils/messages/chat_palette')
+    if not ChatPalette.show_job_tag() then return "" end
     return "[" .. MessageCore.get_job_tag() .. "] "
 end
 

@@ -327,23 +327,20 @@ end
 --- Wrap cleanup_precast once per load: every spell's estimate goes to
 --- _G._precast_cast_time. Called from INIT_SYSTEMS, after Mote.
 function CastTime.install_hook()
-    local orig = rawget(_G, 'cleanup_precast')
-    if not orig or rawget(_G, '_cast_time_hook') == orig then return end
-    local hook = function(spell, spellMap, eventArgs)
-        orig(spell, spellMap, eventArgs)
-        if not spell or (eventArgs and eventArgs.cancel) then return end
-        local seconds, percent = nil, nil
-        if spell.action_type == 'Magic' then
-            local ok, s, p = pcall(CastTime.estimate, spell, precast_gear())
-            if ok then
-                seconds, percent = s, p
-                _G._precast_cast_time = {id = spell.id, name = spell.english, seconds = s, percent = p}
+    require('shared/utils/core/action_hooks').add('cast_time', 'cleanup_precast', {
+        after = function(_, spell, _, eventArgs)
+            if not spell or (eventArgs and eventArgs.cancel) then return end
+            local seconds, percent = nil, nil
+            if spell.action_type == 'Magic' then
+                local ok, s, p = pcall(CastTime.estimate, spell, precast_gear())
+                if ok then
+                    seconds, percent = s, p
+                    _G._precast_cast_time = {id = spell.id, name = spell.english, seconds = s, percent = p}
+                end
             end
-        end
-        pcall(trace_precast, spell, seconds, percent)
-    end
-    _G.cleanup_precast = hook
-    _G._cast_time_hook = hook
+            pcall(trace_precast, spell, seconds, percent)
+        end,
+    })
 end
 
 return CastTime
