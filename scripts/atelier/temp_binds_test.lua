@@ -17,14 +17,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- the saved list in a scratch file of the system's temporary folder
 local scratch = os.tmpname()
@@ -91,5 +85,4 @@ check('KeybindGuard forgets a key tb took', windower._keybind_sent_this_load['^f
 TempBinds.handle({'clear'})
 
 os.remove(scratch)
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

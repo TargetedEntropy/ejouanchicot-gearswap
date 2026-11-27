@@ -64,12 +64,10 @@ TIMER('DRK_BUFFS')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 -- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
-include('../shared/jobs/drk/functions/DRK_LOCKSTYLE.lua')
-include('../shared/jobs/drk/functions/DRK_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('DRK')
+require('shared/utils/macrobook/macrobook_manager').install('DRK')
 include('../shared/jobs/drk/functions/DRK_COMMANDS.lua')
 TIMER('DRK_COMMANDS')
-include('../shared/jobs/drk/functions/DRK_MOVEMENT.lua')
-TIMER('DRK_MOVEMENT')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   LOGIC MODULES REFERENCE

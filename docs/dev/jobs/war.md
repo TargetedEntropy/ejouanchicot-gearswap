@@ -48,19 +48,17 @@ numbers are avoided because they drift.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/war.lua` | 274 | Entry point (the same for every character; `<Char>_WAR.lua` and its template `_master/entry/Tetsouo_WAR.lua` are one `include` of it): config preload, `get_sets`, `init_gear_sets` + `sync_weapon_with_hand`, `job_sub_job_change`, `user_setup` (+ `AmpullaLock.apply`), `job_update`, `file_unload` (+ `AmpullaLock.release`); shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/war.lua` | 222 | Entry point (the same for every character; `<Char>_WAR.lua` and its template `_master/entry/Tetsouo_WAR.lua` are one `include` of it): config preload, `get_sets`, `init_gear_sets` + `sync_weapon_with_hand`, `job_sub_job_change`, `user_setup` (+ `AmpullaLock.apply`), `job_update`, `file_unload` (+ `AmpullaLock.release`); shared hooks from `shared/utils/core/entry_kit.lua` |
 | `shared/jobs/war/functions/war_functions.lua` | 109 | Facade: includes `message_buffs.lua` and the 11 hook files, requires `dualbox_manager` |
-| `shared/jobs/war/functions/WAR_PRECAST.lua` | 138 | `job_precast` / `job_post_precast`: guard, cooldown, WS handler (which runs AutoJump), TP gear |
+| `shared/jobs/war/functions/WAR_PRECAST.lua` | 43 | `job_precast` / `job_post_precast`: guard, cooldown, WS handler (which runs AutoJump), TP gear |
 | `shared/jobs/war/functions/WAR_MIDCAST.lua` | 74 | `job_midcast` (empty) / `job_post_midcast`: Healing and Enhancing routed to `MidcastManager` |
 | `shared/jobs/war/functions/WAR_AFTERCAST.lua` | 37 | `job_aftercast`: empty |
 | `shared/jobs/war/functions/WAR_IDLE.lua` | 57 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/war/functions/WAR_ENGAGED.lua` | 53 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/war/functions/WAR_STATUS.lua` | 27 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/war/functions/WAR_BUFFS.lua` | 117 | `job_buff_change` (Doom, Aftermath Lv.3 refresh through `LifecycleManager.refresh_after_buff`) and the globals `buff_war`, `buff_sam_sub`, `build_tp` |
-| `shared/jobs/war/functions/WAR_COMMANDS.lua` | 324 | `job_self_command` router and `job_state_change` (WS slot rebuild, `AmpullaLock.apply` on `HybridMode`, UI refresh) |
+| `shared/jobs/war/functions/WAR_COMMANDS.lua` | 221 | `job_self_command` router and `job_state_change` (WS slot rebuild, `AmpullaLock.apply` on `HybridMode`, UI refresh) |
 | `shared/jobs/war/functions/WAR_MOVEMENT.lua` | 177 | Retaliation auto-cancel (AutoMove callback), Retaliation debug helpers |
-| `shared/jobs/war/functions/WAR_LOCKSTYLE.lua` | 53 | Lazy `LockstyleManager.create('WAR', ..., 4, 'SAM')` wrappers |
-| `shared/jobs/war/functions/WAR_MACROBOOK.lua` | 48 | Lazy `MacrobookManager.create('WAR', ..., 'SAM', 22, 1)` wrapper |
 | `shared/jobs/war/functions/logic/set_builder.lua` | 251 | Engaged base selection (KC through `BaseSetBuilder.kraken_in_offhand`, stance, AM3, weapon set, HybridMode), weapon layer (`BaseSetBuilder.lay_weapon`), stance ammo (`apply_stance_ammo` = `AmpullaLock.stance_ammo`), town / movement idle |
 | `shared/jobs/war/functions/logic/smartbuff_manager.lua` | 123 | `buff_war`, `buff_sam_sub`, `build_tp`: lists sent through the shared buff engine; `WAR_CHAINS`, the default chains of `berserk` / `defender` |
 | `shared/utils/buffs/self_buff_manager.lua`, `buff_config.lua` | 438, 88 | The buff engine and the `BUFF_CONFIG.lua` settings (`refresh_below`, `cancel_first`, the waits; the chains themselves are in `war/combat/WAR_CONFIG.lua` since 2026-10-10), shared with `//gs c buff` ([midcast and buffs](../systems/midcast-and-buffs.md#buff-command-and-engine)) |
@@ -420,9 +418,8 @@ Mote defaults also exist: `OffenseMode`, `IdleMode`, `CastingMode`,
 
 ## Commands
 
-`job_self_command` (`WAR_COMMANDS.lua`) lowercases the first word and tests, in
-order: `watchdog` commands, dual-box internals, **CommonCommands**, `ui`,
-`debugmidcast`, Retaliation debug, `cyclestate`, `perf`, then the WAR commands. A
+`job_self_command` (`WAR_COMMANDS.lua`) lowercases the first word and asks
+`JobCommands.shared` (`shared/utils/core/job_commands.lua`): watchdog, dual-box internals, `CommonCommands`, UI, `debugmidcast`, `cyclestate`, then Retaliation debug and the WAR commands. A
 name nothing here handles falls to Mote, whose `selfCommandMaps` ends with the
 dual-box alt's commands
 ([commands](../systems/commands-and-debug.md#4-alt-commands-and-name-shadowing)).
@@ -439,7 +436,6 @@ partner's alt config has the same names; `//gs c alt berserk` sends the alt's.
 | `debugretaliation` / `debugretal` | Toggle Retaliation tracker debug | `toggle_retaliation_debug` (`WAR_MOVEMENT.lua`) |
 | `retalstatus` | Print tracker state | `get_retaliation_status` |
 | `cyclestate <State> [reverse]` | UI-aware cycle (all keybinds) | `CycleHandler.handle_cyclestate` |
-| `perf ...` | Unreachable: `perf` is claimed by CommonCommands first | job branch kept, commented as unreachable |
 | `berserk` | `buff_war('Berserk')` | `SmartbuffManager.buff_war` |
 | `defender` | `buff_war('Defender')` | same |
 | `thirdeye` | `buff_sam_sub()` (/SAM only, warning `thirdeye: needs /SAM` otherwise) | `SmartbuffManager.buff_sam_sub` |
@@ -489,7 +485,7 @@ through a loop). The player-facing list is [war/sets.md](../../user/jobs/war/set
 | `<char>/war/display/WAR_HUD.lua` | empty lists | file | HUD; rewritten by `//gs c ui order` / `roworder` |
 | `<char>/war/combat/WAR_WS_CONFIG.lua` `max_slots`, `by_weapon` | 5, 9 weapon keys | file (`CharPaths.optional`: a missing file leaves `_G.WARWSConfig` nil and no slot is built; a broken file still errors) | `WSSlots` via `_G.WARWSConfig` |
 | `<char>/war/combat/WAR_TP_CONFIG.lua` | `'auto'` for Savagery merits, Agoge Mask and Fencer gifts (read from the game, `game_facts.lua`) | file | `WSPrecastHandler` via `_G.WARTPConfig` (captured on first action) |
-| `<char>/war/display/WAR_LOCKSTYLE.lua` `default`, `by_subjob`, `get_style` | 4 (all subjobs) | file; factory fallback 4 (`WAR_LOCKSTYLE.lua` wrapper) | `LockstyleManager` |
+| `<char>/war/display/WAR_LOCKSTYLE.lua` `default`, `by_subjob`, `get_style` | 4 (all subjobs) | file; factory fallback 4 (`shared/data/job_defaults.lua`) | `LockstyleManager` |
 | `<char>/war/display/WAR_MACROBOOK.lua` | template book 22 page 1 (/DRG 25, /DNC 28, dual-box 22-30); overlay book 3 (/SAM, /DRG, /DNC solo), 5 in dual-box | file; factory fallback book 22 page 1 | `MacrobookManager` |
 | `<char>/war/inventory/WAR_REFILL.lua` | the commented template (common list of `REFILL_CONFIG.lua` until edited); the author's overlay has its own list | file | `//gs c refill` (the common list without a list in it) |
 | `<char>/_common/combat/RECAST_CONFIG.lua` | tolerance 2.0 | shared | entry `get_sets` -> `is_recast_ready` / `is_on_cooldown` |
@@ -652,7 +648,6 @@ cancel depend on recasts, packets and timing: check them in game with
   recorded with `CombatMode.hold` and laid again after every update.
 - The Healing / Enhancing midcast routing is a no-op: no `sets.midcast` entry in
   either sets file.
-- `perf` branch unreachable (`WAR_COMMANDS.lua`).
 - `WAR_BUFFS` repeats the `LifecycleManager.buff_change` body (duplication finding).
 - Dead code: the `grips` list in `WAR_TP_CONFIG.lua` (used only to return 0 for
   Fencer, like any non-shield sub).

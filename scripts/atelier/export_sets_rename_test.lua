@@ -17,14 +17,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- the set file's copy lines, as file_copies reads them
 local tmp = os.tmpname()
@@ -58,5 +52,4 @@ check('Comet.MagicBurst kept as an alias', has_alias('sets.midcast["Elemental Ma
 check('Magic Burst head', ((by['sets.midcast["Elemental Magic"].MagicBurst'] or {}).pieces or {}).head and by['sets.midcast["Elemental Magic"].MagicBurst'].pieces.head.name, 'Ea Hat +1')
 
 os.remove(tmp)
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

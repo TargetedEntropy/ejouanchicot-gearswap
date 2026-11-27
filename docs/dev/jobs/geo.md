@@ -51,9 +51,6 @@ function, not a line number.
 | `shared/jobs/geo/functions/GEO_STATUS.lua` | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/geo/functions/GEO_BUFFS.lua` | Own `job_buff_change`: `AltBuffReporter.report`, Doom, Entrust expiry |
 | `shared/jobs/geo/functions/GEO_COMMANDS.lua` | `job_self_command` router, `geo_escort_on_aftercast`, `job_state_change = LifecycleManager.state_change()` |
-| `shared/jobs/geo/functions/GEO_MOVEMENT.lua` | Header only, kept for the 12-module layout |
-| `shared/jobs/geo/functions/GEO_LOCKSTYLE.lua` | Lazy `LockstyleManager.create('GEO', ..., 1, 'SAM')` wrappers |
-| `shared/jobs/geo/functions/GEO_MACROBOOK.lua` | Lazy `MacrobookManager.create('GEO', ..., 'SAM', 1, 1)` wrapper |
 | `shared/jobs/geo/functions/logic/bolster_follow.lua` | `BolsterFollow.note_cast` (the luopan placed with Blaze of Glory / under Bolster or not), `on_buff_change`: Bolster gained, Full Circle on a luopan from before it then Blaze of Glory; Bolster lost, Ecliptic Attrition or Full Circle, or, Bolster ready again in a Sortie fight that lists it (Wild Card), Bolster then the Bolster-gained steps (key `bolster_follow`) |
 | `shared/jobs/geo/functions/logic/fight_opening.lua` | `FightOpening.plan`, `open_fight`, `fight_end`, `on_bubble_placed`: the Sortie fight opening (`//gs c fightopen`), the recasts given back by a COR during the fight |
 | `shared/utils/precast/ability_queue.lua` | `AbilityHelper.queue()`: our job abilities one at a time in the bot's gaps, the bot's spells held 1.5 s after each |

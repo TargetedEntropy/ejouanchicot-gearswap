@@ -48,12 +48,10 @@ include('../shared/jobs/rng/functions/RNG_BUFFS.lua')        -- Doom (shared han
 TIMER('RNG_BUFFS')
 
 -- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
-include('../shared/jobs/rng/functions/RNG_LOCKSTYLE.lua')
-include('../shared/jobs/rng/functions/RNG_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('RNG')
+require('shared/utils/macrobook/macrobook_manager').install('RNG')
 include('../shared/jobs/rng/functions/RNG_COMMANDS.lua')     -- Commands, state change hook
 TIMER('RNG_COMMANDS')
-include('../shared/jobs/rng/functions/RNG_MOVEMENT.lua')     -- Movement status API
-TIMER('RNG_MOVEMENT')
 
 -- Dual-boxing manager (deferred init + lazy message loading)
 require('shared/utils/dualbox/dualbox_manager')

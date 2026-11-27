@@ -35,23 +35,8 @@ local CharPaths = require('shared/utils/core/char_paths')
 -- The hooks every entry shares (job_update, subjob change, unload, keybind error)
 local EntryKit = require('shared/utils/core/entry_kit')
 
-local lockstyle_config_success, LockstyleConfig = pcall(require, CharPaths.module('common', 'LOCKSTYLE_CONFIG'))
-if not lockstyle_config_success or not LockstyleConfig then
-    LockstyleConfig = {
-        initial_load_delay = 8.0
-    }
-end
-
--- Region configuration, set at file level before anything loads the
--- message system (message_colors reads _G.RegionConfig).
-local region_success, RegionConfig = pcall(require, CharPaths.module('common', 'REGION_CONFIG'))
-if region_success and RegionConfig then
-    _G.RegionConfig = RegionConfig
-end
-
--- UI config, loaded on every reload (config_loader)
-local ConfigLoader = require('shared/utils/config/config_loader')
-local UIConfig = ConfigLoader.load_ui_config(CharPaths.name(), 'SCH')
+-- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
+local LockstyleConfig, UIConfig = EntryKit.load_configs('SCH')
 
 --- GearSwap entry hook: loads Mote-Include, the shared systems and the SCH modules.
 --- Called by GearSwap each time this job file is loaded.
@@ -63,13 +48,9 @@ function get_sets()
     mote_include_version = 2
     include('Mote-Include.lua')
     Profiler.mark('After Mote-Include')
-    include('../shared/utils/core/INIT_SYSTEMS.lua')
-    Profiler.mark('After INIT_SYSTEMS')
+    -- the shared systems, the data, the spell / ability / weaponskill messages
+    EntryKit.after_mote(Profiler)
 
-    require('shared/utils/data/data_loader')
-    include('../shared/hooks/init_spell_messages.lua')
-    include('../shared/hooks/init_ability_messages.lua')
-    include('../shared/hooks/init_ws_messages.lua')
     Profiler.mark('After message hooks')
 
     _G.LockstyleConfig = LockstyleConfig
@@ -78,19 +59,8 @@ function get_sets()
     -- SCH-specific configs
     _G.SCHTPConfig = require(CharPaths.module('job', 'SCH_TP_CONFIG', 'SCH'))
 
-    -- Cancel any pending operations from previous job (including ALL job lockstyles)
-    local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    if jcm_success and JobChangeManager then
-        JobChangeManager.cancel_all()
-    end
-
-    -- Load job-specific functions (AutoMove loaded via INIT_SYSTEMS)
-    include('../shared/jobs/sch/functions/sch_functions.lua')
-    Profiler.mark('After sch_functions')
-
-    if jcm_success and JobChangeManager and cancel_sch_lockstyle_operations then
-        JobChangeManager.register_lockstyle_cancel("SCH", cancel_sch_lockstyle_operations)
-    end
+    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
+    EntryKit.load_facade('SCH', Profiler)
 
     Profiler.finish()
 end

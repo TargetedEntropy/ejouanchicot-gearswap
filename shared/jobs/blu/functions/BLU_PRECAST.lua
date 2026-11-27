@@ -17,29 +17,18 @@
 ---   @author  ejouanchicot
 ---   @version 1.0
 ---   @date    Created: 2026-09-26
----   @requires PrecastGuard, CooldownChecker, WSPrecastHandler
+---   @requires PrecastPipeline
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 local BLUUnbridled = nil
 local BLUExpiacionGuard = nil
-local BLUTPConfig = nil
 
 local modules_loaded = false
 
 local function ensure_modules_loaded()
     if modules_loaded then return end
-
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    CooldownChecker = cc_ok and cc or nil
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    PrecastGuard = pg_ok and pg or nil
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    WSPrecastHandler = wph_ok and wph or nil
 
     local ul_ok, ul = pcall(require, 'shared/jobs/blu/functions/logic/unbridled')
     BLUUnbridled = ul_ok and ul or nil
@@ -47,75 +36,28 @@ local function ensure_modules_loaded()
     local ex_ok, ex = pcall(require, 'shared/jobs/blu/functions/logic/expiacion_guard')
     BLUExpiacionGuard = ex_ok and ex or nil
 
-    BLUTPConfig = _G.BLUTPConfig or {}
     modules_loaded = true
-end
-
---- Cancel an ability or spell still on recast.
---- @param spell table Spell/ability data
---- @param eventArgs table Event arguments (cancel set when on recast)
-local function check_cooldown(spell, eventArgs)
-    if not CooldownChecker then return end
-    if spell.action_type == 'Ability' then
-        CooldownChecker.check_ability_cooldown(spell, eventArgs)
-    elseif spell.action_type == 'Magic' then
-        CooldownChecker.check_spell_cooldown(spell, eventArgs)
-    end
 end
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   PRECAST HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Called before any action (WS, JA, spell, item)
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    -- 1. Debuff guard
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- 2. Cooldown check
-    check_cooldown(spell, eventArgs)
-    if eventArgs.cancel then
-        return
-    end
-
-    -- 3. Unbridled Learning first (blu/combat/BLU_CONFIG.lua)
-    if BLUUnbridled then
-        BLUUnbridled.apply(spell, eventArgs)
-        if eventArgs.cancel or eventArgs.handled then
-            return
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('BLU', {
+    load = ensure_modules_loaded,
+    after_cooldown = function(spell, eventArgs)
+        -- Unbridled Learning first for the spells that need it
+        if BLUUnbridled then
+            BLUUnbridled.apply(spell, eventArgs)
+            if eventArgs.cancel or eventArgs.handled then
+                return true
+            end
         end
-    end
-
-    -- 4. Expiacion held back for the Aftermath: Lv.3 window (blu/combat/BLU_CONFIG.lua)
-    if BLUExpiacionGuard and spell.type == 'WeaponSkill' and BLUExpiacionGuard.check(spell, eventArgs) then
-        return
-    end
-
-    -- 5. Weaponskill validation and TP bonus gear
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, BLUTPConfig) then
-        return
-    end
-end
-
----   Called after Mote's precast set, before it is equipped
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-end
+        return BLUExpiacionGuard and spell.type == 'WeaponSkill' and BLUExpiacionGuard.check(spell, eventArgs)
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

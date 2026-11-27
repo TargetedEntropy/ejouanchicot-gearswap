@@ -33,8 +33,9 @@ package.loaded['shared/utils/precast/ability_helper'] = {
 }
 local G = dofile('shared/jobs/geo/functions/logic/geo_auto_abilities.lua')
 
-local fails = 0
-local function check(name, ok) if not ok then fails = fails + 1 end print((ok and 'ok   ' or 'FAIL ') .. name) end
+local T = dofile('scripts/lib/testlib.lua')
+T.verbose = true
+local check = T.ok
 local function cast(target)
     local args = {}
     G.apply({skill = 'Geomancy', english = 'Geo-Gravity', target = {name = target or 'Aita', id = 77}}, args)
@@ -89,5 +90,4 @@ check('  Full Circle sent', count('input /ja "Full Circle" <me>') == 1)
 if later then later() end
 check('  the Geo- recast after it', count('input /ma "Geo-Gravity" 77') == 1)
 
-print(fails == 0 and 'ALL OK' or (fails .. ' FAILED'))
-os.exit(fails == 0 and 0 or 1)
+T.done()

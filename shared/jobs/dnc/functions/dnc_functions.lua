@@ -67,12 +67,10 @@ TIMER('DNC_BUFFS')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 -- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
-include('../shared/jobs/dnc/functions/DNC_LOCKSTYLE.lua') -- Lockstyle (LockstyleManager factory)
-include('../shared/jobs/dnc/functions/DNC_MACROBOOK.lua') -- Macro book selection per subjob
+require('shared/utils/lockstyle/lockstyle_manager').install('DNC') -- Lockstyle (LockstyleManager factory)
+require('shared/utils/macrobook/macrobook_manager').install('DNC') -- Macro book selection per subjob
 include('../shared/jobs/dnc/functions/DNC_COMMANDS.lua')  -- Commands: step, dance, smartbuff + shared
 TIMER('DNC_COMMANDS')
-include('../shared/jobs/dnc/functions/DNC_MOVEMENT.lua')  -- Movement status accessor
-TIMER('DNC_MOVEMENT')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   LOGIC MODULES (Loaded dynamically via require() by hook modules)

@@ -50,12 +50,10 @@ include('../shared/jobs/blu/functions/BLU_BUFFS.lua')     -- Buff change (Doom)
 TIMER('BLU_BUFFS')
 
 -- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
-include('../shared/jobs/blu/functions/BLU_LOCKSTYLE.lua')
-include('../shared/jobs/blu/functions/BLU_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('BLU')
+require('shared/utils/macrobook/macrobook_manager').install('BLU')
 include('../shared/jobs/blu/functions/BLU_COMMANDS.lua')  -- Commands, state change hook
 TIMER('BLU_COMMANDS')
-include('../shared/jobs/blu/functions/BLU_MOVEMENT.lua')  -- Movement status API
-TIMER('BLU_MOVEMENT')
 
 -- Dual-boxing manager (deferred init + lazy message loading)
 require('shared/utils/dualbox/dualbox_manager')

@@ -86,8 +86,7 @@ local MessageSortie = nil
 --- @return table|nil
 local function messages()
     if not MessageSortie then
-        local ok, mod = pcall(require, 'shared/utils/messages/formatters/system/message_sortie')
-        MessageSortie = ok and mod or nil
+        MessageSortie = require('shared/utils/messages/formatters/system/message_sortie')
     end
     return MessageSortie
 end

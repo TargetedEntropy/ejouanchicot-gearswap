@@ -38,8 +38,7 @@
 local AltGroup = {}
 
 local function messages()
-    local ok, m = pcall(require, 'shared/utils/messages/formatters/system/message_altgroup')
-    return ok and m or nil
+    return require('shared/utils/messages/formatters/system/message_altgroup')
 end
 
 --- Messages for the state the alt window shows (Auto, Follow, Mirror):

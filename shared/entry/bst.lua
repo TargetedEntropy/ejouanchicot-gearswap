@@ -21,18 +21,8 @@ local CharPaths = require('shared/utils/core/char_paths')
 -- The hooks every entry shares (job_update, subjob change, unload, keybind error)
 local EntryKit = require('shared/utils/core/entry_kit')
 
-local LockstyleConfig_ok, LockstyleConfig = pcall(require, CharPaths.module('common', 'LOCKSTYLE_CONFIG'))
-if not LockstyleConfig_ok then LockstyleConfig = nil end
-LockstyleConfig = LockstyleConfig or {
-    initial_load_delay = 8.0
-}
-
--- ============================================
--- LOAD UICONFIG AT MODULE LEVEL (executed on EVERY reload)
--- ============================================
--- Centralized loading via config_loader to eliminate duplication
-local ConfigLoader = require('shared/utils/config/config_loader')
-local UIConfig = ConfigLoader.load_ui_config(CharPaths.name(), 'BST')
+-- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
+local LockstyleConfig, UIConfig = EntryKit.load_configs('BST')
 
 -- Core modules, after config_loader: UI_MANAGER reads _G.UIConfig when it loads.
 -- The require cache is already in (char_paths.lua, required first, installs it).
@@ -42,14 +32,6 @@ local ui_success, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
 ---============================================================================
 --- GEARSWAP ENTRY POINT
 ---============================================================================
-
--- Region configuration, set at file level: message_colors reads
--- _G.RegionConfig at each use, so it only has to be set before the first
--- message that uses the region colour.
-local region_success, RegionConfig = pcall(require, CharPaths.module('common', 'REGION_CONFIG'))
-if region_success and RegionConfig then
-    _G.RegionConfig = RegionConfig
-end
 
 --- GearSwap entry hook: loads the BST configs, Mote-Include, the shared systems
 --- and the BST modules. Called by GearSwap each time this job file is loaded.
@@ -78,46 +60,11 @@ function get_sets()
 
     include('Mote-Include.lua')
     Profiler.mark('After Mote-Include')
-    include('../shared/utils/core/INIT_SYSTEMS.lua')
-    Profiler.mark('After INIT_SYSTEMS')
+    -- the shared systems, the data, the spell / ability / weaponskill messages
+    EntryKit.after_mote(Profiler)
 
-    -- ============================================
-    -- UNIVERSAL DATA ACCESS (All Spells/Abilities/Weaponskills)
-    -- ============================================
-    require('shared/utils/data/data_loader')
-    Profiler.mark('After data_loader')
-
-    -- ============================================
-    -- UNIVERSAL SPELL MESSAGES (All Jobs/Subjobs)
-    -- ============================================
-    include('../shared/hooks/init_spell_messages.lua')
-    Profiler.mark('After spell messages')
-
-    -- ============================================
-    -- UNIVERSAL ABILITY MESSAGES (All Jobs/Subjobs)
-    -- ============================================
-    include('../shared/hooks/init_ability_messages.lua')
-    Profiler.mark('After ability messages')
-
-    -- ============================================
-    -- UNIVERSAL WEAPONSKILL MESSAGES (All Jobs/Subjobs)
-    -- ============================================
-    include('../shared/hooks/init_ws_messages.lua')
-    Profiler.mark('After WS messages')
-
-    -- Cancel pending operations from previous job
-    if jcm_success and JobChangeManager then
-        JobChangeManager.cancel_all()
-    end
-
-    -- Load job-specific functions (AutoMove loaded via INIT_SYSTEMS)
-    include('../shared/jobs/bst/functions/bst_functions.lua')
-    Profiler.mark('After bst_functions')
-
-    -- Register BST lockstyle cancel function
-    if jcm_success and JobChangeManager and cancel_bst_lockstyle_operations then
-        JobChangeManager.register_lockstyle_cancel("BST", cancel_bst_lockstyle_operations)
-    end
+    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
+    EntryKit.load_facade('BST', Profiler)
 
     Profiler.finish()
 end

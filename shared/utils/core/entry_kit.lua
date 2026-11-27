@@ -28,6 +28,63 @@ local function formatter()
     return ok and MessageFormatter or nil
 end
 
+--- What an entry reads when its file is loaded, before get_sets: the lockstyle
+--- delays (the character's LOCKSTYLE_CONFIG, an 8 s first lockstyle without
+--- one), the region colours (REGION_CONFIG, read by message_colors as
+--- _G.RegionConfig at each use: set before the first coloured message) and the
+--- HUD settings (ConfigLoader.load_ui_config, which also sets _G.UIConfig:
+--- UI_MANAGER reads it when it loads, so it comes before UI_MANAGER).
+--- @param job string The entry's job
+--- @return table LockstyleConfig, table UIConfig
+function EntryKit.load_configs(job)
+    local CharPaths = require('shared/utils/core/char_paths')
+    local ok, LockstyleConfig = pcall(require, CharPaths.module('common', 'LOCKSTYLE_CONFIG'))
+    if not ok or not LockstyleConfig then
+        LockstyleConfig = {initial_load_delay = 8.0}
+    end
+    local region_ok, RegionConfig = pcall(require, CharPaths.module('common', 'REGION_CONFIG'))
+    if region_ok and RegionConfig then
+        _G.RegionConfig = RegionConfig
+    end
+    local UIConfig = require('shared/utils/config/config_loader').load_ui_config(CharPaths.name(), job)
+    return LockstyleConfig, UIConfig
+end
+
+--- get_sets' middle, the same for every job, right after include('Mote-Include.lua'):
+--- the shared systems, the spell / ability / weaponskill data, the three message hooks.
+--- @param Profiler table The performance profiler get_sets started (its marks, //gs c perf)
+function EntryKit.after_mote(Profiler)
+    include('../shared/utils/core/INIT_SYSTEMS.lua')
+    Profiler.mark('After INIT_SYSTEMS')
+    require('shared/utils/data/data_loader')
+    Profiler.mark('After data_loader')
+    include('../shared/hooks/init_spell_messages.lua')
+    Profiler.mark('After spell messages')
+    include('../shared/hooks/init_ability_messages.lua')
+    Profiler.mark('After ability messages')
+    include('../shared/hooks/init_ws_messages.lua')
+    Profiler.mark('After WS messages')
+end
+
+--- The job's facade (shared/jobs/<job>/functions/<job>_functions.lua): what the
+--- previous job scheduled is cancelled first, and the job's lockstyle cancel
+--- (defined by the facade) is handed to JobChangeManager after.
+--- @param job string The entry's job
+--- @param Profiler table The performance profiler get_sets started
+function EntryKit.load_facade(job, Profiler)
+    local jl = job:lower()
+    local JobChangeManager = job_change_manager()
+    if JobChangeManager then
+        JobChangeManager.cancel_all()
+    end
+    include('../shared/jobs/' .. jl .. '/functions/' .. jl .. '_functions.lua')
+    Profiler.mark('After ' .. jl .. '_functions')
+    local cancel = rawget(_G, 'cancel_' .. jl .. '_lockstyle_operations')
+    if JobChangeManager and cancel then
+        JobChangeManager.register_lockstyle_cancel(job, cancel)
+    end
+end
+
 --- Body of job_update (Mote, after every cycle/set/toggle and gs c update):
 --- refresh the HUD. Step 2 of the //gs c debugupdate trace (step 1 is
 --- AutoMove's send, the next ones UI_MANAGER's and the job's customize hooks).

@@ -19,14 +19,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 local FFXI = os.getenv('FFXI_PATH') or 'D:/Steam/steamapps/common/FFXIPAL/SquareEnix/FINAL FANTASY XI'
 local probe = io.open(FFXI .. '/ROM/118/106.DAT', 'rb')
@@ -34,12 +28,9 @@ if not probe then print('skipped: no FFXI DAT files (set FFXI_PATH)') return end
 probe:close()
 
 -- a scratch folder, listed by the test itself (the module asks windower for it)
-local folder = os.tmpname():gsub('\\', '/'):gsub('[^/]*$', '') .. 'item_icons_test_' .. os.time() .. '/'
-os.execute('mkdir "' .. folder:gsub('/', '\\') .. '" 2>nul')
+local folder = T.tmpdir('item_icons_test') .. '/'
 local function listing()
-    local list, h = {}, io.popen('dir /b "' .. folder:gsub('/', '\\') .. '" 2>nul')
-    for line in h:lines() do list[#list + 1] = line end
-    h:close()
+    local list = T.listdir(folder)
     return list
 end
 local scheduled = {}
@@ -115,6 +106,5 @@ for _, name in ipairs(listing()) do if name:match('%.tmp$') then tmp = tmp + 1 e
 check('no .tmp left', tmp, 0)
 
 for _, name in ipairs(listing()) do os.remove(folder .. name) end
-os.execute('rmdir "' .. folder:gsub('/', '\\') .. '" 2>nul')
-print(('%d checks, %d failed'):format(done, failed))
-if failed > 0 then os.exit(1) end
+T.rmtree(folder)
+T.done()

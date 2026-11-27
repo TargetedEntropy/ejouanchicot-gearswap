@@ -114,7 +114,7 @@ sequenceDiagram
 
 Every job's `job_self_command` calls `CommonCommands.is_common_command(command)` and then `CommonCommands.handle_command(command, JOB, table.unpack(args))` (for example `WAR_COMMANDS.lua` `job_self_command`). Inside `CommonCommands` (`COMMON_COMMANDS.lua`):
 
-1. `is_common_command()` accepts the hand-written list (it contains `mount` and `debugwarp`), then any registry alias, then any word ending in `all` whose base is an alias (two loops over `WARP_COMMANDS`, the registry's `COMMANDS` read at `COMMON_COMMANDS.lua:25`).
+1. `is_common_command()` accepts the words of its `WORDS` table (it contains `mount`) and the diagnostics (`debugwarp`), then any registry alias, then any word ending in `all` whose base is an alias (`is_warp`, `COMMON_COMMANDS.lua:354`, a lookup in the registry's `SET`, read at `COMMON_COMMANDS.lua:26`).
 2. `handle_command()` rebuilds `cmdParams = {command, args...}`, answers `sortie`, `alts` / `main` / `setalt` / `altreport` / `altmirror` / `altlead`, `rollshow`, `stealth`, `cleanse`, `combatmode`, `keyconflicts` / `kc`, `th`, `dw`, `support`, `fights`, `dealwatch`, `belt`, `tb`, `trace` and `atelier` first, then checks the warp aliases (and `<alias>all`) before every other common command. Alt commands are Mote's last lookup (`AltCommands.install_fallback`), so a warp alias always runs locally even when the dual-box alt config has a key of the same name (the generated BLM alt config `shared/data/alt/BLM_ALT_COMMANDS.lua` defines `warp`, `escape`, `retrace`; they are reachable only as `//gs c alt warp`).
 3. `handle_warp_commands(cmdParams)` requires `warp_commands` and returns `WarpCommands.handle_command(cmdParams)`; when the module fails to load it prints the error and a module test (see Known issues for a stale path in that test).
 4. `debugwarp` is routed through `DebugCommands.WORDS` to `DebugCommands.handle_debugwarp` (`DEBUG_COMMANDS.lua`, flag kept in `windower._gs_debug.WARP`); `mount` calls `handle_mount()`.
@@ -244,7 +244,7 @@ sequenceDiagram
 
 ### Mount toggle
 
-`//gs c mount` -> `CommonCommands.handle_mount()` (`COMMON_COMMANDS.lua:123-132`) -> `MountManager.toggle()` (`mount_manager.lua:152-158`):
+`//gs c mount` -> `CommonCommands.handle_mount()` (`COMMON_COMMANDS.lua:124-133`) -> `MountManager.toggle()` (`mount_manager.lua:152-158`):
 
 - Mounted when `player.status` is `Mount` or `Chocobo` (`res/statuses.lua` ids 85 and 5) or `buffactive['Mounted']` (`is_mounted`, `:50`) -> `input /dismount`.
 - Otherwise a random owned mount (`math.random`, seeded with `os.time()` at module load, `:41-42`) -> `input /mount "<name>"`. Ownership (`get_owned_mounts`, `:105`): `windower.ffxi.get_abilities().mounts` (list of ids or id-keyed map, `owned_from_api`, `:65`), else the bitfield of the last incoming 0x0AE packet, bit `id` at byte `floor(id/8) + 5` (`owned_from_packet`, `:86`; the packet layout is `data[7]` at offset 4 in `libs/packets/fields.lua:3486-3488`), else `Chocobo` (`FALLBACK_MOUNT`).
@@ -341,7 +341,7 @@ Local helpers: `restore_equipment` (39), `abandon_wait` (321), `find_equippable_
 
 Each database module (`HomeDB`, `TeleportsDB`, `NationsDB`, `CitiesDB`, `CombinedDB`) exposes `get_items(key)`, `get_item_by_id(id)` and `count_items()`, called only by the core.
 
-`Registry` (`warp_command_registry.lua`): `COMMANDS` (24, 105 aliases), `SET` (lookup set built from it), `is_warp_command(cmd)` (75; caller `warp_ipc_register.lua`), `IPC_DEBOUNCE` (85; read by both IPC sides). `COMMANDS` is read by `COMMON_COMMANDS.lua:25` and `warp_ipc.lua:47`.
+`Registry` (`warp_command_registry.lua`): `COMMANDS` (24, 105 aliases), `SET` (lookup set built from it), `is_warp_command(cmd)` (75; caller `warp_ipc_register.lua`), `IPC_DEBOUNCE` (85; read by both IPC sides). `SET` is read by `COMMON_COMMANDS.lua:26` (`is_warp`) and `COMMANDS` by `warp_ipc.lua:47`.
 
 `MountManager` (`mount/mount_manager.lua`): `is_mounted()` (50), `get_owned_mounts()` (105), `pick_random_mount()` (125), `dismount()` (132), `mount()` (139), `toggle()` (152). Only `toggle()` is called from outside (`CommonCommands.handle_mount`).
 
@@ -419,9 +419,9 @@ Each alias also has a long form (`sandoria`, `whitegate`, `stable-sd`, `chocircu
 | `_warp_autofix_zone_id`, `_warp_autofix_load` | `drop_stale_autofix_listeners`, `cleanup_and_restore`, `_setup_auto_fix` in `item_user.lua` | Id of the post-use `zone change` listener and its load |
 | `_gs_debug.WARP` | `DebugCommands.handle_debugwarp` (`flip_debug`) | Persistent copy of `_G.WARP_DEBUG` |
 
-Because the engine unregisters sandbox listeners on every load, a persisted id is already dead when the next load reads it, and Windower may have given the number to another listener since. Each id is therefore stored with `windower._gs_reload_count` (bumped by `INIT_SYSTEMS.lua:55` on every load) and unregistered only when that stamp equals the current count: a second registration in the same load (a stale sandbox's deferred init after a load within 0.5 s, or a second ring sequence) replaces its own listener, and nothing else is touched.
+Because the engine unregisters sandbox listeners on every load, a persisted id is already dead when the next load reads it, and Windower may have given the number to another listener since. Each id is therefore stored with `windower._gs_reload_count` (bumped by `INIT_SYSTEMS.lua:99` on every load) and unregistered only when that stamp equals the current count: a second registration in the same load (a stale sandbox's deferred init after a load within 0.5 s, or a second ring sequence) replaces its own listener, and nothing else is touched.
 
-`_G` globals (per sandbox, reset on every load): `WARP_DEBUG` (read across the warp modules, toggled by `debugwarp`; restored from `windower._gs_debug.WARP` by `INIT_SYSTEMS.lua:49`, so it survives a job change; `item_user.lua:24` defaults it to false), `WARP_IPC_BROADCASTING` (written by `send_to_all`, read by the IPC listener), `warp_detector_callbacks` (`warp_detector.lua` `register_callback` / `clear_callbacks` / the listener), `precast` (replaced in every sandbox by `hook_global_precast`), `WARP_PRECAST_HOOKED` (one wrap per sandbox). `shared/utils/debug/global_probe.lua` lists these names as known globals. Module-local state: `WarpEquipment` lock flags, `WarpCommands` debounce, IPC debounce (each side), `WarpIPC.initiated_broadcast`, `WarpDatabase._cached_modules`, `WarpInit.initialized` / `original_precast`.
+`_G` globals (per sandbox, reset on every load): `WARP_DEBUG` (read across the warp modules, toggled by `debugwarp`; restored from `windower._gs_debug.WARP` by `INIT_SYSTEMS.lua:93`, so it survives a job change; `item_user.lua:24` defaults it to false), `WARP_IPC_BROADCASTING` (written by `send_to_all`, read by the IPC listener), `warp_detector_callbacks` (`warp_detector.lua` `register_callback` / `clear_callbacks` / the listener), `precast` (replaced in every sandbox by `hook_global_precast`), `WARP_PRECAST_HOOKED` (one wrap per sandbox). `shared/utils/debug/global_probe.lua` lists these names as known globals. Module-local state: `WarpEquipment` lock flags, `WarpCommands` debounce, IPC debounce (each side), `WarpIPC.initiated_broadcast`, `WarpDatabase._cached_modules`, `WarpInit.initialized` / `original_precast`.
 
 Registered events:
 

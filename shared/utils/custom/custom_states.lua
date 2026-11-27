@@ -230,33 +230,37 @@ end
 function CustomStates.install_hooks()
     local entries = rawget(_G, '_custom_state_entries')
     if type(entries) ~= 'table' or #entries == 0 then return end
-    if _G._custom_state_hooks and _G.handle_equipping_gear == _G._custom_state_hooks.gear then return end
-    local orig_gear, orig_pre, orig_mid = handle_equipping_gear, cleanup_precast, cleanup_midcast
+    if rawget(_G, '_custom_state_hooks') then return end
+    local ActionHooks = require('shared/utils/core/action_hooks')
+    ActionHooks.add('custom_states', 'handle_equipping_gear', {
+        -- the locks are released before the gear goes on, and laid again after the player's gear
+        before = function()
+            local locks = wanted_locks()
+            Locks.release(locks)
+            return locks
+        end,
+        after = function(locks, status)
+            -- A COR roll holds the gear until it lands (gear_hold.lua)
+            if not Guards.hands_off(nil, nil) and not require('shared/utils/core/gear_hold').active() then
+                equip_moments({'all', (status or player.status) == 'Engaged' and 'engaged' or 'idle'}, nil)
+            end
+            Locks.apply(locks)
+        end,
+    })
+    for _, action in ipairs({'precast', 'midcast'}) do
+        ActionHooks.add('custom_states', 'cleanup_' .. action, {
+            after = function(_, spell, _, eventArgs)
+                if Guards.hands_off(spell, eventArgs) then return end
+                equip_moments(action_moments(spell, action), spell)
+            end,
+        })
+    end
     local orig_buff = rawget(_G, 'user_buff_change')
     local hooks = {}
-    hooks.gear = function(status, pet_status)
-        local locks = wanted_locks()
-        Locks.release(locks)
-        if orig_gear then orig_gear(status, pet_status) end
-        -- A COR roll holds the gear until it lands (gear_hold.lua)
-        if not Guards.hands_off(nil, nil) and not require('shared/utils/core/gear_hold').active() then
-            equip_moments({'all', (status or player.status) == 'Engaged' and 'engaged' or 'idle'}, nil)
-        end
-        Locks.apply(locks)
-    end
-    local function action_hook(orig, action)
-        return function(spell, spellMap, eventArgs)
-            if orig then orig(spell, spellMap, eventArgs) end
-            if Guards.hands_off(spell, eventArgs) then return end
-            equip_moments(action_moments(spell, action), spell)
-        end
-    end
-    hooks.pre, hooks.mid = action_hook(orig_pre, 'precast'), action_hook(orig_mid, 'midcast')
     hooks.buff = function(buff, gain, eventArgs)
         if orig_buff then orig_buff(buff, gain, eventArgs) end
         on_buff_change(buff)
     end
-    _G.handle_equipping_gear, _G.cleanup_precast, _G.cleanup_midcast = hooks.gear, hooks.pre, hooks.mid
     _G.user_buff_change = hooks.buff
     _G._custom_state_hooks = hooks
 end

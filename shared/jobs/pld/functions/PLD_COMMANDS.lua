@@ -47,13 +47,16 @@ local function ensure_commands_loaded()
     end
 end
 
+local JobCommands = require('shared/utils/core/job_commands')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HANDLER HOOK
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---   Handle job-specific self commands (command router)
----   Processes commands in order: Watchdog >> dual-box >> Common >> UI >>
----   debugmidcast >> cyclestate >> PLD-specific >> SCH >> WS slots
+---   Processes commands in order: aoe (it must win over the common aoe) >>
+---   JobCommands.shared (watchdog >> dual-box >> common >> UI >>
+---   debugmidcast >> cyclestate) >> PLD-specific >> SCH >> WS slots
 ---
 ---   Common commands:
 ---   • reload         - Reload GearSwap
@@ -82,36 +85,6 @@ function job_self_command(cmdParams, eventArgs)
 
     local command = cmdParams[1]:lower()
 
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- WATCHDOG COMMANDS
-    -- ══════════════════════════════════════════════════════════════════════════
-    if WatchdogCommands.is_watchdog_command(command) then
-        WatchdogCommands.handle_command(cmdParams, eventArgs)
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- DUAL-BOXING: Receive alt job update
-    -- ══════════════════════════════════════════════════════════════════════════
-    if command == 'altjobupdate' then
-        local DualBoxManager = require('shared/utils/dualbox/dualbox_manager')
-        if cmdParams[2] and cmdParams[3] then
-            DualBoxManager.receive_alt_job(cmdParams[2], cmdParams[3], cmdParams[4], cmdParams[5], cmdParams[6], cmdParams[7])
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- DUAL-BOXING: Handle job request from MAIN
-    -- ══════════════════════════════════════════════════════════════════════════
-    if command == 'requestjob' then
-        local DualBoxManager = require('shared/utils/dualbox/dualbox_manager')
-        DualBoxManager.handle_job_request()
-        eventArgs.handled = true
-        return
-    end
-
     -- AOE: the bare word runs the Blue Magic rotation (PLD/BLU). Ahead of
     -- the common commands, which answer `aoe sneak|invi|erase` (/SCH)
     if command == 'aoe' and not cmdParams[2] then
@@ -122,57 +95,7 @@ function job_self_command(cmdParams, eventArgs)
         return
     end
 
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- COMMON COMMANDS (reload, checksets, waltz, etc.)
-    -- ══════════════════════════════════════════════════════════════════════════
-    if CommonCommands.is_common_command(command) then
-        -- Extract arguments after command
-        local args = {}
-        for i = 2, #cmdParams do
-            table.insert(args, cmdParams[i])
-        end
-
-        if CommonCommands.handle_command(command, 'PLD', table.unpack(args)) then
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- UI COMMANDS (ui toggle, update, reload)
-    -- ══════════════════════════════════════════════════════════════════════════
-    if UICommands.is_ui_command(command) then
-        UICommands.handle_ui_command(cmdParams)
-        eventArgs.handled = true
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- DEBUG COMMANDS
-    -- ══════════════════════════════════════════════════════════════════════════
-    if command == 'debugmidcast' then
-        -- Toggle MidcastManager debug mode
-        local MidcastManager = require('shared/utils/midcast/midcast_manager')
-        MidcastManager.toggle_debug()
-
-        -- Confirmation message
-        MessageCommands.show_debugmidcast_toggled('PLD', _G.MidcastManagerDebugState)
-
-        eventArgs.handled = true
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- CUSTOM CYCLE STATE (UI-aware cycle)
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- Intercepts cycle commands to check UI visibility
-    -- If UI visible: custom cycle + UI update (no message)
-    -- If UI invisible: delegate to Mote-Include (shows message)
-
-    if command == 'cyclestate' then
-        eventArgs.handled = CycleHandler.handle_cyclestate(cmdParams, eventArgs)
-        return
-    end
+    if JobCommands.shared(command, cmdParams, eventArgs, 'PLD') then return end
 
     -- ══════════════════════════════════════════════════════════════════════════
     -- PLD-SPECIFIC COMMANDS

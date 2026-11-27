@@ -17,14 +17,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 local ME, OTHER = 441611, 999
 local chunk_handler, action_handler
@@ -143,5 +137,4 @@ buffs({{214, 1792237706}, {198, 1792237509}, {198, 1792237900}, {199, 1792237611
 own = SongOwner.counts()
 check('shifted by a zone, then our Minuet sung again (action first): ours', own, 2)
 
-print(('%d checks, %d failed'):format(done, failed))
-if failed > 0 then os.exit(1) end
+T.done()

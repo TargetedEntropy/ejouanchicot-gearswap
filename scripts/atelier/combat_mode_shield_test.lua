@@ -15,14 +15,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 local mode_value = 'On'
 package.loaded['shared/utils/core/optional_state'] = {create = function()
@@ -63,5 +57,4 @@ state.HybridMode = M('PDT')
 check('mode only: kept', CombatMode.apply(), nil)
 check('mode only: not opened', enabled, 1)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

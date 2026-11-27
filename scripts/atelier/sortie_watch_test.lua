@@ -13,16 +13,13 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, ok)
-    done = done + 1
-    if not ok then failed = failed + 1 print('FAILED ' .. what) end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.ok
 
 -- fakes: game, clock, scheduler, commands (set before the modules load)
 local clock, queue, sent = 0, {}, {}
 os.clock = function() return clock end
-coroutine.schedule = function(fn, delay) queue[#queue + 1] = {at = clock + (delay or 0), fn = fn} end
+coroutine.schedule = function(fn, delay) T.push(queue, {at = clock + (delay or 0), fn = fn}) end
 send_command = function(cmd) sent[#sent + 1] = cmd end
 local mobs, zone = {}, 100
 local party = {p0 = {name = 'Tetsouo', mob = {id = 1001}}, p1 = {name = 'Kaories', mob = {id = 1002}},
@@ -53,7 +50,6 @@ local Sortie = require('shared/utils/sortie/sortie_commands')
 local function advance(seconds)
     local stop = clock + seconds
     while true do
-        table.sort(queue, function(a, b) return a.at < b.at end)
         if not queue[1] or queue[1].at > stop then break end
         local job = table.remove(queue, 1)
         clock = job.at
@@ -158,5 +154,4 @@ local loops = 0
 for _, job in ipairs(queue) do loops = loops + 1 end
 check('prep twice: one loop', loops == 1)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

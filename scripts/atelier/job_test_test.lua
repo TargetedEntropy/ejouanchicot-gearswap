@@ -17,22 +17,15 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- a clock of our own: scheduled calls run in the order of their time
 local now, tasks = 0, {}
-coroutine.schedule = function(fn, delay) tasks[#tasks + 1] = {at = now + (delay or 0), fn = fn, n = #tasks} end
+coroutine.schedule = function(fn, delay) T.push(tasks, {at = now + (delay or 0), fn = fn}) end
 local function run_all(limit)
     local n = 0
     while #tasks > 0 and n < (limit or 100000) do
-        table.sort(tasks, function(a, b) if a.at ~= b.at then return a.at < b.at end return a.n < b.n end)
         local task = table.remove(tasks, 1)
         now = task.at
         task.fn()
@@ -177,5 +170,4 @@ run_all()
 check('left the Mog House: no packet after that', #game.injected, sent)
 check('left the Mog House: the run ended', JobTest.active(), false)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

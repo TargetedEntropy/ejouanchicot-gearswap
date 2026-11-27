@@ -16,19 +16,13 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- a temporary Windower folder holding addons/PorterPacker/data/Test/Active/PLD.lua
-local root = (os.getenv('TEMP') or '.'):gsub('\\', '/') .. '/porter_lists_test/'
+local root = T.tmpdir('porter_lists_test') .. '/'
 local dir = root .. 'addons/PorterPacker/data/Test/Active'
-os.execute('mkdir "' .. dir:gsub('/', '\\') .. '" 2>nul')
+T.mkdir(dir)
 local path = dir .. '/PLD.lua'
 local function put(text) local f = assert(io.open(path, 'w')) f:write(text) f:close() end
 local function list() return dofile(path) end
@@ -89,5 +83,4 @@ check('unpack: back to the set piece alone', #t.unpack, 1)
 check('pack: still names it', has(t.pack, 'Style Mask'), true)
 
 os.remove(path) os.remove(path .. '.bak')
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

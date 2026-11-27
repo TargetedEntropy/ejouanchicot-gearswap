@@ -239,30 +239,27 @@ end
 --- Called from INIT_SYSTEMS after the Dual Wield and Obi / Orpheus hooks.
 function TreasureHunter.install()
     if rawget(_G, '_treasure_installed') then return end
-    local gear, pre, mid = rawget(_G, 'handle_equipping_gear'), rawget(_G, 'cleanup_precast'), rawget(_G, 'cleanup_midcast')
-    if type(gear) ~= 'function' or type(pre) ~= 'function' or type(mid) ~= 'function' then return end
     _G._treasure_installed = true
     TreasureHunter.init()
-    _G.handle_equipping_gear = function(status, pet_status)
-        local result = gear(status, pet_status)
-        -- A COR roll holds the gear until it lands (gear_hold.lua)
-        if (status or (player and player.status)) == 'Engaged'
-           and not require('shared/utils/core/gear_hold').active() then
-            pcall(TreasureHunter.lay_engaged)
-        end
-        return result
-    end
-    local function action_hook(orig, phase)
-        return function(spell, spellMap, eventArgs)
-            local result = orig(spell, spellMap, eventArgs)
-            if not (eventArgs and eventArgs.cancel) and action_wants_th(spell, phase) then
-                equip(sets.TreasureHunter)
+    local ActionHooks = require('shared/utils/core/action_hooks')
+    ActionHooks.add('treasure_hunter', 'handle_equipping_gear', {
+        after = function(_, status)
+            -- A COR roll holds the gear until it lands (gear_hold.lua)
+            if (status or (player and player.status)) == 'Engaged'
+               and not require('shared/utils/core/gear_hold').active() then
+                TreasureHunter.lay_engaged()
             end
-            return result
-        end
+        end,
+    })
+    for _, phase in ipairs({'precast', 'midcast'}) do
+        ActionHooks.add('treasure_hunter', 'cleanup_' .. phase, {
+            after = function(_, spell, _, eventArgs)
+                if not (eventArgs and eventArgs.cancel) and action_wants_th(spell, phase) then
+                    equip(sets.TreasureHunter)
+                end
+            end,
+        })
     end
-    _G.cleanup_precast = action_hook(pre, 'precast')
-    _G.cleanup_midcast = action_hook(mid, 'midcast')
 end
 
 ---============================================================================

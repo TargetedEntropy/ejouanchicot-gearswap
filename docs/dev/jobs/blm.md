@@ -43,9 +43,6 @@ function, not a line number.
 | `shared/jobs/blm/functions/BLM_STATUS.lua` | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/blm/functions/BLM_BUFFS.lua` | `job_buff_change = LifecycleManager.buff_change()` |
 | `shared/jobs/blm/functions/BLM_COMMANDS.lua` | `job_self_command` router, BLM cycle handlers, `job_state_change` (HUD refresh) |
-| `shared/jobs/blm/functions/BLM_MOVEMENT.lua` | Empty module (`return {}`, 16 lines) kept for the 12-module layout; its `job_handle_equipping_gear` Impact hook was removed on 2026-09-30 |
-| `shared/jobs/blm/functions/BLM_LOCKSTYLE.lua` | Lazy `LockstyleManager.create('BLM', ...)` wrappers |
-| `shared/jobs/blm/functions/BLM_MACROBOOK.lua` | Lazy `MacrobookManager.create('BLM', ...)` wrapper |
 | `shared/jobs/blm/functions/logic/midcast_router.lua` | `Router.handle_impact`, `handle_elemental`, `handle_dark`, `handle_enfeebling`, and the override helpers |
 | `shared/jobs/blm/functions/logic/elemental_matcher.lua` | Storm (all 8) / day / weather element match, by element id |
 | `shared/jobs/blm/functions/logic/set_builder.lua` | `build_idle_set` / `build_engaged_set`: mode base, town, weapons, movement, Mana Wall |
@@ -450,7 +447,7 @@ set's mode child, so Comet and Meteor in Magic Burst mode wear `MagicBurst`
 | `<char>/blm/keys/BLM_KEYBINDS.lua` | 17 binds | file | entry `user_setup`, `file_unload` |
 | `<char>/blm/keys/BLM_CUSTOM.lua` | nothing active | file | `KeybindManager` / `CustomStates` |
 | `<char>/blm/display/BLM_HUD.lua` | empty | file | HUD section / row order |
-| `<char>/blm/display/BLM_LOCKSTYLE.lua` `default`, `by_subjob` | 5 | file; factory fallback 1 (`BLM_LOCKSTYLE.lua` wrapper) | `LockstyleManager`: `by_subjob[sub]`, else `default` (no `get_style`; `by_subjob` read by the factory itself since 2026-10-30) |
+| `<char>/blm/display/BLM_LOCKSTYLE.lua` `default`, `by_subjob` | 5 | file; factory fallback 1 (`shared/data/job_defaults.lua`) | `LockstyleManager`: `by_subjob[sub]`, else `default` (no `get_style`; `by_subjob` read by the factory itself since 2026-10-30) |
 | `<char>/blm/display/BLM_MACROBOOK.lua` `default`, `solo[sub]`, `dualbox[alt_job][sub]` | book 8 page 1 | file; factory fallback book 1 page 1 | `MacrobookManager` |
 | `<char>/blm/combat/BLM_MP_CONFIG.lua` `mp_threshold` | 1000 | file; fallback in `BLM_MIDCAST.lua` `ensure_modules_loaded` | `apply_mp_conservation` |
 | `<char>/blm/combat/BLM_ELEMENTAL_CONFIG.lua` | all true | file; same fallback | `apply_elemental_match` (only when `ElementalBelt` is off) |

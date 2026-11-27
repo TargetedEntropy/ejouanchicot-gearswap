@@ -22,14 +22,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, ok, detail)
-    done = done + 1
-    if not ok then
-        failed = failed + 1
-        print(('FAILED %s%s'):format(what, detail and (': ' .. detail) or ''))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.ok
 local function compiles(text)
     local f, err = loadstring(text)
     return f ~= nil, err
@@ -102,5 +96,4 @@ ok, err = compiles(out)
 check('CRLF: a line out and one in compiles', ok, err)
 check('CRLF: the new line is in, the old one out', out:find("sub = 'Genmei Shield'", 1, true) ~= nil and not out:find("'A'", 1, true), ('%q'):format(out))
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

@@ -51,12 +51,10 @@ include('../shared/jobs/pup/functions/PUP_BUFFS.lua')        -- Doom, Overdrive
 TIMER('PUP_BUFFS')
 
 -- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
-include('../shared/jobs/pup/functions/PUP_LOCKSTYLE.lua')
-include('../shared/jobs/pup/functions/PUP_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('PUP')
+require('shared/utils/macrobook/macrobook_manager').install('PUP')
 include('../shared/jobs/pup/functions/PUP_COMMANDS.lua')     -- Commands (petmode), state change hook
 TIMER('PUP_COMMANDS')
-include('../shared/jobs/pup/functions/PUP_MOVEMENT.lua')     -- Movement status API
-TIMER('PUP_MOVEMENT')
 
 -- Dual-boxing manager (deferred init + lazy message loading)
 require('shared/utils/dualbox/dualbox_manager')

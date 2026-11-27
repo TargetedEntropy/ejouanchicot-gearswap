@@ -37,7 +37,7 @@ const STATE_HELP_EN = {
   "MainInstrument": "Instrument for buff songs that do not need a specific one",
   "VictoryMarch": "When Haste or Haste II is already on you, Victory March in the pack is replaced by Blade Madrigal, Valor Minuet III or the Etude of EtudeType. None keeps it",
   "MainWeapon": "Main weapon",
-  "SubWeapon": "Off-hand",
+  "SubWeapon": "Off-hand. Without Dual Wield (a subjob other than /NIN 10+ or /DNC 20+, or level 0 as in Sheol Gaol) the key only offers Genmei: the weapons are left out of the list. The last pick on each side is given back for the session",
   "EtudeType": "Etude sung by //gs c etude and by the Etude replacement",
   "CarolElement": "//gs c carol sings <Element> Carol II",
   "ThrenodyElement": "//gs c threnody casts <Element> Threnody II on <stnpc>",
@@ -98,7 +98,7 @@ const STATE_HELP_EN = {
   "MainDarkAOE": "Spell of //gs c darkaoe",
   "AOETier": "Tier of the -ra nukes (I = Fira)",
   "HybridMode": "Your idle/engaged base when no luopan is out. In the provided sets the PDT sets are still copies of Normal: fill them for the mode to change anything",
-  "CombatMode": "On puts on sets.CombatMode if you define one, then locks main, sub, range and ammo so casting never swaps your weapon. Off unlocks them (unless a craft session holds them)",
+  "CombatMode": "On puts on sets.CombatMode if you define one, then locks main and sub so casting never swaps your weapon (the handbell and the ammo still change: no TP lost). Off unlocks them (unless a craft session holds them)",
   "LuopanMode": "Engaged gear while a luopan is out: sets.luopan.engaged.DT or .DPS",
   "IndicolureMode": "Shown in the HUD only; no command reads it today"
  },
@@ -140,7 +140,7 @@ const STATE_HELP_EN = {
  },
  "RDM": {
   "MainWeapon": "Main-hand weapon",
-  "SubWeapon": "Off hand. With a shield your engaged set is sets.engaged.<Mode>; with a second weapon on /NIN or /DNC, sets.engaged.<Mode>.DW if you defined it (other subjobs keep the normal set)",
+  "SubWeapon": "Off hand. Without Dual Wield (a subjob other than /NIN 10+ or /DNC 20+, or level 0 as in Sheol Gaol) the key only offers the shields: Malevolence is left out of the list. With a shield your engaged set is sets.engaged.<Mode>; with a second weapon on /NIN or /DNC, sets.engaged.<Mode>.DW if you defined it (other subjobs keep the normal set)",
   "EngagedMode": "Engaged gear: sets.engaged.DT, .Acc, .TP or .Enspell",
   "IdleMode": "Idle gear: sets.idle.Refresh or sets.idle.DT",
   "CombatMode": "On puts on sets.CombatMode if you define one, then locks main, sub and range so casting never swaps your weapons (TP kept). Off frees them, unless a craft session holds them",

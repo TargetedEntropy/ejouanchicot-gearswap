@@ -62,12 +62,10 @@ TIMER('GEO_BUFFS')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 -- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
-include('../shared/jobs/geo/functions/GEO_LOCKSTYLE.lua')
-include('../shared/jobs/geo/functions/GEO_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('GEO')
+require('shared/utils/macrobook/macrobook_manager').install('GEO')
 include('../shared/jobs/geo/functions/GEO_COMMANDS.lua')
 TIMER('GEO_COMMANDS')
-include('../shared/jobs/geo/functions/GEO_MOVEMENT.lua')
-TIMER('GEO_MOVEMENT')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   LOGIC MODULES REFERENCE

@@ -18,22 +18,15 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- a virtual clock
 local now, jobs = 0, {}
 os.clock = function() return now end
-coroutine.schedule = function(fn, d) jobs[#jobs + 1] = {at = now + (d or 0), fn = fn} end
+coroutine.schedule = function(fn, d) T.push(jobs, {at = now + (d or 0), fn = fn}) end
 local function run()
     while #jobs > 0 do
-        table.sort(jobs, function(a, b) return a.at < b.at end)
         local job = table.remove(jobs, 1)
         now = job.at
         job.fn()
@@ -250,5 +243,4 @@ sent = {}
 bolster(false)
 check('in fight, Bolster on recast: EA', sent[1], 'input /ja "Ecliptic Attrition" <me>')
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

@@ -247,17 +247,14 @@ end
 --- update (a cyclestate, a status change, a reload). Called from INIT_SYSTEMS,
 --- after Mote has defined the function.
 function CombatMode.install_hook()
-    local orig = rawget(_G, 'handle_equipping_gear')
-    if not orig or rawget(_G, '_combat_mode_hook') == orig then return end
-    local hook = function(status, pet_status)
-        local after_gear = CombatMode.apply()
-        local result = orig(status, pet_status)
-        if after_gear then after_gear() end
-        reassert_holds()
-        return result
-    end
-    _G.handle_equipping_gear = hook
-    _G._combat_mode_hook = hook
+    require('shared/utils/core/action_hooks').add('combat_mode', 'handle_equipping_gear', {
+        -- the weapon slots locked before any gear goes on
+        before = function() return CombatMode.apply() end,
+        after = function(after_gear)
+            if after_gear then after_gear() end
+            reassert_holds()
+        end,
+    })
 end
 
 ---============================================================================

@@ -8,7 +8,8 @@
 -- Offline check of shared/utils/craft/synth_results.lua: fake 0x030 / 0x06F packets, the chat and the journal captured.
 -- Run from GearSwap/data: lua5.1 <this file>
 package.path = './?.lua;' .. package.path
-local LOG = os.getenv('TEMP') .. '/synth_test.log'
+local T = dofile('scripts/lib/testlib.lua')
+local LOG = T.tmpdir('synth_results_test') .. '/synth_test.log'
 os.remove(LOG)
 
 -- Windower's string:unpack for the two formats the module reads (1-based positions, little endian)

@@ -42,19 +42,17 @@ function; line numbers are given only where no function name fits.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/cor.lua` | 360 | Entry point (the same for every character; `<Char>_COR.lua` and its template `_master/entry/Tetsouo_COR.lua` are one `include` of it): `LOCKSTYLE_CONFIG`, `REGION_CONFIG` and `UIConfig` at file level, `init_party_tracking`, `get_sets`, `job_sub_job_change`, `user_setup` (ends with `EntryKit.macro_and_lockstyle`), `job_update`, `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/cor.lua` | 316 | Entry point (the same for every character; `<Char>_COR.lua` and its template `_master/entry/Tetsouo_COR.lua` are one `include` of it): `LOCKSTYLE_CONFIG`, `REGION_CONFIG` and `UIConfig` at file level, `init_party_tracking`, `get_sets`, `job_sub_job_change`, `user_setup` (ends with `EntryKit.macro_and_lockstyle`), `job_update`, `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
 | `shared/jobs/cor/functions/cor_functions.lua` | 132 | Facade: `message_buffs.lua`, the 11 hook files, `dualbox_manager` (its header still says "Logic modules (4)") |
-| `shared/jobs/cor/functions/COR_PRECAST.lua` | 225 | `job_precast` (guard, `DoubleUp.redirect`, cooldown, `apply_cor_precast`, WS) / `job_post_precast` (TP gear, `apply_luzaf`, `hold_fold_gear`, `RollDebug.note_precast`, `RollHold.start`); starts `flurry_tracker` at load |
+| `shared/jobs/cor/functions/COR_PRECAST.lua` | 169 | `job_precast` (guard, `DoubleUp.redirect`, cooldown, `apply_cor_precast`, WS) / `job_post_precast` (TP gear, `apply_luzaf`, `hold_fold_gear`, `RollDebug.note_precast`, `RollHold.start`); starts `flurry_tracker` at load |
 | `shared/jobs/cor/functions/COR_MIDCAST.lua` | 103 | `job_midcast` (empty) / `job_post_midcast` (RA with `RangedMode` + Triple Shot, Enhancing, `PASSTHROUGH_SKILLS`) |
 | `shared/jobs/cor/functions/COR_AFTERCAST.lua` | 62 | `job_aftercast` (`RollHold.stop`, watchdog, bullet pouch), empty `job_post_aftercast` |
 | `shared/jobs/cor/functions/COR_IDLE.lua` | 41 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/cor/functions/COR_ENGAGED.lua` | 41 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/cor/functions/COR_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/cor/functions/COR_BUFFS.lua` | 40 | `job_buff_change = LifecycleManager.buff_change(retire_lost_roll)` |
-| `shared/jobs/cor/functions/COR_COMMANDS.lua` | 370 | `job_self_command` router, `use_selected_ability` (`shot`, `roll1`, `roll2`), `job_state_change = LifecycleManager.state_change(on_state_change)` |
+| `shared/jobs/cor/functions/COR_COMMANDS.lua` | 283 | `job_self_command` router, `use_selected_ability` (`shot`, `roll1`, `roll2`), `job_state_change = LifecycleManager.state_change(on_state_change)` |
 | `shared/jobs/cor/functions/COR_MOVEMENT.lua` | 34 | `job_handle_equipping_gear` -> `RollHold.hold_update` |
-| `shared/jobs/cor/functions/COR_LOCKSTYLE.lua` | 49 | Lazy `LockstyleManager.create('COR', ..., 1, 'SAM')` wrappers |
-| `shared/jobs/cor/functions/COR_MACROBOOK.lua` | 43 | Lazy `MacrobookManager.create('COR', ..., 'SAM', 1, 1)` wrapper |
 | `shared/jobs/cor/functions/logic/party_tracker.lua` | 305 | `init_roll_listener` (`ActionListener` key `cor_roll`), `init` (raw `incoming chunk` `0xDD`/`0xDF`), `members_for_display`, `cleanup` |
 | `shared/jobs/cor/functions/logic/roll_tracker.lua` | 580 | Roll state, `sync_with_buffs`, Crooked, bonus, bust, `cleanup`; re-exports the `roll_party` and `roll_display` functions on `RollTracker` and calls them through it |
 | `shared/jobs/cor/functions/logic/roll_party.lua` | 230 | Party job cache validation (`validate_party_cache`, `drop_departed_and_expired`), `is_job_in_party_zone`, `roll_range` (8, or 16 with LuzafRing), `count_party_members_with_buff` |
@@ -405,7 +403,6 @@ shared part repaints the HUD (skipping `Moving`); `on_state_change` calls
 | `party` | `show_party_members(PartyTracker.members_for_display())` |
 | `clearparty` | Empties `_G.cor_party_jobs` in place (the `windower` table) |
 | `shot` / `roll1` / `roll2` | `use_selected_ability`: `input /ja "<QuickDraw> Shot" <t>`, `"<MainRoll>" <me>`, `"<SubRoll>" <me>` |
-| `testcolors` / `colors` | Colour table 1-255; unreachable, the common commands of the same names answer first |
 
 `shot`, `roll1`, `roll2` send a normal `/ja`, so the ability goes through
 `job_precast` like a macro. No key is bound to them. `du` reaches the COR
@@ -578,8 +575,6 @@ In game: `//gs c rolldebug` (per-roll gear report and `<Character>/logs/rolls/ro
   online, in the party or in the zone (`is_job_in_party_zone`).
 - The `on_roll_cast` docstring says `target_ids` is nil for "//gs c roll typed
   by hand"; the manual command is `track_roll`.
-- `testcolors` / `colors` in `COR_COMMANDS.lua` are unreachable (the common
-  commands answer first).
 - `COR_MOVEMENT.lua` and `COR_BUFFS.lua` export to `_G` only, with no module
   `return` (the project's dual-export rule: `_G.x = x` and a returned table).
 - No `sets.idle.Town` in the template: other cities count as field.

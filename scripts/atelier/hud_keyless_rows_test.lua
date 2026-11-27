@@ -17,14 +17,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 player = {main_job = 'BRD', sub_job = 'WHM', name = 'Tester'}
 windower = {addon_path = '/nonexistent/'}
@@ -77,5 +71,4 @@ text = render({
 check('keyed Combat Mode once', count(text, 'Combat Mode'), 1)
 check('slots once with every mode keyed', count(text, 'Slot 3'), 1)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

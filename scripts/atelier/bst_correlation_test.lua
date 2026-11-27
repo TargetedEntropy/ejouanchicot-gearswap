@@ -12,11 +12,8 @@
 --- @date Created: 2026-10-28
 ---============================================================================
 package.path = './?.lua;' .. package.path
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then failed = failed + 1; print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want))) end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 local said = {}
 package.loaded['shared/utils/messages/message_formatter'] = setmetatable({
     show_bst_correlation = function(eco, strong, weak, pet) said[#said + 1] = {eco, strong, weak, pet} end,
@@ -50,5 +47,4 @@ said = {}
 job_pet_change({name = 'WarlikePatrick'}, false)
 check('a pet gone: nothing', #said, 0)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

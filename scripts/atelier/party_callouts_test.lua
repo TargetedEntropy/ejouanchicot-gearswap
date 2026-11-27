@@ -16,11 +16,9 @@ end}
 windower = {ffxi = {}}
 local PC = dofile('shared/utils/messages/party_callouts.lua')
 
-local fails = 0
-local function check(name, ok, detail)
-    if not ok then fails = fails + 1 end
-    print((ok and 'ok   ' or 'FAIL ') .. name .. (detail and (': ' .. tostring(detail)) or ''))
-end
+local T = dofile('scripts/lib/testlib.lua')
+T.verbose = true
+local check = T.ok
 
 check('stun landed', PC.line('Stun', 'Degei', 236) == 'Stun > Degei: STUNNED', PC.line('Stun', 'Degei', 236))
 check('stun magic burst', PC.line('Stun', 'Degei', 271) == 'Stun > Degei: STUNNED (MB)')
@@ -66,5 +64,4 @@ deps.after = function(id) return id == 50 and 'Icy Grasp' or nil end
 l = PC.lines(act({param = 144, targets = {{id = 50, actions = {{message = 2, param = 1520}}}}}), 1, w2, deps)
 check('fire after icy grasp: the move named', l[1] == 'Fire > Degei (after Icy Grasp): 1520 dmg', l[1])
 
-print(fails == 0 and 'ALL OK' or (fails .. ' FAILED'))
-os.exit(fails == 0 and 0 or 1)
+T.done()

@@ -1,6 +1,6 @@
 # Wardrobe organizer (`//gs c wo`)
 
-The wardrobe organizer moves gear between the character's bags so that the bags the game reads first hold the gear the character needs ("used" bags, W1 then W2 by default), everything else sits in the "unused" bags, and the placement rules of the character's `WARDROBE_CONFIG.lua` put chosen items, jobs or item types in chosen bags. It runs only on demand, from `//gs c wo` (alias `worganize`), dispatched by `CommonCommands.handle_wardrobeorganize` (`shared/utils/core/COMMON_COMMANDS.lua:185-228`, routed from the `wo` / `worganize` branch of `CommonCommands.handle_command`). A run strips the character naked, locks every slot with `gs disable all`, walks through up to seven phases that issue raw item-move packets (`windower.ffxi.get_item` / `put_item`), snapshots the result, retries the whole chain up to 12 times while it keeps making progress, and finally unlocks the slots, releases the stance locks the unlock broke (PLD Hoxne ammo, THF range; since 2026-09-25) and fires `gs c ls` (lockstyle) and `gs c rf` (refill). There is one flow. What counts as "used" is set by `SCOPE`: the gear named by the loaded job's `sets` (`'active_job'`, default) or by every job's set files (`'all_jobs'`). `//gs c wo alt` runs the same flow with `SCOPE = 'all_jobs'` on its own bag lists (`USED_WHEN_ALL` / `UNUSED_WHEN_ALL`). Two read-only reports (`wo scan`, `wo keep`) and two recovery commands (`wo reset`, `wo recover`) complete the area.
+The wardrobe organizer moves gear between the character's bags so that the bags the game reads first hold the gear the character needs ("used" bags, W1 then W2 by default), everything else sits in the "unused" bags, and the placement rules of the character's `WARDROBE_CONFIG.lua` put chosen items, jobs or item types in chosen bags. It runs only on demand, from `//gs c wo` (alias `worganize`), dispatched by `CommonCommands.handle_wardrobeorganize` (`shared/utils/core/GEAR_COMMANDS.lua:71-114`, routed from the `wo` / `worganize` branch of `CommonCommands.handle_command`). A run strips the character naked, locks every slot with `gs disable all`, walks through up to seven phases that issue raw item-move packets (`windower.ffxi.get_item` / `put_item`), snapshots the result, retries the whole chain up to 12 times while it keeps making progress, and finally unlocks the slots, releases the stance locks the unlock broke (PLD Hoxne ammo, THF range; since 2026-09-25) and fires `gs c ls` (lockstyle) and `gs c rf` (refill). There is one flow. What counts as "used" is set by `SCOPE`: the gear named by the loaded job's `sets` (`'active_job'`, default) or by every job's set files (`'all_jobs'`). `//gs c wo alt` runs the same flow with `SCOPE = 'all_jobs'` on its own bag lists (`USED_WHEN_ALL` / `UNUSED_WHEN_ALL`). Two read-only reports (`wo scan`, `wo keep`) and two recovery commands (`wo reset`, `wo recover`) complete the area.
 
 Nothing in the organizer is loaded at job load: `handle_wardrobeorganize` requires it lazily the first time a `wo` command is typed.
 
@@ -49,7 +49,7 @@ External dependency: `shared/utils/equipment/wardrobe_auditor.lua` provides `bui
 
 ### Command entry
 
-`handle_wardrobeorganize(arg, arg2)` (`COMMON_COMMANDS.lua:185-228`) compares `arg` case-sensitively (the router lower-cases only the command name). Anything unrecognised falls through to `organize()`.
+`handle_wardrobeorganize(arg, arg2)` (`GEAR_COMMANDS.lua:71-114`) compares `arg` case-sensitively (the router lower-cases only the command name). Anything unrecognised falls through to `organize()`.
 
 `WardrobeOrganizer.organize(all_jobs)` (`wardrobe_organizer.lua:588-610`):
 
@@ -238,7 +238,7 @@ Before 2026-09-30, `wo alt` ran a separate chain (`lib/orchestrator_alt.lua`, `P
 
 ## Public API
 
-`shared/utils/wardrobe/wardrobe_organizer.lua` returns a table; nothing is exported to `_G`. The only caller of every function below is `CommonCommands.handle_wardrobeorganize` (`COMMON_COMMANDS.lua:185-228`); no keybind, macro config or `send_command` in the repository or the live folders invokes a `wo` subcommand. The bare `gs c wo` is sent by `shared/utils/wardrobe/porter_run.lua` (`//gs c po`, `NEXT`, `:24`), directly or as what PorterPacker runs when it has finished.
+`shared/utils/wardrobe/wardrobe_organizer.lua` returns a table; nothing is exported to `_G`. The only caller of every function below is `CommonCommands.handle_wardrobeorganize` (`GEAR_COMMANDS.lua:71-114`); no keybind, macro config or `send_command` in the repository or the live folders invokes a `wo` subcommand. The bare `gs c wo` is sent by `shared/utils/wardrobe/porter_run.lua` (`//gs c po`, `NEXT`, `:24`), directly or as what PorterPacker runs when it has finished.
 
 | Function | Effect |
 |---|---|

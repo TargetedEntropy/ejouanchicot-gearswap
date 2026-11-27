@@ -62,9 +62,9 @@ TIMER('WAR_BUFFS')
 ---   SECTION 5: UTILITY HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-include('../shared/jobs/war/functions/WAR_LOCKSTYLE.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('WAR')
 TIMER('WAR_LOCKSTYLE')
-include('../shared/jobs/war/functions/WAR_MACROBOOK.lua')
+require('shared/utils/macrobook/macrobook_manager').install('WAR')
 TIMER('WAR_MACROBOOK')
 include('../shared/jobs/war/functions/WAR_COMMANDS.lua')
 TIMER('WAR_COMMANDS')

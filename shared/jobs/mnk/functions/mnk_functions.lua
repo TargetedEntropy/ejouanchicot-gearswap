@@ -47,12 +47,10 @@ include('../shared/jobs/mnk/functions/MNK_BUFFS.lua')     -- Doom, buff layers r
 TIMER('MNK_BUFFS')
 
 -- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
-include('../shared/jobs/mnk/functions/MNK_LOCKSTYLE.lua')
-include('../shared/jobs/mnk/functions/MNK_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('MNK')
+require('shared/utils/macrobook/macrobook_manager').install('MNK')
 include('../shared/jobs/mnk/functions/MNK_COMMANDS.lua')  -- Commands, state change hook
 TIMER('MNK_COMMANDS')
-include('../shared/jobs/mnk/functions/MNK_MOVEMENT.lua')  -- Movement status API
-TIMER('MNK_MOVEMENT')
 
 -- Dual-boxing manager (deferred init + lazy message loading)
 require('shared/utils/dualbox/dualbox_manager')

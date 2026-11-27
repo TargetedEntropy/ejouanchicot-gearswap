@@ -28,42 +28,17 @@
 ---   @requires Tetsouo architecture, MessageFormatter, CooldownChecker
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
-
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
-local CORTPConfig = nil
-
-local modules_loaded = false
-
-local function ensure_modules_loaded()
-    if modules_loaded then return end
-
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if not cc_ok then cc = nil end
-    CooldownChecker = cc
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    if not pg_ok then pg = nil end
-    PrecastGuard = pg
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if not wph_ok then wph = nil end
-    WSPrecastHandler = wph
-
-    CORTPConfig = _G.CORTPConfig or {}
-
-    modules_loaded = true
-end
 
 -- Note: _G.cor_last_roll is initialized in roll_tracker.lua
 -- Used for Double-Up gear matching via .name field
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   PRECAST HOOKS
+---   PRECAST STEPS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 --- Phantom Roll: remember the roll name so a following Double-Up can wear the
@@ -118,42 +93,6 @@ local function apply_cor_precast(spell)
     end
 end
 
---- Precast hook: guard, Double-Up redirect, cooldown, COR logic, weaponskill.
---- @param spell table Spell information from GearSwap
---- @param action table Action information from GearSwap
---- @param spellMap string Spell mapping from Mote-Include
---- @param eventArgs table Event arguments (eventArgs.cancel for cancellation)
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- Before the cooldown check: a roll already up becomes a Double-Up,
-    -- which the Phantom Roll recast must not cancel first
-    if require('shared/jobs/cor/functions/logic/double_up').redirect(spell, eventArgs) then
-        return
-    end
-
-    if CooldownChecker then
-        if spell.action_type == 'Ability' then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
-        elseif spell.action_type == 'Magic' then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
-        end
-    end
-    if eventArgs.cancel then
-        return
-    end
-
-    apply_cor_precast(spell)
-
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, CORTPConfig) then
-        return
-    end
-end
-
 --- Luzaf's Ring on a Phantom Roll or Double-Up (16 yalms instead of 8). Each
 --- character's sets say where it goes and what replaces it:
 ---   ON   sets.precast.LuzafRing, else {left_ring = "Luzaf's Ring"}
@@ -186,25 +125,30 @@ local function hold_fold_gear(spell)
     equip(worn)
 end
 
----   Called after precast gear is equipped
----   @param spell table Spell/ability data
----   @param action table Action information from GearSwap
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
----   @return void
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
+---  ═══════════════════════════════════════════════════════════════════════════
+---   PRECAST HOOKS
+---  ═══════════════════════════════════════════════════════════════════════════
 
-    apply_luzaf(spell)
-    hold_fold_gear(spell)
-    -- //gs c rolldebug: note the gear this roll is sent in
-    require('shared/jobs/cor/functions/logic/roll_debug').note_precast(spell)
-    -- Keep the roll set on until the roll lands (roll_hold.lua)
-    require('shared/jobs/cor/functions/logic/roll_hold').start(spell)
-end
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('COR', {
+    -- Before the cooldown check: a roll already up becomes a Double-Up,
+    -- which the Phantom Roll recast must not cancel first
+    before_cooldown = function(spell, eventArgs)
+        return require('shared/jobs/cor/functions/logic/double_up').redirect(spell, eventArgs)
+    end,
+    after_cooldown = function(spell)
+        apply_cor_precast(spell)
+    end,
+    after_tp_gear = function(spell, action, spellMap, eventArgs)
+        apply_luzaf(spell)
+        hold_fold_gear(spell)
+        -- //gs c rolldebug: note the gear this roll is sent in
+        require('shared/jobs/cor/functions/logic/roll_debug').note_precast(spell)
+        -- Keep the roll set on until the roll lands (roll_hold.lua)
+        require('shared/jobs/cor/functions/logic/roll_hold').start(spell)
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

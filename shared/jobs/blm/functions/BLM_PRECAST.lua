@@ -18,34 +18,18 @@
 ---   @requires Tetsouo architecture, MessageFormatter, CooldownChecker, spell_refiner
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
-local BLMTPConfig = nil
 local BLM_SPELL_FILTERS = nil
 
 local modules_loaded = false
 
 local function ensure_modules_loaded()
     if modules_loaded then return end
-
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if not cc_ok then cc = nil end
-    CooldownChecker = cc
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    if not pg_ok then pg = nil end
-    PrecastGuard = pg
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if not wph_ok then wph = nil end
-    WSPrecastHandler = wph
-
-    BLMTPConfig = _G.BLMTPConfig or {}
 
     -- Load BLM spell filters (cached by Lua after first require)
     local filters_ok, filters = pcall(require, 'shared/data/spells/BLM_SPELL_FILTERS')
@@ -90,7 +74,7 @@ local function uses_refinement(spell)
 end
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   PRECAST HOOKS
+---   PRECAST STEPS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 --- Stage 2: recast, or a tier downgrade for the spells that have one.
@@ -102,8 +86,8 @@ end
 --- than cancelling. Everything else takes the plain check.
 local function check_recast_or_refine(spell, eventArgs)
     if spell.action_type == 'Ability' then
-        if not has_charges(spell) and CooldownChecker then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
+        if not has_charges(spell) then
+            PrecastPipeline.ability_cooldown(spell, eventArgs)
         end
 
     elseif spell.action_type == 'Magic' then
@@ -111,54 +95,28 @@ local function check_recast_or_refine(spell, eventArgs)
             if refine_various_spells then
                 refine_various_spells(spell, eventArgs)
             end
-        elseif CooldownChecker then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
+        else
+            PrecastPipeline.spell_cooldown(spell, eventArgs)
         end
     end
 end
 
---- Precast hook: guard, recast/refinement, Dark Arts, weaponskill. (Impact's
---- cloak: shared/utils/equipment/impact_lock.lua, every job.)
---- @param spell table Spell information from GearSwap
---- @param action table Action information from GearSwap
---- @param spellMap string Spell mapping from Mote-Include
---- @param eventArgs table Event arguments (eventArgs.cancel for cancellation)
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
+---  ═══════════════════════════════════════════════════════════════════════════
+---   PRECAST HOOKS
+---  ═══════════════════════════════════════════════════════════════════════════
 
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    check_recast_or_refine(spell, eventArgs)
-    if eventArgs.cancel then
-        return
-    end
-
-    -- BLM/SCH puts Dark Arts up before a nuke. checkArts is a global from
-    -- blm_functions.lua and may not be loaded on every path.
-    if spell.skill == 'Elemental Magic' and checkArts then
-        checkArts(spell, eventArgs)
-    end
-
-    if spell.type == 'WeaponSkill' then
-        if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, BLMTPConfig) then
-            return
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('BLM', {
+    load = ensure_modules_loaded,
+    -- an ability with charges has no recast to check; a spell with lower tiers is re-tiered instead
+    cooldown = check_recast_or_refine,
+    after_cooldown = function(spell, eventArgs)
+        if spell.skill == 'Elemental Magic' and checkArts then
+            checkArts(spell, eventArgs)
         end
-    end
-end
-
----   Apply final gear adjustments before equipping
----   @param spell table Spell/ability data
----   @param action table Action information from GearSwap
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-end
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

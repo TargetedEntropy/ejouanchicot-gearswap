@@ -195,18 +195,13 @@ end
 
 --- Wrap Mote's cleanup_precast / cleanup_midcast once per sandbox.
 function ElementalBelt.install()
-    if rawget(_G, '_elemental_belt_installed') then return end
-    local pre, mid = rawget(_G, 'cleanup_precast'), rawget(_G, 'cleanup_midcast')
-    if type(pre) ~= 'function' or type(mid) ~= 'function' then return end
-    _G._elemental_belt_installed = true
-    _G.cleanup_precast = function(spell, spellMap, eventArgs)
-        pcall(ElementalBelt.apply, spell, 'precast', eventArgs)
-        return pre(spell, spellMap, eventArgs)
-    end
-    _G.cleanup_midcast = function(spell, spellMap, eventArgs)
-        pcall(ElementalBelt.apply, spell, 'midcast', eventArgs)
-        return mid(spell, spellMap, eventArgs)
-    end
+    local ActionHooks = require('shared/utils/core/action_hooks')
+    ActionHooks.add('elemental_belt', 'cleanup_precast', {
+        before = function(spell, _, eventArgs) ElementalBelt.apply(spell, 'precast', eventArgs) end,
+    })
+    ActionHooks.add('elemental_belt', 'cleanup_midcast', {
+        before = function(spell, _, eventArgs) ElementalBelt.apply(spell, 'midcast', eventArgs) end,
+    })
 end
 
 return ElementalBelt

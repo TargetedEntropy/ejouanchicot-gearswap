@@ -1,8 +1,9 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   Lockstyle Manager - Centralized Lockstyle Management Factory
 ---  ═══════════════════════════════════════════════════════════════════════════
----   Factory pattern that creates job-specific lockstyle modules: every
----   [JOB]_LOCKSTYLE.lua is a thin create() call on this file.
+---   Factory pattern that creates job-specific lockstyle modules. A job's
+---   facade calls install(job): its globals, its module built at the first call
+---   (the numbers in shared/data/job_defaults.lua).
 ---   Also owns the persistent DressUp toggle and apply_style() for one-off
 ---   styles (craft/fish).
 ---
@@ -247,14 +248,10 @@ end
 -- sandbox _G), so this list only ever sees the create() calls of one load.
 local last_registered_globals = {}
 
--- One ctx per job code, kept on the sandbox _G. A job's wrapper file runs
--- twice per load (the keybind intro requires it, the facade includes it), and
--- each copy calls create(): the entry schedules the initial lockstyle through
--- one copy and registers the JobChangeManager cancel from the other, so both
--- must share the same STATE for that cancel to stop the pending style. Today
--- both copies require this factory lazily, after INIT_SYSTEMS has installed
--- the module cache, so they reach one instance of it; keeping the table on
--- the sandbox _G makes the sharing independent of that order. It dies with
+-- One ctx per job code, kept on the sandbox _G: every create() of a job in one
+-- load shares the same STATE, so the JobChangeManager cancel stops the style the
+-- entry scheduled whichever create() each one went through (install() makes one
+-- today; the per-job wrapper files it replaced ran twice per load). It dies with
 -- the load.
 local function contexts()
     local by_job = rawget(_G, '__lockstyle_contexts')
@@ -300,7 +297,7 @@ function LockstyleManager.create(job_code, config_path, default_lockstyle, defau
     }
     -- the name the keybind intro asks for (keybind_manager.lua show_intro)
     api.get_info = api.get_lockstyle_info
-    -- The name every <JOB>_LOCKSTYLE.lua wrapper calls on this table.
+    -- The name install() calls on this table (and the entry, through the global of that name).
     api['cancel_' .. jl .. '_lockstyle_operations'] = api.cancel_pending_operations
 
     -- Clear globals registered by the previous create() call.
@@ -323,6 +320,25 @@ function LockstyleManager.create(job_code, config_path, default_lockstyle, defau
     end
 
     return api
+end
+
+--- The globals a job's facade needs at load (the entry reads cancel_<job>_lockstyle_operations right after it),
+--- the job's module built by create() at the first call of either. The config is the character's
+--- <job>/display/<JOB>_LOCKSTYLE.lua; with no entry for the subjob, shared/data/job_defaults.lua.
+--- @param job_code string Job code ('WAR')
+function LockstyleManager.install(job_code)
+    local jl = job_code:lower()
+    local cancel = 'cancel_' .. jl .. '_lockstyle_operations'
+    local module
+    local function get()
+        if not module then
+            local d = require('shared/data/job_defaults').get(job_code)
+            module = LockstyleManager.create(job_code, 'config/' .. jl .. '/' .. job_code .. '_LOCKSTYLE', d.lockstyle, d.subjob)
+        end
+        return module
+    end
+    _G.select_default_lockstyle = function() return get().select_default_lockstyle() end
+    _G[cancel] = function() return get()[cancel]() end
 end
 
 return LockstyleManager

@@ -18,25 +18,17 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then failed = failed + 1; print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want))) end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 local function read(p) local f = io.open(p, 'rb'); if not f then return nil end local t = f:read('*a'); f:close(); return t end
-local function win(p) return (p:gsub('/', '\\')) end
-local function list(dir)
-    local out, p = {}, io.popen('dir /b "' .. win(dir) .. '" 2>nul')
-    for l in p:lines() do out[#out + 1] = l end
-    p:close(); return out
-end
+local list = T.listdir
 
-local root = (os.getenv('TEMP') .. '/set_push_test_' .. os.time() .. '/'):gsub('\\', '/')
+local root = T.tmpdir('set_push_test') .. '/'
 local sets_dir = root .. 'data/Newbie/pld/sets/'
-os.execute('mkdir "' .. win(sets_dir) .. '" 2>nul')
-os.execute('mkdir "' .. win(root .. 'data/Newbie/_common') .. '" 2>nul')
+T.mkdir(sets_dir)
+T.mkdir(root .. 'data/Newbie/_common')
 windower = {addon_path = root, get_dir = list, dir_exists = function(d) return #list(d) > 0 or os.rename(d, d) ~= nil end,
-    create_dir = function(d) os.execute('mkdir "' .. win(d) .. '" 2>nul') end,
+    create_dir = function(d) T.mkdir(d) end,
     ffxi = {get_player = function() return {name = 'Newbie'} end}}
 player = {name = 'Newbie', main_job = 'WAR'}
 
@@ -104,6 +96,5 @@ sets = {idle = {left_ring = {name = 'Chirich Ring +1', bag = 'wardrobe 1'}}, eng
 local _, b = rings(SetPush.preview('PLD', 'sets.idle\nring2\tone\tChirich Ring +1'))
 check('job loaded: ring1 inherited (wardrobe 1), ring2 alone: the other copy', b, 'ChirichRing2')
 
-os.execute('rmdir /s /q "' .. win(root) .. '" 2>nul')
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.rmtree(root)
+T.done()

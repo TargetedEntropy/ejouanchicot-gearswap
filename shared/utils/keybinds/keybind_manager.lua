@@ -350,29 +350,17 @@ local function unbind_all(ctx)
     return true
 end
 
---- Job intro: bound keys count, macrobook and lockstyle info.
---- Requiring the job's MACROBOOK/LOCKSTYLE modules here also defines their
---- globals early; nothing relies on that any more (the first macro book and
---- lockstyle wait for the facade: EntryKit.macro_and_lockstyle).
+--- Job intro: the bound keys. (It used to ask the job's MACROBOOK / LOCKSTYLE
+--- wrapper files for their book and style too, but none of them ever returned
+--- that info, so the intro never showed it; show_system_intro_complete is the
+--- message that would, given the factories' get_<job>_macro_info /
+--- get_<job>_lockstyle_info.)
 local function show_intro(ctx)
-    local jl = ctx.job:lower()
-    local macro_info, lockstyle_info
-    local ok_m, macrobook = pcall(require, 'shared/jobs/' .. jl .. '/functions/' .. ctx.job .. '_MACROBOOK')
-    local get_macro = ok_m and type(macrobook) == 'table' and macrobook['get_' .. jl .. '_macro_info']
-    if get_macro then macro_info = get_macro() end
-    local ok_l, lockstyle = pcall(require, 'shared/jobs/' .. jl .. '/functions/' .. ctx.job .. '_LOCKSTYLE')
-    if ok_l and type(lockstyle) == 'table' and lockstyle.get_info then lockstyle_info = lockstyle.get_info() end
-
     local keyed = {}
     for _, bind in ipairs(get_active_binds(ctx)) do
         if bind.key and bind.key ~= '' then keyed[#keyed + 1] = bind end
     end
-    local title = ctx.job .. ' SYSTEM LOADED'
-    if macro_info or lockstyle_info then
-        MessageFormatter.show_system_intro_complete(title, keyed, macro_info, lockstyle_info)
-    else
-        MessageFormatter.show_system_intro(title, keyed)
-    end
+    MessageFormatter.show_system_intro(ctx.job .. ' SYSTEM LOADED', keyed)
 end
 
 local function show_binds(ctx)

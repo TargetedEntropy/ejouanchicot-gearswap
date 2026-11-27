@@ -434,16 +434,19 @@ Mote routes every gear decision through three globals it defines after
 `cleanup_midcast(spell, spellMap, eventArgs)`. The `cleanup_*` functions run at
 the end of every action, **cancelled or not** (`Mote-Include.lua:279-282`).
 
-`INIT_SYSTEMS.lua` wraps them after `include('Mote-Include.lua')` has returned,
-in this order: `ElementalBelt.install`, `DualWield.install`,
-`TreasureHunter.install`, `MidcastFallback.install`,
-`CustomStates.install_hooks`, `CastTime.install_hook`,
-`CombatMode.install_hook` (what each layer wraps and when it works:
+Each system registers a layer on them (`ActionHooks.add(name, target, {before, after})`,
+`shared/utils/core/action_hooks.lua`) from its install function, which
+`INIT_SYSTEMS.lua` calls after `include('Mote-Include.lua')` has returned:
+`ElementalBelt.install`, `DualWield.install`, `TreasureHunter.install`,
+`MidcastFallback.install`, `CustomStates.install_hooks`,
+`CastTime.install_hook`, `CombatMode.install_hook` (what each layer does and when it works:
 [core-lifecycle.md, The gear hook chain](systems/core-lifecycle.md#the-gear-hook-chain);
 everything else INIT_SYSTEMS starts, in order:
 [its timeline](systems/core-lifecycle.md#init_systemslua-in-execution-order)).
-Each later wrapper wraps the earlier ones, and each
-does its own work either before or after calling inward. The result, observed
+Then `ActionHooks.install()` wraps each of the three functions once, its layers
+in `ActionHooks.ORDER` (innermost first) whatever order they registered in; a
+layer's `before` runs ahead of the inner call, its `after` once it has returned.
+The result, observed
 by running the real install functions offline ([section 6](#a-harness-for-the-wrapper-chain)):
 
 ```text
@@ -464,13 +467,16 @@ Why the order matters:
   working before the inner call.
 - The cast-time estimate reads what the precast finally sends, so it is the
   last precast layer.
-- An error escaping a layer aborts every layer outside it for that call. Wrap
-  a layer's own work in `pcall`, as the belt and Dual Wield do.
+- An error in a layer must not abort the others: `ActionHooks` runs each
+  `before` / `after` under `pcall`, traces the error and names the layer once
+  in chat; Mote's own function and the other layers still run.
 
-Each layer guards itself with a flag on `_G` (`_elemental_belt_installed`,
-`_dual_wield_installed`...). A reload builds a new `_G` and Mote redefines the
-three functions, so the chain is rebuilt exactly once per load. Do **not** move
-these guards to `windower.*`: the next load would skip the wrap.
+The layers and the record of what was wrapped live on the sandbox `_G`
+(`__action_hook_layers`, `__action_hooks_built`). A reload builds a new `_G`
+and Mote redefines the three functions, so the chain is rebuilt exactly once
+per load. Do **not** move them to `windower.*`: the next load would skip the wrap.
+`scripts/atelier/action_hooks_test.lua` runs the real install functions and
+checks the three orders below.
 
 The same reasoning applies to the message hooks: `init_ability_messages.lua`,
 `init_ws_messages.lua` and `init_spell_messages.lua` save the current
@@ -479,9 +485,9 @@ They do not accumulate across reloads (a new `_G` each time; `//gs c syscheck`
 shows the wrap ratio), and an idempotence guard on `windower.*` would break
 messages after the first job change.
 
-Where to place a new layer: install it before the belt if it must see the
-job's set and be overridden by everything else; after `CustomStates` if it must
-win over the player's gear. The detailed table (what each layer does, its
+Where to place a new layer: give it a number in `ActionHooks.ORDER` below the
+belt's if it must see the job's set and be overridden by everything else, above
+`custom_states` if it must win over the player's gear. The detailed table (what each layer does, its
 guard) is in [core-lifecycle.md, The gear hook chain](systems/core-lifecycle.md#the-gear-hook-chain).
 
 ---
@@ -567,16 +573,26 @@ done while its docs are stale.
 
 The files to create or touch:
 
-- [ ] `shared/jobs/<job>/functions/`: the 11 hook modules, the facade, `logic/`.
+- [ ] `shared/jobs/<job>/functions/`: the hook modules, the facade, `logic/`.
       Start from a similar job (templates: DNC_PRECAST, PLD_MIDCAST,
-      WAR_COMMANDS). Pet jobs add pet modules.
+      WAR_COMMANDS). Pet jobs add pet modules. Three things come from the
+      shared code instead of a file of the job's own: `<JOB>_PRECAST.lua` is
+      `PrecastPipeline.hooks('<JOB>', {its own steps})`
+      ([precast-pipeline.md](systems/precast-pipeline.md#the-job_precast-contract)),
+      `<JOB>_COMMANDS.lua` calls `JobCommands.shared` before its own words (or
+      is `JobCommands.router('<JOB>')` when it has none), and the facade calls
+      `LockstyleManager.install('<JOB>')` / `MacrobookManager.install('<JOB>')`
+      with the job's defaults in `shared/data/job_defaults.lua`. A job with no
+      movement hook has no `<JOB>_MOVEMENT.lua`.
 - [ ] `shared/entry/<job>.lua`: copy a similar shared entry; reach every
       character file through `CharPaths` (`CharPaths.module('job',
       '<JOB>_STATES', '<JOB>')`, `CharPaths.relative('sets',
       '<job>_sets.lua', '<JOB>')`, `CharPaths.name()`), never a hard-coded
       character name; require `char_paths` first (it installs the
       require cache), then `config_loader`, before the other shared
-      modules; include INIT_SYSTEMS right after Mote-Include.
+      modules: `EntryKit.load_configs('<JOB>')` at the chunk level,
+      `EntryKit.after_mote(Profiler)` right after Mote-Include,
+      `EntryKit.load_facade('<JOB>', Profiler)` for the facade.
 - [ ] `_master/entry/Tetsouo_<JOB>.lua`: copy another one-line entry and
       change the job (`include('../shared/entry/<job>.lua')`).
 - [ ] `_master/config/<job>/`: **every** file the shared entry requires
@@ -599,12 +615,16 @@ See also [characters-and-templates.md, How to add a job to the templates](archit
 
 ### Add a command
 
-- [ ] Common command: handler in `COMMON_COMMANDS.lua` (or a module with a
-      `handle(args)` routed from there), and the same name in
-      `CommonCommands.is_common_command`. The two lists are maintained by hand;
-      missing the second makes the command unreachable from every job file.
-- [ ] Job command: in the job's `<JOB>_COMMANDS.lua`, after the common block;
-      set `eventArgs.handled = true` on every path, including errors.
+- [ ] Common command: an entry of `WORDS` in `COMMON_COMMANDS.lua`
+      (`word = function(args, cmdParams, job_name) ... end`, or `by(module, fn)`
+      for a module's handler; an alias in the alias table under it).
+      `is_common_command` reads the same table, so the word is reachable from
+      every job at once.
+- [ ] Job command: in the job's `<JOB>_COMMANDS.lua`, after its
+      `JobCommands.shared` call; set `eventArgs.handled = true` on every path,
+      including errors. A job word that is also a common word must be tested
+      before the call (PLD / RUN `aoe`, DRG `jump`, BST `debugprecast`):
+      `scripts/atelier/job_commands_test.lua` fails on one tested after it.
 - [ ] Check the name against job commands (`grep -rn "command == '<name>'" shared/jobs`),
       warp aliases and their `<alias>all` form (`shared/utils/warp/warp_command_registry.lua`),
       alt command files (`shared/data/alt/*.lua`, `_master/config/alt/*_ALT_CUSTOM.lua`) and Mote's `selfCommandMaps`.
@@ -643,9 +663,13 @@ and [ui-overlay.md, For maintainers / AI](systems/ui-overlay.md#for-maintainers-
       facade of one job.
 - [ ] Choose the position in the chain ([section 3](#3-the-gear-wrapper-chain))
       and whether your work runs before or after the inner call.
-- [ ] Guard once per sandbox with a `_G` flag; read the previous function with
-      `rawget(_G, ...)` and return if it is not a function.
-- [ ] Wrap your own work in `pcall`; respect `eventArgs.cancel` in `cleanup_*`.
+- [ ] On Mote's gear functions: `ActionHooks.add('<name>', '<target>', {before = ..., after = ...})`
+      from the install function, and a number for `<name>` in `ActionHooks.ORDER`
+      (its place in the chain). `ActionHooks.install()` (end of the hook section of
+      INIT_SYSTEMS) wraps once per sandbox and runs each step under `pcall`.
+      Respect `eventArgs.cancel` in `cleanup_*`.
+- [ ] Anything else you wrap: guard once per sandbox with a `_G` flag, read the
+      previous function with `rawget(_G, ...)`, wrap your own work in `pcall`.
 - [ ] Events: `raw_register_event` (action packets: `ActionListener.on`), registered on every load; loops: a
       `windower.*` generation counter.
 - [ ] Update the INIT_SYSTEMS header comment, and in
@@ -782,7 +806,19 @@ Since 2026-10-18 the page players open, `atelier/index.html`, is **built**: neve
 
 #### A minimal harness
 
-Verified with `lua5.1` on 2026-09-28 (prints `ok`):
+The checks, their count and the end-of-run line come from `scripts/lib/testlib.lua`; a
+test loads it rather than writing its own:
+
+| Helper | What it does |
+|---|---|
+| `T.eq(what, got, want)` / `T.ok(what, cond, detail)` | one check; a failure prints `FAILED <what>: ...` (`T.verbose = true` prints the passes too) |
+| `T.done()` | prints `<n> checks, <m> failed`, exits 1 on a failure (the exit code is what `run_tests.py` reads) |
+| `T.push(queue, {at = t, fn = fn})` | a virtual clock's queue kept in time order, same-time tasks in the order they came (Lua 5.1's `table.sort` is not stable: never sort the queue on `at` alone) |
+| `T.module(name, tbl)` | `require(name)` returns `tbl` |
+| `T.tmpdir(name)`, `T.mkdir`, `T.rmtree`, `T.listdir`, `T.files`, `T.copytree` | scratch folders and listings that work on Windows and Linux |
+
+Verified with `lua5.1` on 2026-09-28 (prints `ok`; written before the library, it shows the
+stubs every harness needs):
 
 ```lua
 -- Run from data/:  lua5.1 path/to/harness_min.lua
@@ -824,7 +860,8 @@ by reading.
 
 #### A harness for the wrapper chain
 
-This one produced the orders printed in [section 3](#3-the-gear-wrapper-chain).
+This one produced the orders printed in [section 3](#3-the-gear-wrapper-chain);
+`scripts/atelier/action_hooks_test.lua` is the same harness, run by `run_tests.py`.
 It defines Mote's three functions first (as Mote does after `user_setup()`),
 stubs the dependencies of `custom_states` and `combat_mode`, replaces each
 layer's work function with a logger, then runs the real install functions in
@@ -865,6 +902,7 @@ local CT = require('shared/utils/precast/cast_time');        CT.estimate = funct
 local CM = require('shared/utils/core/combat_mode');         CM.apply = function() note('CombatMode lock') end
 
 EB.install(); DW.install(); TH.install(); MF.install(); CS.install_hooks(); CT.install_hook(); CM.install_hook()
+require('shared/utils/core/action_hooks').install()
 
 local spell = { english = 'Fire', action_type = 'Magic', target = { type = 'MONSTER', id = 42 } }
 for _, step in ipairs({

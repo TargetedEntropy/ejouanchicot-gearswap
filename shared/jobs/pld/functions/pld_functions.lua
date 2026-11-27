@@ -61,14 +61,12 @@ TIMER('PLD_BUFFS')
 ---   SECTION 5: UTILITY HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-include('../shared/jobs/pld/functions/PLD_LOCKSTYLE.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('PLD')
 TIMER('PLD_LOCKSTYLE')
-include('../shared/jobs/pld/functions/PLD_MACROBOOK.lua')
+require('shared/utils/macrobook/macrobook_manager').install('PLD')
 TIMER('PLD_MACROBOOK')
 include('../shared/jobs/pld/functions/PLD_COMMANDS.lua')
 TIMER('PLD_COMMANDS')
-include('../shared/jobs/pld/functions/PLD_MOVEMENT.lua')
-TIMER('PLD_MOVEMENT')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   LOGIC MODULES REFERENCE

@@ -25,13 +25,11 @@
 ---   @requires PrecastGuard, CooldownChecker, TierRefiner, WSPrecastHandler
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 local TierRefiner = nil
 local SpellTiers = nil
 local Grimoire = nil
-local SCHTPConfig = nil
 
 local modules_loaded = false
 
@@ -41,15 +39,6 @@ local STRATAGEM_RECAST_ID = 231
 local function ensure_modules_loaded()
     if modules_loaded then return end
 
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    CooldownChecker = cc_ok and cc or nil
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    PrecastGuard = pg_ok and pg or nil
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    WSPrecastHandler = wph_ok and wph or nil
-
     local tr_ok, tr = pcall(require, 'shared/utils/precast/tier_refiner')
     TierRefiner = tr_ok and tr or nil
 
@@ -57,7 +46,6 @@ local function ensure_modules_loaded()
     SpellTiers = st_ok and st or nil
 
     Grimoire = require('shared/jobs/sch/functions/logic/grimoire')
-    SCHTPConfig = _G.SCHTPConfig or {}
     modules_loaded = true
 end
 
@@ -69,10 +57,10 @@ local function check_recast_or_refine(spell, eventArgs)
     local tiers = TierRefiner and SpellTiers and SpellTiers.get(spell)
     if tiers then
         TierRefiner.refine(spell, eventArgs, tiers)
-    elseif CooldownChecker and spell.action_type == 'Ability' then
-        CooldownChecker.check_ability_cooldown(spell, eventArgs)
-    elseif CooldownChecker and spell.action_type == 'Magic' then
-        CooldownChecker.check_spell_cooldown(spell, eventArgs)
+    elseif spell.action_type == 'Ability' then
+        PrecastPipeline.ability_cooldown(spell, eventArgs)
+    elseif spell.action_type == 'Magic' then
+        PrecastPipeline.spell_cooldown(spell, eventArgs)
     end
 end
 
@@ -94,50 +82,20 @@ end
 ---   PRECAST HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Called before any action (WS, JA, spell, item)
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    -- 1. Debuff guard
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- 2. Tier refinement or recast check
-    check_recast_or_refine(spell, eventArgs)
-    if eventArgs.cancel then
-        return
-    end
-
-    -- 3. Stratagem charge pool
-    check_stratagem_charge(spell, eventArgs)
-    if eventArgs.cancel then
-        return
-    end
-
-    -- 4. Weaponskill validation and TP bonus gear
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, SCHTPConfig) then
-        return
-    end
-end
-
----   Called after Mote's precast set, before it is equipped: TP bonus gear,
----   then the grimoire layers
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-    Grimoire.equip_layers(Grimoire.precast_layers(spell))
-end
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('SCH', {
+    load = ensure_modules_loaded,
+    -- a spell with lower tiers is re-tiered instead of checked for recast
+    cooldown = check_recast_or_refine,
+    after_cooldown = function(spell, eventArgs)
+        check_stratagem_charge(spell, eventArgs)
+        return eventArgs.cancel
+    end,
+    after_tp_gear = function(spell, action, spellMap, eventArgs)
+        Grimoire.equip_layers(Grimoire.precast_layers(spell))
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

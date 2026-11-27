@@ -24,9 +24,9 @@
 local Profiler = require('shared/utils/debug/performance_profiler')
 local TIMER = Profiler.create_timer('RDM')
 
-include('../shared/jobs/rdm/functions/RDM_LOCKSTYLE.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('RDM')
 TIMER('RDM_LOCKSTYLE')
-include('../shared/jobs/rdm/functions/RDM_MACROBOOK.lua')
+require('shared/utils/macrobook/macrobook_manager').install('RDM')
 TIMER('RDM_MACROBOOK')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -62,8 +62,6 @@ TIMER('RDM_BUFFS')
 ---   SECTION 5: MOVEMENT HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-include('../shared/jobs/rdm/functions/RDM_MOVEMENT.lua')
-TIMER('RDM_MOVEMENT')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   SECTION 6: UTILITY HOOKS

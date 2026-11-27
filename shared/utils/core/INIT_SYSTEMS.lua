@@ -28,88 +28,6 @@
 
 pcall(function() require('shared/utils/debug/trace_log').log('LOAD', 'INIT_SYSTEMS start (Mote and user_setup done)') end)
 
--- Pieces changed in the Atelier page (<Char>/atelier/overrides/set_overrides.lua), over the sets
--- init_gear_sets has just built (shared/utils/atelier/set_overrides.lua)
-pcall(function() require('shared/utils/atelier/set_overrides').apply(player and player.main_job) end)
-
--- SubWeapon reduced to the shields when the subjob gives no Dual Wield, the value last chosen on that side given back
--- (shared/utils/equipment/offhand_filter.lua): after init_gear_sets, which built the weapon sets the values name
-pcall(function() require('shared/utils/equipment/offhand_filter').apply(player and player.main_job) end)
-
----  ═══════════════════════════════════════════════════════════════════════════
----   RESTORE PERSISTENT DEBUG FLAGS (survives job changes)
----  ═══════════════════════════════════════════════════════════════════════════
-
--- Restore debug flags from the windower table, which outlives the sandbox.
--- Each toggle owns its own field: AUTOMOVE used to be restored from UPDATE,
--- so `//gs c automovedebug` was undone at the next job load.
-if windower._gs_debug then
-    _G.UPDATE_DEBUG       = windower._gs_debug.UPDATE
-    _G.AUTOMOVE_DEBUG     = windower._gs_debug.AUTOMOVE
-    _G.WARP_DEBUG         = windower._gs_debug.WARP
-    _G.PrecastDebugState  = windower._gs_debug.PRECAST
-    _G.JOBCHANGE_DEBUG    = windower._gs_debug.JOBCHANGE
-end
-
--- Track total gs reload count (persists across reloads via windower table)
-windower._gs_reload_count = (windower._gs_reload_count or 0) + 1
-
----  ═══════════════════════════════════════════════════════════════════════════
----   MODULE CACHE (first, so everything below is loaded once instead of N times)
----  ═══════════════════════════════════════════════════════════════════════════
-
--- GearSwap's require never populates package.loaded, so without this every
--- require re-reads and re-executes the file. char_paths.lua, which every entry
--- file requires first, normally installed it already, before Mote's
--- user_setup(); this call covers an entry file that does not load it.
-pcall(function()
-    local ok, ModuleCache = pcall(require, 'shared/utils/core/module_cache')
-    if ok and ModuleCache then
-        ModuleCache.install()
-    end
-end)
-
----  ═══════════════════════════════════════════════════════════════════════════
----   GEAR HOOKS: doubled items, HP priority (the sets are loaded: Mote ran init_gear_sets before this file)
----  ═══════════════════════════════════════════════════════════════════════════
-
--- Impact's cloak (Crepuscular / Twilight) stays on through the cast, every job.
-pcall(function()
-    local ok, ImpactLock = pcall(require, 'shared/utils/equipment/impact_lock')
-    if ok and ImpactLock then ImpactLock.install() end
-end)
-
--- Each side of a doubled ring / earring / weapon takes its own copy.
-pcall(function()
-    local ok, DuplicateGear = pcall(require, 'shared/utils/equipment/duplicate_gear')
-    if ok and DuplicateGear then DuplicateGear.install() end
-end)
-
--- Each swap ranks its pieces by the HP they gain over the worn ones (HPPriority).
-pcall(function()
-    local ok, HPPriority = pcall(require, 'shared/utils/equipment/hp_priority')
-    if ok and HPPriority then
-        HPPriority.apply()
-    end
-end)
-
----  ═══════════════════════════════════════════════════════════════════════════
----   LAG DEBUGGER (loaded immediately, lightweight - only active when toggled)
----  ═══════════════════════════════════════════════════════════════════════════
-
--- LagDebugger is always loaded so //gs c lagdebug works immediately on any job
--- It does nothing unless explicitly started with //gs c lagdebug
-if not _G.LagDebugger then
-    pcall(require, 'shared/utils/debug/lag_debugger')
-end
-
--- Log reload completion (marks when GearSwap finished loading after job change)
-if _G.LagDebugger then
-    local job = player and player.main_job or 'UNK'
-    local sub = player and player.sub_job  or 'UNK'
-    _G.LagDebugger.on_reload_complete(job, sub, windower._automove_seq)
-end
-
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES (LAZY LOADING for performance)
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -151,6 +69,73 @@ local function start_safely(name, fn, ...)
     if not ok then
         ensure_message_init().show_module_load_failed(name, err)
     end
+end
+
+
+-- Pieces changed in the Atelier page (<Char>/atelier/overrides/set_overrides.lua), over the sets
+-- init_gear_sets has just built (shared/utils/atelier/set_overrides.lua)
+start_safely('SetOverrides', function() require('shared/utils/atelier/set_overrides').apply(player and player.main_job) end)
+
+-- SubWeapon reduced to the shields when the subjob gives no Dual Wield, the value last chosen on that side given back
+-- (shared/utils/equipment/offhand_filter.lua): after init_gear_sets, which built the weapon sets the values name
+start_safely('OffhandFilter', function() require('shared/utils/equipment/offhand_filter').apply(player and player.main_job) end)
+
+---  ═══════════════════════════════════════════════════════════════════════════
+---   RESTORE PERSISTENT DEBUG FLAGS (survives job changes)
+---  ═══════════════════════════════════════════════════════════════════════════
+
+-- Restore debug flags from the windower table, which outlives the sandbox.
+-- Each toggle owns its own field: AUTOMOVE used to be restored from UPDATE,
+-- so `//gs c automovedebug` was undone at the next job load.
+if windower._gs_debug then
+    _G.UPDATE_DEBUG       = windower._gs_debug.UPDATE
+    _G.AUTOMOVE_DEBUG     = windower._gs_debug.AUTOMOVE
+    _G.WARP_DEBUG         = windower._gs_debug.WARP
+    _G.PrecastDebugState  = windower._gs_debug.PRECAST
+    _G.JOBCHANGE_DEBUG    = windower._gs_debug.JOBCHANGE
+end
+
+-- Track total gs reload count (persists across reloads via windower table)
+windower._gs_reload_count = (windower._gs_reload_count or 0) + 1
+
+---  ═══════════════════════════════════════════════════════════════════════════
+---   MODULE CACHE (first, so everything below is loaded once instead of N times)
+---  ═══════════════════════════════════════════════════════════════════════════
+
+-- GearSwap's require never populates package.loaded, so without this every
+-- require re-reads and re-executes the file. char_paths.lua, which every entry
+-- file requires first, normally installed it already, before Mote's
+-- user_setup(); this call covers an entry file that does not load it.
+start_safely('ModuleCache', function() require('shared/utils/core/module_cache').install() end)
+
+---  ═══════════════════════════════════════════════════════════════════════════
+---   GEAR HOOKS: doubled items, HP priority (the sets are loaded: Mote ran init_gear_sets before this file)
+---  ═══════════════════════════════════════════════════════════════════════════
+
+-- Impact's cloak (Crepuscular / Twilight) stays on through the cast, every job.
+start_safely('ImpactLock', function() require('shared/utils/equipment/impact_lock').install() end)
+
+-- Each side of a doubled ring / earring / weapon takes its own copy.
+start_safely('DuplicateGear', function() require('shared/utils/equipment/duplicate_gear').install() end)
+
+-- Each swap ranks its pieces by the HP they gain over the worn ones (HPPriority).
+start_safely('HPPriority', function() require('shared/utils/equipment/hp_priority').apply() end)
+
+---  ═══════════════════════════════════════════════════════════════════════════
+---   LAG DEBUGGER (loaded immediately, lightweight - only active when toggled)
+---  ═══════════════════════════════════════════════════════════════════════════
+
+-- LagDebugger is always loaded so //gs c lagdebug works immediately on any job
+-- It does nothing unless explicitly started with //gs c lagdebug
+if not _G.LagDebugger then
+    pcall(require, 'shared/utils/debug/lag_debugger')
+end
+
+-- Log reload completion (marks when GearSwap finished loading after job change)
+if _G.LagDebugger then
+    local job = player and player.main_job or 'UNK'
+    local sub = player and player.sub_job  or 'UNK'
+    _G.LagDebugger.on_reload_complete(job, sub, windower._automove_seq)
 end
 
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -350,59 +335,29 @@ end
 -- Hachirin-no-Obi / Orpheus's Sash on elemental damage (elemental_belt.lua).
 -- Laid first, so the midcast fallback below (its set) and the custom states
 -- (the player's own gear) wrap it: set, then belt, then custom gear.
-pcall(function()
-    local ok, ElementalBelt = pcall(require, 'shared/utils/equipment/elemental_belt')
-    if ok and ElementalBelt then
-        ElementalBelt.install()
-    end
-end)
+start_safely('ElementalBelt', function() require('shared/utils/equipment/elemental_belt').install() end)
 
 -- Dual Wield tier pieces by magic haste on the engaged set (dual_wield.lua).
 -- Wraps handle_equipping_gear before the custom states do, so the player's
 -- custom gear still goes on last.
-pcall(function()
-    local ok, DualWield = pcall(require, 'shared/utils/equipment/dual_wield')
-    if ok and DualWield then
-        DualWield.install()
-    end
-end)
+start_safely('DualWield', function() require('shared/utils/equipment/dual_wield').install() end)
 
 -- Weaponskill set by the support in the party (support_tier.lua): wraps
 -- Mote's get_weaponskill_set, defined by now, and listens for party jobs.
-pcall(function()
-    local ok, SupportTier = pcall(require, 'shared/utils/party/support_tier')
-    if ok and SupportTier then
-        SupportTier.install()
-    end
-end)
+start_safely('SupportTier', function() require('shared/utils/party/support_tier').install() end)
 
 -- A chat block at each fight and each kill (fight_tracker.lua), only when
 -- the player turned it on (//gs c fights on): off, init() does nothing.
-pcall(function()
-    local ok, FightTracker = pcall(require, 'shared/utils/combat/fight_tracker')
-    if ok and FightTracker then
-        FightTracker.init()
-    end
-end)
+start_safely('FightTracker', function() require('shared/utils/combat/fight_tracker').init() end)
 
 -- The timers a Random Deal / Wild Card gave back (random_deal_watch.lua),
 -- only while the player has it on (//gs c dealwatch on).
-pcall(function()
-    local ok, RandomDealWatch = pcall(require, 'shared/utils/combat/random_deal_watch')
-    if ok and RandomDealWatch then
-        RandomDealWatch.init()
-    end
-end)
+start_safely('RandomDealWatch', function() require('shared/utils/combat/random_deal_watch').init() end)
 
 -- Treasure Hunter on the engaged set and on the first action against a
 -- mob not tagged yet (treasure_hunter.lua). After the Dual Wield and belt
 -- hooks (TH wins, once per mob), before the custom states.
-pcall(function()
-    local ok, TreasureHunter = pcall(require, 'shared/utils/equipment/treasure_hunter')
-    if ok and TreasureHunter then
-        TreasureHunter.install()
-    end
-end)
+start_safely('TreasureHunter', function() require('shared/utils/equipment/treasure_hunter').install() end)
 
 -- The dated journals (logs/fights, enhtest, sortie) older than 60 days deleted,
 -- once a session, a moment after the load (shared/utils/core/log_keeper.lua).
@@ -416,41 +371,22 @@ end)
 
 -- A coloured line after each synthesis: NQ, HQ 1 to 3, Break and what it
 -- lost (shared/utils/craft/synth_results.lua), every job.
-pcall(function()
-    local ok, SynthResults = pcall(require, 'shared/utils/craft/synth_results')
-    if ok and SynthResults then
-        SynthResults.init()
-    end
-end)
+start_safely('SynthResults', function() require('shared/utils/craft/synth_results').init() end)
 
 -- Spells a job's midcast does not route (a subjob's magic) go through
 -- MidcastManager anyway. Laid before the custom states hook below, which
 -- wraps it, so the player's custom gear still goes on last.
-pcall(function()
-    local ok, MidcastFallback = pcall(require, 'shared/utils/midcast/midcast_fallback')
-    if ok and MidcastFallback then
-        MidcastFallback.install()
-    end
-end)
+start_safely('MidcastFallback', function() require('shared/utils/midcast/midcast_fallback').install() end)
 
 -- Not from user_setup(): Mote calls it from the middle of Mote-Include, before
 -- defining handle_equipping_gear and cleanup_precast/midcast, and those
 -- definitions then replace any hook laid on them. By now they all exist.
-pcall(function()
-    local ok, CustomStates = pcall(require, 'shared/utils/custom/custom_states')
-    if ok and CustomStates then
-        CustomStates.install_hooks()
-    end
-end)
+start_safely('CustomStates', function() require('shared/utils/custom/custom_states').install_hooks() end)
 
 -- Cast time of every spell from the precast set actually sent (watchdog, BRD
 -- song queue), and the game's "cast started" packets.
-pcall(function()
-    local ok_t, CastTime = pcall(require, 'shared/utils/precast/cast_time')
-    if ok_t and CastTime then CastTime.install_hook() end
-    local ok_c, CastTracker = pcall(require, 'shared/utils/core/cast_tracker')
-    if ok_c and CastTracker then CastTracker.start() end
-end)
+start_safely('CastTime', function() require('shared/utils/precast/cast_time').install_hook() end)
+start_safely('CastTracker', function() require('shared/utils/core/cast_tracker').start() end)
 
 -- A queue still under way from the previous load (stealth, cleanse, buff) listens
 -- again for the end of each action; else every step waits its longest wait.
@@ -460,32 +396,31 @@ pcall(function()
     end
 end)
 
--- Combat Mode lock, every job. Laid after the custom hooks so it wraps them:
--- the lock is set before any gear goes on.
-pcall(function()
-    local ok, CombatMode = pcall(require, 'shared/utils/core/combat_mode')
-    if ok and CombatMode then
-        CombatMode.install_hook()
-    end
-end)
+-- Combat Mode lock, every job: the outermost layer, the lock is set before any gear goes on.
+start_safely('CombatMode', function() require('shared/utils/core/combat_mode').install_hook() end)
+
+-- The layers registered above (belt, Dual Wield, Treasure Hunter, midcast fallback, custom states, cast time,
+-- Combat Mode) laid on Mote's handle_equipping_gear / cleanup_precast / cleanup_midcast, each function wrapped once,
+-- in ActionHooks.ORDER (shared/utils/core/action_hooks.lua) whatever the order they registered in. Here, after
+-- include('Mote-Include.lua') has defined the three: from user_setup() Mote would overwrite them a moment later.
+require('shared/utils/core/action_hooks').install()
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   PRECAST SAFETY MODULES - confirm they load, once per job load
 ---  ═══════════════════════════════════════════════════════════════════════════
 
--- Every [JOB]_PRECAST.lua pcalls these three and carries on with nil when one
--- fails, then sets modules_loaded = true regardless - so the failure is
--- permanent for the session and completely silent. What disappears is not a
--- nicety: PrecastGuard is the Silence/Amnesia/death block, CooldownChecker is
--- every recast message, WSPrecastHandler is the range check and the TP bonus
--- gear. Worse, precast_guard requires message_core without a pcall, so the very
--- error that removes the guard on all 22 jobs also takes MessageFormatter down
--- with it - the channel that would have said so.
+-- PrecastPipeline (shared/utils/precast/precast_pipeline.lua) requires these three
+-- at a job's first action, with no pcall: a broken one is an error at that
+-- action, not a guard silently gone for the session (each [JOB]_PRECAST.lua used
+-- to pcall them and carry on with nil). What they are is not a nicety:
+-- PrecastGuard is the Silence/Amnesia/death block, CooldownChecker is every
+-- recast message, WSPrecastHandler is the range check and the TP bonus gear.
+-- This check names a broken one at the load, before the first action: precast_guard
+-- requires message_core, so the error can take MessageFormatter down with it.
 --
--- Checked here rather than in the 22 job files, and on a delay rather than
--- inline: ModuleCache means this require is the same one the job will get, so
--- an answer here is the answer there, and waiting keeps the cost of loading
--- the chain off the cold-load path.
+-- On a delay rather than inline: ModuleCache means this require is the same one
+-- the job will get, so an answer here is the answer there, and waiting keeps the
+-- cost of loading the chain off the cold-load path.
 LoadGate.defer(3.0, function()
     local critical = {
         { 'PrecastGuard',     'shared/utils/debuff/precast_guard' },
@@ -536,7 +471,7 @@ pcall(function()
     if TraceLog.enabled() then TraceLog.start_heartbeat() end
 end)
 -- //gs c atelier on: export this job for data/atelier.html once it is loaded
-pcall(function() require('shared/utils/atelier/atelier_export').after_load() end)
+start_safely('AtelierExport', function() require('shared/utils/atelier/atelier_export').after_load() end)
 
 LoadGate.defer(5.0, function()
     local ok, GlobalProbe = pcall(require, 'shared/utils/debug/global_probe')

@@ -275,14 +275,10 @@ end
 --- Wrap handle_equipping_gear and listen for haste, once per sandbox.
 function DualWield.install()
     if rawget(_G, '_dual_wield_installed') then return end
-    local original = rawget(_G, 'handle_equipping_gear')
-    if type(original) ~= 'function' then return end
     _G._dual_wield_installed = true
-    _G.handle_equipping_gear = function(status, pet_status)
-        local result = original(status, pet_status)
-        pcall(DualWield.apply, status)
-        return result
-    end
+    require('shared/utils/core/action_hooks').add('dual_wield', 'handle_equipping_gear', {
+        after = function(_, status) DualWield.apply(status) end,
+    })
     require('shared/utils/core/action_listener').on('dual_wield', on_action)
     windower.raw_register_event('gain buff', function(id) pcall(on_buff, id) end)
     windower.raw_register_event('lose buff', function(id) pcall(on_buff, id) end)

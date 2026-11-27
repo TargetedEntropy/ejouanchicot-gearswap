@@ -13,7 +13,7 @@ References are to the code as of 2026-09-28. Functions are named (`file` `functi
 | Path | Lines | Role |
 |---|---|---|
 | `shared/utils/midcast/midcast_manager.lua` | 764 | `select_set()` with the standard chain (P0-P9, plus P8b) and the Singing chain, persistent debug toggle, Composure target helper, song helpers |
-| `shared/utils/midcast/midcast_fallback.lua` | 62 | Routes a spell no job midcast handed to `select_set` (a subjob's magic), on Mote's `cleanup_midcast` |
+| `shared/utils/midcast/midcast_fallback.lua` | 57 | Routes a spell no job midcast handed to `select_set` (a subjob's magic), on Mote's `cleanup_midcast` |
 | `shared/utils/midcast/midcast_trace.lua` | 81 | `MIDCAST` lines in `<Character>/logs/trace/trace.log` (chosen path and pieces, or "no set"); slot-name aliasing |
 | `shared/utils/midcast/utsusemi_shadows.lua` | 52 | Cancels Copy Image buffs during Utsusemi: Ichi's cast, before its end (Cancel addon) |
 | `shared/utils/midcast/midcast_deps.lua` | 44 | Loads `MidcastManager` and `ENHANCING_MAGIC_DATABASE` once per instance, for the 14 jobs that call it (see [MidcastDeps](#midcastdeps)) |
@@ -253,7 +253,7 @@ Each call is a no-op while the trace is off (`trace_log.enabled()`).
 | Function | Behaviour | Callers |
 |---|---|---|
 | `route(spell, eventArgs)` | reads and clears `_G._midcast_routed`; returns when it equals `spell`, when `spell.action_type ~= 'Magic'`, when `spell.skill` is missing, or when `eventArgs.cancel` / `eventArgs.handled`; otherwise `MidcastManager.select_set({skill = spell.skill, spell = spell})` | the `cleanup_midcast` wrapper |
-| `install()` | wraps `cleanup_midcast` once per sandbox (`_G._midcast_fallback_installed`): `route` first, then the original | `INIT_SYSTEMS.lua` (after the Obi/Orpheus and TH hooks, before the custom states hook) |
+| `install()` | registers the `midcast_fallback` layer on `cleanup_midcast` (`ActionHooks`): `route` before the inner call | `INIT_SYSTEMS.lua` (after the Obi/Orpheus and TH hooks, before the custom states hook) |
 
 | `skip(spell)` | writes `_G._midcast_routed = spell`, so `route` leaves the spell alone | the job branches that dress a spell themselves: RDM Phalanx under Accession, BLM `Router.handle_impact`, GEO Indi- under Entrust on a party member, PLD Phalanx SIRD, BRD dummy and debuff songs |
 
@@ -480,7 +480,7 @@ The buff engine reads `BUFF_CONFIG.lua` (above); the other modules read no confi
 ## State & lifetime
 
 - `windower._midcast_debug` (written by `enable_debug` / `disable_debug`): survives every job load, reset by `//lua reload gearswap`. `_G.MidcastManagerDebugState` is its per-load mirror.
-- `_G._midcast_routed`: written by every `select_set`, read and cleared by `MidcastFallback.route` at the end of each midcast. `_G._midcast_fallback_installed`: one wrap per sandbox.
+- `_G._midcast_routed`: written by every `select_set`, read and cleared by `MidcastFallback.route` at the end of each midcast. The wrap is `ActionHooks`' (one per sandbox).
 - `MidcastTrace` `current`: module local, the spell last passed to `begin`.
 - `windower._sch_cast_seq`: generation of the latest scholar cast; pending polls of an older one stop.
 - `_G.SongRotationManager`: written by `BRD_MIDCAST.lua` on the first BRD midcast; read by `get_song_instrument`.

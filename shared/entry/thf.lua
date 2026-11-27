@@ -48,28 +48,8 @@ local CharPaths = require('shared/utils/core/char_paths')
 -- The hooks every entry shares (job_update, subjob change, unload, keybind error)
 local EntryKit = require('shared/utils/core/entry_kit')
 
-local lockstyle_config_success, LockstyleConfig = pcall(require, CharPaths.module('common', 'LOCKSTYLE_CONFIG'))
-if not lockstyle_config_success or not LockstyleConfig then
-    -- Fallback defaults if config not found
-    LockstyleConfig = {
-        initial_load_delay = 8.0
-    }
-end
-
--- ============================================
--- LOAD UICONFIG AT MODULE LEVEL (executed on EVERY reload)
--- ============================================
--- Centralized loading via config_loader to eliminate duplication
-local ConfigLoader = require('shared/utils/config/config_loader')
-local UIConfig = ConfigLoader.load_ui_config(CharPaths.name(), 'THF')
-
--- Region configuration, set at file level: message_colors reads
--- _G.RegionConfig at each use, so it only has to be set before the first
--- message that uses the region colour.
-local region_success, RegionConfig = pcall(require, CharPaths.module('common', 'REGION_CONFIG'))
-if region_success and RegionConfig then
-    _G.RegionConfig = RegionConfig
-end
+-- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
+local LockstyleConfig, UIConfig = EntryKit.load_configs('THF')
 
 --- GearSwap entry hook: loads Mote-Include, the shared systems and the THF modules.
 --- Called by GearSwap each time this job file is loaded.
@@ -82,32 +62,8 @@ function get_sets()
     mote_include_version = 2
     include('Mote-Include.lua')
     Profiler.mark('After Mote-Include')
-    include('../shared/utils/core/INIT_SYSTEMS.lua')
-    Profiler.mark('After INIT_SYSTEMS')
-
-    -- ============================================
-    -- UNIVERSAL DATA ACCESS (All Spells/Abilities/Weaponskills)
-    -- ============================================
-    require('shared/utils/data/data_loader')
-    Profiler.mark('After data_loader')
-
-    -- ============================================
-    -- UNIVERSAL SPELL MESSAGES (All Jobs/Subjobs)
-    -- ============================================
-    include('../shared/hooks/init_spell_messages.lua')
-    Profiler.mark('After spell messages')
-
-    -- ============================================
-    -- UNIVERSAL ABILITY MESSAGES (All Jobs/Subjobs)
-    -- ============================================
-    include('../shared/hooks/init_ability_messages.lua')
-    Profiler.mark('After ability messages')
-
-    -- ============================================
-    -- UNIVERSAL WEAPONSKILL MESSAGES (All Jobs/Subjobs)
-    -- ============================================
-    include('../shared/hooks/init_ws_messages.lua')
-    Profiler.mark('After WS messages')
+    -- the shared systems, the data, the spell / ability / weaponskill messages
+    EntryKit.after_mote(Profiler)
 
     _G.LockstyleConfig = LockstyleConfig
     _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
@@ -115,21 +71,8 @@ function get_sets()
     -- THF-specific configs
     _G.THFTPConfig = require(CharPaths.module('job', 'THF_TP_CONFIG', 'THF'))
 
-    -- Cancel any pending operations from previous job (including ALL job lockstyles)
-    local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    if jcm_success and JobChangeManager then
-        JobChangeManager.cancel_all()
-    end
-
-    -- Load job-specific functions (AutoMove loaded via INIT_SYSTEMS)
-    include('../shared/jobs/thf/functions/thf_functions.lua')
-    Profiler.mark('After thf_functions')
-    -- Keybinds loaded via require() in user_setup() for better control
-
-    -- Register THF lockstyle cancel function
-    if jcm_success and JobChangeManager and cancel_thf_lockstyle_operations then
-        JobChangeManager.register_lockstyle_cancel("THF", cancel_thf_lockstyle_operations)
-    end
+    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
+    EntryKit.load_facade('THF', Profiler)
 
     -- Initial macrobook/lockstyle are triggered from user_setup();
     -- subjob changes go through JobChangeManager (job_sub_job_change).

@@ -7,9 +7,7 @@
 ---
 ---   COR commands: track_roll <short> <value>, rolls, doubleup (du),
 ---   clearrolls, party, clearparty, shot / roll1 / roll2 (ability selected in
----   QuickDraw / MainRoll / SubRoll), testcolors (colors).
----   Note: testcolors / colors are also common commands, and the common
----   handler runs first.
+---   QuickDraw / MainRoll / SubRoll). testcolors / colors are common commands.
 ---   job_state_change re-equips gear when MainWeapon / RangeWeapon changes.
 ---
 ---   @file    shared/jobs/cor/functions/COR_COMMANDS.lua
@@ -77,6 +75,8 @@ local function use_selected_ability(entry)
     send_command(string.format('input /ja "%s%s" %s', selection.value, entry.suffix, entry.target))
 end
 
+local JobCommands = require('shared/utils/core/job_commands')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -95,80 +95,7 @@ function job_self_command(cmdParams, eventArgs)
 
     local command = cmdParams[1]:lower()
 
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- DUAL-BOXING: Receive alt job update
-    -- ══════════════════════════════════════════════════════════════════════════
-    if command == 'altjobupdate' then
-        local DualBoxManager = require('shared/utils/dualbox/dualbox_manager')
-        if cmdParams[2] and cmdParams[3] then
-            DualBoxManager.receive_alt_job(cmdParams[2], cmdParams[3], cmdParams[4], cmdParams[5], cmdParams[6], cmdParams[7])
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    -- DUAL-BOXING: Handle job request from MAIN
-    if command == 'requestjob' then
-        local DualBoxManager = require('shared/utils/dualbox/dualbox_manager')
-        DualBoxManager.handle_job_request()
-        eventArgs.handled = true
-        return
-    end
-
-    -- UI commands (centralized handler)
-    if UICommands.is_ui_command(command) then
-        UICommands.handle_ui_command(cmdParams)
-        eventArgs.handled = true
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- DEBUG COMMANDS
-    -- ══════════════════════════════════════════════════════════════════════════
-    if command == 'debugmidcast' then
-        -- Toggle MidcastManager debug mode
-        local MidcastManager = require('shared/utils/midcast/midcast_manager')
-        MidcastManager.toggle_debug()
-
-        -- Confirmation message
-        MessageCommands.show_debugmidcast_toggled('COR', _G.MidcastManagerDebugState)
-
-        eventArgs.handled = true
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- CUSTOM CYCLE STATE (UI-aware cycle)
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- Intercepts cycle commands to check UI visibility
-    -- If UI visible: custom cycle + UI update (no message)
-    -- If UI invisible: delegate to Mote-Include (shows message)
-
-    if command == 'cyclestate' then
-        eventArgs.handled = CycleHandler.handle_cyclestate(cmdParams, eventArgs)
-        return
-    end
-
-    -- Watchdog commands
-    if WatchdogCommands.is_watchdog_command(command) then
-        if WatchdogCommands.handle_command(cmdParams, eventArgs) then
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- Common commands (reload, checksets, lockstyle, etc.)
-    if CommonCommands.is_common_command(command) then
-        -- Pass all arguments after command (cmdParams[2], cmdParams[3], etc.)
-        local args = {}
-        for i = 2, #cmdParams do
-            table.insert(args, cmdParams[i])
-        end
-        if CommonCommands.handle_command(command, 'COR', table.unpack(args)) then
-            eventArgs.handled = true
-        end
-        return
-    end
+    if JobCommands.shared(command, cmdParams, eventArgs, 'COR') then return end
 
     -- COR-specific commands
     if command == 'track_roll' or command == 'trackroll' then
@@ -314,20 +241,6 @@ function job_self_command(cmdParams, eventArgs)
         -- shot / roll1 / roll2: the ability selected in QuickDraw / MainRoll / SubRoll
         eventArgs.handled = true
         use_selected_ability(SELECTED_ABILITY_COMMANDS[command])
-
-    elseif command == 'testcolors' or command == 'colors' then
-        -- Display all FFXI color codes to find which ones work
-        -- Example: //gs c testcolors
-        eventArgs.handled = true
-
-        MessageFormatter.show_color_test_header()
-
-        -- Test every code from 1 to 255
-        for i = 1, 255 do
-            MessageFormatter.show_color_test_sample(i)
-        end
-
-        MessageFormatter.show_color_test_footer()
 
     end
 end

@@ -125,7 +125,10 @@ def tests(full):
     # check_overlay.py: a re-clone would give every live file back as it is (the overlays had fallen behind the
     # live again with nothing to say so, audit 2026-10-28 E); it reads the gitignored live folders, so it only runs
     # where they are
-    out = [('python', 'scripts/check_syntax.py'), ('python', 'scripts/atelier/make_package_test.py'),
+    # check_generated.py: every file a script writes is still what its script writes (state_help_data.js had
+    # fallen three entries behind the docs it is read from, with nothing to say so)
+    out = [('python', 'scripts/check_syntax.py'), ('python', 'scripts/check_generated.py'),
+           ('python', 'scripts/atelier/make_package_test.py'),
            ('python', 'scripts/check_overlay.py'),
            ('python', 'scripts/loadcheck/check_load.py')]
     # check_same_copy.lua: a set asking one copy of a ring (or earring) for both slots, in the characters' own set

@@ -43,25 +43,22 @@ function; line numbers are deliberately not used.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/thf.lua` | 252 | Entry point (the same for every character; `<Char>_THF.lua` and its template `_master/entry/Tetsouo_THF.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ `RangeLock.sync_state`), `job_update`, `init_gear_sets`, `file_unload` (+ `RangeLock.release`, first); shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/thf/functions/thf_functions.lua` | 117 | Facade: includes `message_buffs` and the 11 hook files, calls `TreasureHunter.init()` (THF layer), requires `dualbox_manager` |
-| `shared/jobs/thf/functions/THF_PRECAST.lua` | 147 | `job_precast` / `job_post_precast`: guard, cooldown, SA/TA pending flags, WS handler; post: SA/TA WS variant, then TP gear |
+| `shared/entry/thf.lua` | 195 | Entry point (the same for every character; `<Char>_THF.lua` and its template `_master/entry/Tetsouo_THF.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ `RangeLock.sync_state`), `job_update`, `init_gear_sets`, `file_unload` (+ `RangeLock.release`, first); shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/jobs/thf/functions/thf_functions.lua` | 115 | Facade: includes `message_buffs` and the 11 hook files, calls `TreasureHunter.init()` (THF layer), requires `dualbox_manager` |
+| `shared/jobs/thf/functions/THF_PRECAST.lua` | 79 | `job_precast` / `job_post_precast`: guard, cooldown, SA/TA pending flags, WS handler; post: SA/TA WS variant, then TP gear |
 | `shared/jobs/thf/functions/THF_MIDCAST.lua` | 94 | `job_midcast` (ranged lock via `RangeLock.engage`) / `job_post_midcast` (watchdog, MidcastManager for Ninjutsu, Healing, Enhancing) |
 | `shared/jobs/thf/functions/THF_AFTERCAST.lua` | 65 | `job_aftercast`: watchdog, SA/TA pending flags (lowered when refused), quiver auto-open |
 | `shared/jobs/thf/functions/THF_IDLE.lua` | 42 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/thf/functions/THF_ENGAGED.lua` | 42 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/thf/functions/THF_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/thf/functions/THF_BUFFS.lua` | 71 | `job_buff_change`: DoomManager, SA/TA pending reset, `gs c update` on SA/TA loss while engaged, Aftermath Lv.3 refresh (`LifecycleManager.refresh_after_buff`) |
-| `shared/jobs/thf/functions/THF_COMMANDS.lua` | 210 | `job_self_command` router, `job_state_change` (`LifecycleManager.state_change` + RangeLock lock/unlock) |
-| `shared/jobs/thf/functions/THF_MOVEMENT.lua` | 18 | Header only, kept for the 12-module layout |
-| `shared/jobs/thf/functions/THF_LOCKSTYLE.lua` | 47 | Lazy `LockstyleManager.create('THF', ...)` wrappers |
-| `shared/jobs/thf/functions/THF_MACROBOOK.lua` | 42 | Lazy `MacrobookManager.create('THF', ...)` wrapper |
+| `shared/jobs/thf/functions/THF_COMMANDS.lua` | 137 | `job_self_command` router, `job_state_change` (`LifecycleManager.state_change` + RangeLock lock/unlock) |
 | `shared/jobs/thf/functions/logic/sa_ta_manager.lua` | 83 | `apply_variant`: WS variant (`SATA` > `SA` > `TA`) from buffs or pending flags; consumes the flags |
 | `shared/jobs/thf/functions/logic/set_builder.lua` | 236 | Engaged base (Aftermath / HybridMode), weapons or Aby weapons, SA/TA overlay, TH overlay, `sata_th_layer` (laid again after Dual Wield), idle base (`BaseSetBuilder.select_idle_base`: town, HybridMode), movement |
 | `shared/jobs/thf/functions/logic/smartbuff_manager.lua` | 145 | `apply_fbc`, `apply_steal` |
 | `shared/jobs/thf/functions/logic/range_lock.lua` | 169 | Range/ammo lock in step with `RangeLock`; `_G.thf_range_locked`, plus Combat Mode's lock registry (`'thf_range'`); `release` at unload |
 | `shared/jobs/thf/functions/logic/treasure_hunter.lua` | 52 | THF layer over the shared module: `sata_overlay`, and `init` hands the shared wrapper the SA/TA + TH layer |
-| `shared/utils/equipment/treasure_hunter.lua` | 291 | Shared Treasure Hunter: optional state, tagging, engaged / action overlays, 3 raw events and an `ActionListener` subscription, `//gs c th` fields |
+| `shared/utils/equipment/treasure_hunter.lua` | 288 | Shared Treasure Hunter: optional state, tagging, engaged / action overlays, 3 raw events and an `ActionListener` subscription, `//gs c th` fields |
 | `shared/utils/equipment/weapon_resolver.lua` | 131 | `set_for(slot, value)`: `sets[value]`, or the plain weapon when `equip_without_set` is on |
 | `shared/utils/buffs/buff_command.lua` | 70 | `//gs c buff` of every job (common command): the `job` list of the main job, then the `subjob` list, from `_common/combat/BUFF_CONFIG.lua` (defaults: no THF list; /WAR, /SAM, /NIN, /DNC, /WHM), through `self_buff_manager.lua` |
 | `_master/config/thf/THF_STATES.lua` | 146 | All Mote states (`THFStates.configure()`) |

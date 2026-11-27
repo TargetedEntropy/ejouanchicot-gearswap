@@ -2,6 +2,7 @@
 // and prints what a player would read there, then the page's errors.
 //
 //   node scripts/atelier/atelier_clicks_test.js                 every test on the page as built: passes when no page error
+//                                                               and no step printed FAILED
 //   node scripts/atelier/atelier_clicks_test.js tip push        only those tests
 //   node scripts/atelier/atelier_clicks_test.js --compare       every test on the last commit's page and on the page now
 //                                                               (page_parity.js --serve old / now): passes when both print
@@ -41,7 +42,10 @@ function run(name, url) {
     p.stdout.on('data', d => out += d); p.stderr.on('data', d => out += d);
     p.on('close', code => {
       const errs = (out.match(/^errors (\[.*\])\s*$/m) || [])[1];
-      done({out, code, clean: code === 0 && errs === '[]', errs: errs || 'no "errors" line'});
+      // a step that threw prints "<label>: FAILED <why>" (each test's step() helper) and is a failure too
+      const failed = (out.match(/^.*: FAILED .*$/m) || [])[0];
+      done({out, code, clean: code === 0 && errs === '[]' && !failed,
+            errs: failed ? 'step ' + failed.trim().slice(0, 160) : errs || 'no "errors" line'});
     });
   });
 }

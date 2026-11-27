@@ -14,14 +14,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local failed, done = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAIL  %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 local BAG_IDS = {0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 local game
@@ -87,5 +81,4 @@ check('bags moved: the wait asked for', waits[1] and waits[1].delay, 8)
 waits[1].fn()
 check('bags moved: the time is kept for the ping', type(windower._bags_changed), 'string')
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

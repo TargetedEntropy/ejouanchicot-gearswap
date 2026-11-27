@@ -40,19 +40,16 @@ function; line numbers are deliberately not used.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/sam.lua` | 191 | Entry point (the same for every character; `<Char>_SAM.lua` and its template `_master/entry/Tetsouo_SAM.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload` |
-| `shared/jobs/sam/functions/sam_functions.lua` | 49 | Facade: includes the 11 hook files, requires `dualbox_manager` |
-| `shared/jobs/sam/functions/SAM_PRECAST.lua` | 217 | `job_precast` (guard, cooldown, `remember_stance`, auto-Seigan, WS handler, auto-Third Eye) / `job_post_precast` (TP gear, Sekkanoki, Meikyo Shisui by `buffactive`) |
+| `shared/entry/sam.lua` | 148 | Entry point (the same for every character; `<Char>_SAM.lua` and its template `_master/entry/Tetsouo_SAM.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload` |
+| `shared/jobs/sam/functions/sam_functions.lua` | 47 | Facade: includes the 11 hook files, requires `dualbox_manager` |
+| `shared/jobs/sam/functions/SAM_PRECAST.lua` | 143 | `job_precast` (guard, cooldown, `remember_stance`, auto-Seigan, WS handler, auto-Third Eye) / `job_post_precast` (TP gear, Sekkanoki, Meikyo Shisui by `buffactive`) |
 | `shared/jobs/sam/functions/SAM_MIDCAST.lua` | 75 | `job_midcast` (empty) / `job_post_midcast`: watchdog, Healing and Enhancing via `MidcastManager` |
 | `shared/jobs/sam/functions/SAM_AFTERCAST.lua` | 22 | `job_aftercast = LifecycleManager.aftercast()` |
 | `shared/jobs/sam/functions/SAM_IDLE.lua` | 42 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/sam/functions/SAM_ENGAGED.lua` | 42 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/sam/functions/SAM_STATUS.lua` | 35 | `job_status_change = LifecycleManager.status_change(auto_hasso)` |
 | `shared/jobs/sam/functions/SAM_BUFFS.lua` | 22 | `job_buff_change = LifecycleManager.buff_change(extra)`, `extra` calling `LifecycleManager.refresh_after_buff` (Aftermath Lv.3) |
-| `shared/jobs/sam/functions/SAM_COMMANDS.lua` | 166 | `job_self_command` router (shared commands, `hasso`, `seigan`), `job_state_change = LifecycleManager.state_change()` |
-| `shared/jobs/sam/functions/SAM_MOVEMENT.lua` | 28 | Empty `job_handle_equipping_gear` (movement gear is in the set builder) |
-| `shared/jobs/sam/functions/SAM_LOCKSTYLE.lua` | 47 | Lazy `LockstyleManager.create('SAM', ...)` wrappers |
-| `shared/jobs/sam/functions/SAM_MACROBOOK.lua` | 42 | Lazy `MacrobookManager.create('SAM', ...)` wrapper |
+| `shared/jobs/sam/functions/SAM_COMMANDS.lua` | 85 | `job_self_command` router (shared commands, `hasso`, `seigan`), `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/sam/functions/logic/set_builder.lua` | 189 | `build_idle_set` (town, PDT, HP, weapon, `BaseSetBuilder.apply_movement`), `apply_main_weapon`, `build_engaged_set` (base from `select_engaged_base`; Seigan, weapon, bow) |
 | `_master/config/sam/SAM_STATES.lua` | 118 | `SAMStates.configure()` (HybridMode, OffenseMode, WeaponskillMode, MainWeapon, Stance, FastCast, AutoMedicine) |
 | `_master/config/sam/SAM_KEYBINDS.lua` | 53 | Data only: 4 binds handed to `KeybindManager.create('SAM', ...)` |
@@ -230,7 +227,7 @@ no midcast set in the template).
   the gear on an Aftermath change). Deferred because `buffactive` inside
   `buff_change` still holds the old buffs
   ([core-lifecycle.md](../systems/core-lifecycle.md#lifecyclemanager)).
-- `job_handle_equipping_gear` (`SAM_MOVEMENT.lua`) is empty.
+- SAM defines no `job_handle_equipping_gear` (the empty one in `SAM_MOVEMENT.lua` was removed on 2026-11-27; Mote treats an empty hook and a missing one the same).
 
 ### Auto Hasso
 

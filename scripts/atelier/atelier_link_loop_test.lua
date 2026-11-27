@@ -14,17 +14,11 @@
 --- @date Created: 2026-10-21
 ---============================================================================
 
-local done, failed = 0, 0
-local function check(what, ok, detail)
-    done = done + 1
-    if not ok then
-        failed = failed + 1
-        print('FAILED ' .. what .. (detail and (': ' .. tostring(detail)) or ''))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.ok
 
-local root = (os.getenv('TEMP') or '.'):gsub('\\', '/') .. '/atelier_link_loop_' .. os.time() .. '/'
-local function mkdir(p) os.execute('mkdir "' .. p:gsub('/', '\\'):gsub('\\$', '') .. '" 2>nul') end
+local root = T.tmpdir('atelier_link_loop') .. '/'
+local mkdir = T.mkdir
 mkdir(root .. 'addons/GearSwap/data/atelier')
 local f = io.open(root .. 'addons/GearSwap/data/VERSION', 'wb'); f:write('3.9.0\n'); f:close()
 local big = string.rep('x', 700000)
@@ -100,6 +94,5 @@ check('a stream that is no request is dropped', junk.closed and #junk.out == 0)
 local e = io.open(root .. 'addons/GearSwap/data/atelier/link_errors.txt')
 check('no error noted', e == nil, e and e:read('*a'))
 if e then e:close() end
-os.execute('rmdir /s /q "' .. root:gsub('/', '\\'):gsub('\\$', '') .. '" 2>nul')
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.rmtree(root)
+T.done()

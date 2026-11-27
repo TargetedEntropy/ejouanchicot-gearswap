@@ -17,84 +17,18 @@
 ---   @author  ejouanchicot
 ---   @version 1.0
 ---   @date    Created: 2026-09-29
----   @requires PrecastGuard, CooldownChecker, WSPrecastHandler
+---   @requires PrecastPipeline
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
-local DRGTPConfig = nil
-
-local modules_loaded = false
-
-local function ensure_modules_loaded()
-    if modules_loaded then return end
-
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    CooldownChecker = cc_ok and cc or nil
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    PrecastGuard = pg_ok and pg or nil
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    WSPrecastHandler = wph_ok and wph or nil
-
-    DRGTPConfig = _G.DRGTPConfig or {}
-    modules_loaded = true
-end
-
---- Cancel an ability or spell still on recast.
---- @param spell table Spell/ability data
---- @param eventArgs table Event arguments (cancel set when on recast)
-local function check_cooldown(spell, eventArgs)
-    if not CooldownChecker then return end
-    if spell.action_type == 'Ability' then
-        CooldownChecker.check_ability_cooldown(spell, eventArgs)
-    elseif spell.action_type == 'Magic' then
-        CooldownChecker.check_spell_cooldown(spell, eventArgs)
-    end
-end
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   PRECAST HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Called before any action (WS, JA, spell, item)
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    -- 1. Debuff guard
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- 2. Cooldown check
-    check_cooldown(spell, eventArgs)
-    if eventArgs.cancel then
-        return
-    end
-
-    -- 3. Weaponskill validation and TP bonus gear
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, DRGTPConfig) then
-        return
-    end
-end
-
----   Called after Mote's precast set, before it is equipped
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-end
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('DRG')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

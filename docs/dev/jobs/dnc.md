@@ -40,19 +40,16 @@ function; line numbers are given only where no function name fits.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/dnc.lua` | 266 | Entry point (the same for every character; `<Char>_DNC.lua` and its template `_master/entry/Tetsouo_DNC.lua` are one `include` of it): config preload, `get_sets` (with the `cancel_conflicting_buffs` override), `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/dnc/functions/dnc_functions.lua` | 107 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager` |
-| `shared/jobs/dnc/functions/DNC_PRECAST.lua` | 206 | `refine_waltz` override, `job_precast` (guard, cooldown, `job_precast_samba`, Climactic timestamp, `job_precast_weaponskill`, WS handler), `job_post_precast` (WS variant, TP gear) |
+| `shared/entry/dnc.lua` | 210 | Entry point (the same for every character; `<Char>_DNC.lua` and its template `_master/entry/Tetsouo_DNC.lua` are one `include` of it): config preload, `get_sets` (with the `cancel_conflicting_buffs` override), `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/jobs/dnc/functions/dnc_functions.lua` | 105 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager` |
+| `shared/jobs/dnc/functions/DNC_PRECAST.lua` | 145 | `refine_waltz` override, `job_precast` (guard, cooldown, `job_precast_samba`, Climactic timestamp, `job_precast_weaponskill`, WS handler), `job_post_precast` (WS variant, TP gear) |
 | `shared/jobs/dnc/functions/DNC_MIDCAST.lua` | 90 | `job_midcast` (empty) / `job_post_midcast` (MidcastManager for Ninjutsu, Healing, Enhancing) |
 | `shared/jobs/dnc/functions/DNC_AFTERCAST.lua` | 38 | `job_aftercast`: watchdog tick only (exported to `_G` only) |
 | `shared/jobs/dnc/functions/DNC_IDLE.lua` | 41 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/dnc/functions/DNC_ENGAGED.lua` | 40 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/dnc/functions/DNC_STATUS.lua` | 19 | `LifecycleManager.status_change()` |
 | `shared/jobs/dnc/functions/DNC_BUFFS.lua` | 43 | `LifecycleManager.buff_change(on_dance_change)`: Doom, then a gear refresh on Saber/Fan Dance gain or loss |
-| `shared/jobs/dnc/functions/DNC_COMMANDS.lua` | 194 | `job_buff_extra` (global: DNC's part of `//gs c buff`), `job_self_command` router; `job_state_change = LifecycleManager.state_change()` |
-| `shared/jobs/dnc/functions/DNC_MOVEMENT.lua` | 13 | Header only, kept for the 12-module layout |
-| `shared/jobs/dnc/functions/DNC_LOCKSTYLE.lua` | 47 | Lazy `LockstyleManager.create('DNC', ...)` wrappers |
-| `shared/jobs/dnc/functions/DNC_MACROBOOK.lua` | 42 | Lazy `MacrobookManager.create('DNC', ...)` wrapper |
+| `shared/jobs/dnc/functions/DNC_COMMANDS.lua` | 121 | `job_buff_extra` (global: DNC's part of `//gs c buff`), `job_self_command` router; `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/dnc/functions/logic/climactic_manager.lua` | 84 | `ClimaticManager.auto_trigger`, `has_three_finishing_moves`, `WS_MIN_TP` 1000 |
 | `shared/jobs/dnc/functions/logic/ws_variant_selector.lua` | 126 | `apply_variant`: WS variant from dance buff + Climactic (buff or 5 s timestamp) |
 | `shared/jobs/dnc/functions/logic/step_manager.lua` | 97 | `execute_step`: recast check, Presto, Main/Alt rotation |

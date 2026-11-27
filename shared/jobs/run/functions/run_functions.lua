@@ -63,12 +63,10 @@ TIMER('RUN_BUFFS')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 -- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
-include('../shared/jobs/run/functions/RUN_LOCKSTYLE.lua')
-include('../shared/jobs/run/functions/RUN_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('RUN')
+require('shared/utils/macrobook/macrobook_manager').install('RUN')
 include('../shared/jobs/run/functions/RUN_COMMANDS.lua')
 TIMER('RUN_COMMANDS')
-include('../shared/jobs/run/functions/RUN_MOVEMENT.lua')
-TIMER('RUN_MOVEMENT')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   LOGIC MODULES REFERENCE

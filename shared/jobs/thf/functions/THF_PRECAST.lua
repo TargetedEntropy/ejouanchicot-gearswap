@@ -27,37 +27,22 @@
 ---   @requires shared/jobs/thf/functions/logic/sa_ta_manager, WSPrecastHandler
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
 local SATAManager = nil
-local THFTPConfig = nil
 
 local modules_loaded = false
 
 local function ensure_modules_loaded()
     if modules_loaded then return end
 
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if not cc_ok then cc = nil end
-    CooldownChecker = cc
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    if not pg_ok then pg = nil end
-    PrecastGuard = pg
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if not wph_ok then wph = nil end
-    WSPrecastHandler = wph
-
     local sm_ok, sm = pcall(require, 'shared/jobs/thf/functions/logic/sa_ta_manager')
     if not sm_ok then sm = nil end
     SATAManager = sm
-    THFTPConfig = _G.THFTPConfig or {}
 
     modules_loaded = true
 end
@@ -66,72 +51,19 @@ end
 ---   PRECAST HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Called before any action (WS, JA, spell, etc.)
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
----   @return void
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    -- FIRST: Debuff guard
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- SECOND: Cooldown check
-    if CooldownChecker then
-        if spell.action_type == 'Ability' then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
-        elseif spell.action_type == 'Magic' then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('THF', {
+    load = ensure_modules_loaded,
+    before_tp_gear = function(spell, action, spellMap, eventArgs)
+        -- THF-SPECIFIC: Apply WS set variant based on SA/TA buffs.
+        -- Before the TP gear: the variants are full WS sets and would overwrite
+        -- the Moonshade Earring.
+        if spell.type == 'WeaponSkill' and SATAManager then
+            SATAManager.apply_variant(spell)
         end
-    end
-
-    if eventArgs.cancel then
-        return
-    end
-
-    -- THF-SPECIFIC: Set pending flags for SA/TA (before buff appears)
-    if spell.type == 'JobAbility' then
-        if spell.name == 'Sneak Attack' then
-            _G.thf_sa_pending = true
-        elseif spell.name == 'Trick Attack' then
-            _G.thf_ta_pending = true
-        end
-    end
-
-    -- WEAPONSKILL HANDLING (Unified via WSPrecastHandler)
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, THFTPConfig) then
-        return
-    end
-end
-
----  ═══════════════════════════════════════════════════════════════════════════
----   POST-PRECAST HOOK (Called AFTER set selection, BEFORE equipping)
----  ═══════════════════════════════════════════════════════════════════════════
-
----   Apply THF-specific gear adjustments
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    -- THF-SPECIFIC: Apply WS set variant based on SA/TA buffs.
-    -- Before the TP gear: the variants are full WS sets and would overwrite
-    -- the Moonshade Earring.
-    if spell.type == 'WeaponSkill' and SATAManager then
-        SATAManager.apply_variant(spell)
-    end
-
-    -- Apply TP gear via unified handler
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-end
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

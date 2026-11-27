@@ -13,17 +13,11 @@
 --- @date Created: 2026-10-21
 ---============================================================================
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
-local root = (os.getenv('TEMP') or '.'):gsub('\\', '/') .. '/atelier_link_test_' .. os.time() .. '/'
-local function mkdir(p) os.execute('mkdir "' .. p:gsub('/', '\\'):gsub('\\$', '') .. '" 2>nul') end
+local root = T.tmpdir('atelier_link_test') .. '/'
+local mkdir = T.mkdir
 local function is_dir(p) return os.rename(p, p) ~= nil end
 mkdir(root .. 'addons/GearSwap/data/atelier')
 
@@ -80,6 +74,5 @@ check('inside Windower, backslashes and case', Link.in_windower((root .. 'ADDONS
 check('outside Windower', Link.in_windower('D:/UpdTest/addons/GearSwap/data/'), false)
 check('a sibling folder sharing the start of the name is outside', Link.in_windower(root:gsub('/$', '') .. 'X/data/'), false)
 
-os.execute('rmdir /s /q "' .. root:gsub('/', '\\'):gsub('\\$', '') .. '" 2>nul')
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.rmtree(root)
+T.done()

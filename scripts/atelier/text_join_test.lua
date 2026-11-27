@@ -11,11 +11,9 @@
 package.path = './?.lua;' .. package.path
 local join = dofile('shared/utils/core/text_join.lua').join
 
-local fails = 0
-local function check(name, ok, detail)
-    if not ok then fails = fails + 1 end
-    print((ok and 'ok   ' or 'FAIL ') .. name .. (detail and (': ' .. detail) or ''))
-end
+local T = dofile('scripts/lib/testlib.lua')
+T.verbose = true
+local check = T.ok
 
 local native = table.concat
 local cases = {
@@ -69,5 +67,4 @@ check(('json of a %d KB catalog stays under 20 MB with Windower\'s table.concat'
     grown < 20 * 1024, ('%d KB, %d ms'):format(grown, ms))
 check('json output still valid at both ends', text:sub(1, 2) == '[{' and text:sub(-2) == '}]')
 
-print(fails == 0 and 'ALL OK' or (fails .. ' FAILED'))
-os.exit(fails == 0 and 0 or 1)
+T.done()

@@ -11,43 +11,27 @@
 ---   @date    Created: 2025-10-05
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local CooldownChecker = nil
 local AbilityHelper = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
 local EnmityOverride = nil
-local PLDTPConfig = nil
 
 local modules_loaded = false
 
 local function ensure_modules_loaded()
     if modules_loaded then return end
 
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if not cc_ok then cc = nil end
-    CooldownChecker = cc
-
     local ah_ok, ah = pcall(require, 'shared/utils/precast/ability_helper')
     if not ah_ok then ah = nil end
     AbilityHelper = ah
 
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    if not pg_ok then pg = nil end
-    PrecastGuard = pg
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if not wph_ok then wph = nil end
-    WSPrecastHandler = wph
-
     local eo_ok, eo = pcall(require, 'shared/jobs/pld/functions/logic/enmity_override')
     if not eo_ok then eo = nil end
     EnmityOverride = eo
-
-    PLDTPConfig = _G.PLDTPConfig or {}
 
     modules_loaded = true
 end
@@ -74,48 +58,6 @@ local auto_abilities = {
     end
 }
 
---- Precast order: debuff guard → cooldown → auto-abilities → WS handler → job gear
----   @param spell table Spell/ability data
----   @param action table Action information from GearSwap
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    -- Debuff guard
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- Cooldown check (stratagems, which share one charge pool, are exempt
-    -- inside CooldownChecker: shared/utils/precast/cooldown_checker.lua)
-    if CooldownChecker then
-        if spell.action_type == 'Ability' then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
-        elseif spell.action_type == 'Magic' then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
-        end
-        if eventArgs.cancel then
-            return
-        end
-    end
-
-    -- PLD-SPECIFIC: Auto-abilities (Majesty, Divine Emblem), each one an
-    -- option of PLD_CONFIG.lua (on unless set false)
-    local option = spell.name == 'Flash' and 'pld_divine_emblem' or 'pld_majesty'
-    if spell.action_type == 'Magic' and auto_abilities[spell.name] and AbilityHelper
-        and require('shared/utils/core/auto_options').enabled(option, true) then
-        auto_abilities[spell.name](spell, eventArgs)
-    end
-
-    -- WEAPONSKILL HANDLING (Unified via WSPrecastHandler)
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, PLDTPConfig) then
-        return
-    end
-
-    -- Fast Cast by spell name: Mote's default precast (sets.precast.FC[name])
-end
-
 ---   Swap in the /SCH variant of a weaponskill set, where one exists
 ---   PLD/SCH (and /RUN, the subjobs of PLDStates.stance_subjob in pld/keys/
 ---   PLD_STATES.lua) is the Sortie-only setup and builds its weaponskills
@@ -140,33 +82,40 @@ local function apply_sch_ws_set(spell)
     end
 end
 
----   Apply final gear adjustments before equipping
----   @param spell table Spell/ability data
----   @param action table Action information from GearSwap
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
+---  ═══════════════════════════════════════════════════════════════════════════
+---   PRECAST HOOKS
+---  ═══════════════════════════════════════════════════════════════════════════
 
-    apply_sch_ws_set(spell)
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('PLD', {
+    load = ensure_modules_loaded,
+    -- Auto-abilities (Majesty, Divine Emblem), each one an option of PLD_CONFIG.lua (on unless set false)
+    after_cooldown = function(spell, eventArgs)
+        local option = spell.name == 'Flash' and 'pld_divine_emblem' or 'pld_majesty'
+        if spell.action_type == 'Magic' and auto_abilities[spell.name] and AbilityHelper
+            and require('shared/utils/core/auto_options').enabled(option, true) then
+            auto_abilities[spell.name](spell, eventArgs)
+        end
+    end,
+    before_tp_gear = function(spell, action, spellMap, eventArgs)
+        apply_sch_ws_set(spell)
+    end,
+    after_tp_gear = function(spell, action, spellMap, eventArgs)
+        -- Cure III/IV Self: low-HP FC set (Enif Cosciales) to minimize overcure waste
+        -- Must be in post_precast to override Mote-Include's standard FC equip
+        if (spell.name == 'Cure III' or spell.name == 'Cure IV')
+            and spell.target and spell.target.type == 'SELF'
+            and sets.precast and sets.precast.FC and sets.precast.FC.CureSelf then
+            equip(sets.precast.FC.CureSelf)
+        end
 
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-
-    -- Cure III/IV Self: low-HP FC set (Enif Cosciales) to minimize overcure waste
-    -- Must be in post_precast to override Mote-Include's standard FC equip
-    if (spell.name == 'Cure III' or spell.name == 'Cure IV')
-        and spell.target and spell.target.type == 'SELF'
-        and sets.precast and sets.precast.FC and sets.precast.FC.CureSelf then
-        equip(sets.precast.FC.CureSelf)
-    end
-
-    -- Hate-holding modes: job abilities also get what sets.EnmityMax adds
-    if EnmityOverride then
-        EnmityOverride.apply_precast(spell)
-    end
-end
+        -- Hate-holding modes: job abilities also get what sets.EnmityMax adds
+        if EnmityOverride then
+            EnmityOverride.apply_precast(spell)
+        end
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

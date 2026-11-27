@@ -17,14 +17,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 -- the game's slips, from Windower's resources (data/ is addons/GearSwap/data)
 local lines = dofile('../../../res/slips.lua')
@@ -73,13 +67,12 @@ check('no game: nothing held, no error', #Slips.player_items()[two.id], 0)
 
 -- Windower's slips library is required nowhere in the job code
 local named = {}
-local pipe = io.popen('findstr /s /m /c:"\'slips\'" shared\\*.lua 2>nul')
-for line in pipe:lines() do
-    local text = io.open(line):read('*a'):gsub('%-%-[^\n]*', '')
+for _, line in ipairs(T.files('shared', '.lua')) do
+    local text = io.open(line):read('*a')
+    if not text:find("'slips'", 1, true) then text = '' end
+    text = text:gsub('%-%-[^\n]*', '')
     if text:find("require[%s(,]*['\"]slips['\"]") or text:find("require,%s*['\"]slips['\"]") then named[#named + 1] = line end
 end
-pipe:close()
 check('no job file requires the slips library (' .. table.concat(named, ' ') .. ')', #named, 0)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()

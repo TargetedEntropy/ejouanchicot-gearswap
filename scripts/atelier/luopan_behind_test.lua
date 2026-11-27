@@ -21,11 +21,9 @@ windower = {ffxi = {get_mob_by_target = function(t) return t == 'pet' and pet_mo
 
 local LuopanBehind = dofile('shared/jobs/geo/functions/logic/luopan_behind.lua')
 
-local fails = 0
-local function check(name, ok, detail)
-    if not ok then fails = fails + 1 end
-    print((ok and 'ok   ' or 'FAIL ') .. name .. (detail and (': ' .. detail) or ''))
-end
+local T = dofile('scripts/lib/testlib.lua')
+T.verbose = true
+local check = T.ok
 local function near(a, b) return math.abs(a - b) < 1e-9 end
 
 -- Silmaril.ViewModel.Actions.Geomancy_Actions.Luopan_Offset, case "Back", line for line
@@ -142,5 +140,4 @@ do
     check('lead setting on: 6', LuopanBehind.lead_max() == 6)
 end
 
-print(fails == 0 and 'ALL OK' or (fails .. ' FAILED'))
-os.exit(fails == 0 and 0 or 1)
+T.done()

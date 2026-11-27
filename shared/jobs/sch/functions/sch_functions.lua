@@ -46,12 +46,10 @@ include('../shared/jobs/sch/functions/SCH_BUFFS.lua')        -- Doom, Sublimatio
 TIMER('SCH_BUFFS')
 
 -- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
-include('../shared/jobs/sch/functions/SCH_LOCKSTYLE.lua')
-include('../shared/jobs/sch/functions/SCH_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('SCH')
+require('shared/utils/macrobook/macrobook_manager').install('SCH')
 include('../shared/jobs/sch/functions/SCH_COMMANDS.lua')     -- Commands (arts, nuke, strat), state change hook
 TIMER('SCH_COMMANDS')
-include('../shared/jobs/sch/functions/SCH_MOVEMENT.lua')     -- Movement status API
-TIMER('SCH_MOVEMENT')
 
 -- Dual-boxing manager (deferred init + lazy message loading)
 require('shared/utils/dualbox/dualbox_manager')

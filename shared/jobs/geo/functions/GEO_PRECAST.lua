@@ -16,6 +16,8 @@
 ---   @requires Tetsouo architecture, MessageFormatter, CooldownChecker
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -29,10 +31,6 @@ pcall(function() require('shared/utils/messages/party_callouts').listen('GEO') e
 -- //gs c behind on before this load goes on (shared/jobs/geo/functions/logic/stand_behind.lua)
 pcall(function() require('shared/jobs/geo/functions/logic/stand_behind').resume() end)
 
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
-local GEOTPConfig = nil
 local TierRefiner = nil
 local NukeTiers = nil
 
@@ -40,20 +38,6 @@ local modules_loaded = false
 
 local function ensure_modules_loaded()
     if modules_loaded then return end
-
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if not cc_ok then cc = nil end
-    CooldownChecker = cc
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    if not pg_ok then pg = nil end
-    PrecastGuard = pg
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if not wph_ok then wph = nil end
-    WSPrecastHandler = wph
-
-    GEOTPConfig = _G.GEOTPConfig or {}
 
     local tr_ok, tr = pcall(require, 'shared/utils/precast/tier_refiner')
     TierRefiner = tr_ok and tr or nil
@@ -67,85 +51,54 @@ end
 ---   PRECAST HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Handle precast actions
----   @param spell table Spell/ability data
----   @param action table Action information from GearSwap
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    -- FIRST: Debuff guard
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- SECOND: Cooldown check. Tiered nukes go through the refiner instead:
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('GEO', {
+    load = ensure_modules_loaded,
+    -- Tiered nukes go through the refiner instead of the cooldown check:
     -- the checker would cancel the cast before any downgrade could happen.
-    local tiers = spell.action_type == 'Magic' and TierRefiner and NukeTiers
-        and NukeTiers.get(spell.name and spell.name:match('^(%a+)'))
-    if tiers then
-        TierRefiner.refine(spell, eventArgs, tiers)
-    elseif CooldownChecker then
-        if spell.action_type == 'Ability' then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
-        elseif spell.action_type == 'Magic' then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
+    cooldown = function(spell, eventArgs)
+        local tiers = spell.action_type == 'Magic' and TierRefiner and NukeTiers
+            and NukeTiers.get(spell.name and spell.name:match('^(%a+)'))
+        if tiers then
+            TierRefiner.refine(spell, eventArgs, tiers)
+        else
+            PrecastPipeline.cooldown(spell, eventArgs)
         end
-    end
+    end,
+    after_cooldown = function(spell, eventArgs)
+        -- One of our queued abilities just went: the bot's spell is held back 1.5 s so it does not cut it, never Stun
+        -- (shared/utils/precast/ability_queue.lua). Under pcall: an error in the queue lets the spell go, never blocks it
+        local ok_q, held = pcall(function() return require('shared/utils/precast/ability_queue').hold_check(spell, eventArgs) end)
+        if ok_q and held then
+            return true
+        end
+        -- Running to the spot behind the monster: the bot's spell waits until she stands, never Stun (stand_behind.lua)
+        local ok_b, held_b = pcall(function()
+            return require('shared/jobs/geo/functions/logic/stand_behind').hold_check(spell, eventArgs)
+        end)
+        if ok_b and held_b then
+            return true
+        end
 
-    if eventArgs.cancel then
-        return
-    end
+        -- Entrust / Full Circle first, when the character turned them on
+        -- (geo/combat/GEO_CONFIG.lua)
+        require('shared/jobs/geo/functions/logic/geo_auto_abilities').apply(spell, eventArgs)
+        if eventArgs.cancel or eventArgs.handled then
+            return true
+        end
+        -- A Geo- while a luopan is out, with luopan_behind on: the game would refuse it (luopan_behind.lua)
+        if require('shared/jobs/geo/functions/logic/luopan_behind').skip_while_out(spell, eventArgs) then
+            return true
+        end
+        require('shared/jobs/geo/functions/logic/bolster_follow').note_cast(spell)
 
-    -- One of our queued abilities just went: the bot's spell is held back 1.5 s so it does not cut it, never Stun
-    -- (shared/utils/precast/ability_queue.lua). Under pcall: an error in the queue lets the spell go, never blocks it
-    local ok_q, held = pcall(function() return require('shared/utils/precast/ability_queue').hold_check(spell, eventArgs) end)
-    if ok_q and held then
-        return
-    end
-    -- Running to the spot behind the monster: the bot's spell waits until she stands, never Stun (stand_behind.lua)
-    local ok_b, held_b = pcall(function()
-        return require('shared/jobs/geo/functions/logic/stand_behind').hold_check(spell, eventArgs)
-    end)
-    if ok_b and held_b then
-        return
-    end
-
-    -- THIRD: Entrust / Full Circle first, when the character turned them on
-    -- (geo/combat/GEO_CONFIG.lua)
-    require('shared/jobs/geo/functions/logic/geo_auto_abilities').apply(spell, eventArgs)
-    if eventArgs.cancel or eventArgs.handled then
-        return
-    end
-    -- A Geo- while a luopan is out, with luopan_behind on: the game would refuse it (luopan_behind.lua)
-    if require('shared/jobs/geo/functions/logic/luopan_behind').skip_while_out(spell, eventArgs) then
-        return
-    end
-    require('shared/jobs/geo/functions/logic/bolster_follow').note_cast(spell)
-
-    -- Raised optimistically: aftercast lowers it again if Entrust is interrupted
-    if spell.type == 'JobAbility' and spell.name == 'Entrust' then
-        _G.geo_entrust_pending = true
-    end
-
-    -- WEAPONSKILL HANDLING (Unified via WSPrecastHandler)
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, GEOTPConfig) then
-        return
-    end
-end
-
----   Apply final gear adjustments before equipping
----   @param spell table Spell/ability data
----   @param action table Action information from GearSwap
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-end
+        -- Raised optimistically: aftercast lowers it again if Entrust is interrupted
+        if spell.type == 'JobAbility' and spell.name == 'Entrust' then
+            _G.geo_entrust_pending = true
+        end
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

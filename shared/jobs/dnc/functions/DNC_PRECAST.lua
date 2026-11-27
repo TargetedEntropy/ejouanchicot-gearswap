@@ -23,17 +23,15 @@
 ---   @date    Created: 2025-10-04 | Updated: 2025-10-10
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 local MessageFormatter = nil
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
 local ClimaticManager = nil
 local WSVariantSelector = nil
-local DNCTPConfig = nil
 
 local modules_loaded = false
 
@@ -44,18 +42,6 @@ local function ensure_modules_loaded()
     if not mf_ok then mf = nil end
     MessageFormatter = mf
 
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if not cc_ok then cc = nil end
-    CooldownChecker = cc
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    if not pg_ok then pg = nil end
-    PrecastGuard = pg
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if not wph_ok then wph = nil end
-    WSPrecastHandler = wph
-
     -- DNC logic modules
     local cm_ok, cm = pcall(require, 'shared/jobs/dnc/functions/logic/climactic_manager')
     if not cm_ok then cm = nil end
@@ -63,8 +49,6 @@ local function ensure_modules_loaded()
     local wsv_ok, wsv = pcall(require, 'shared/jobs/dnc/functions/logic/ws_variant_selector')
     if not wsv_ok then wsv = nil end
     WSVariantSelector = wsv
-
-    DNCTPConfig = _G.DNCTPConfig or {}
 
     modules_loaded = true
 end
@@ -84,7 +68,7 @@ function refine_waltz(spell, action, spellMap, eventArgs)
 end
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   PRECAST HOOKS
+---   PRECAST STEPS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 --- Cancel a Samba the player cannot pay for, before it reaches the server.
@@ -106,89 +90,44 @@ local function job_precast_samba(spell, eventArgs)
     end
 end
 
---- Weaponskill: WSPrecastHandler (range, auto-Jump on /DRG, TP), then
---- Climactic, which needs 1000 TP anyway and runs once the WS is accepted.
---- A WS out of range spends neither. Either ability may cancel the WS and
---- replay it once it has landed.
---- @param spell table Spell information from GearSwap
---- @param eventArgs table Event args (eventArgs.cancel for cancellation)
-local function job_precast_weaponskill(spell, eventArgs)
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, DNCTPConfig) then
-        return
-    end
-
-    if ClimaticManager then
-        ClimaticManager.auto_trigger(spell, eventArgs)
-    end
-end
-
----   Called before any action (WS, JA, spell, etc.)
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    -- FIRST: Debuff guard
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- SECOND: Cooldown check (exclude Utsusemi)
-    if CooldownChecker then
-        if spell.action_type == 'Ability' then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
-        elseif spell.action_type == 'Magic' and not (spell.english == 'Utsusemi: Ni' or spell.english == 'Utsusemi: Ichi') then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
-        end
-    end
-
-    if eventArgs.cancel then
-        return
-    end
-
-    -- DNC-SPECIFIC: Samba TP cost
-    if spell.type == 'Samba' and MessageFormatter then
-        job_precast_samba(spell, eventArgs)
-    end
-
-    -- DNC-SPECIFIC: Climactic Flourish timestamp
-    if spell.type == 'Flourish3' and spell.english == 'Climactic Flourish' then
-        _G.dnc_climactic_timestamp = os.time()
-    end
-
-    -- WEAPONSKILL: checks and auto-triggers (Jump, Climactic)
-    if spell.type == 'WeaponSkill' then
-        job_precast_weaponskill(spell, eventArgs)
-    end
-end
-
 ---  ═══════════════════════════════════════════════════════════════════════════
----   POST-PRECAST HOOK (Called AFTER set selection, BEFORE equipping)
+---   PRECAST HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   WS variant (dance/Climactic) then TP bonus gear, before equipping
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    if spell.type == 'WeaponSkill' then
-        -- DNC-SPECIFIC: Apply WS set variant based on buffs (Fan Dance/Climactic)
-        -- MUST happen BEFORE TP bonus gear to avoid overwriting Moonshade
-        if WSVariantSelector then
-            WSVariantSelector.apply_variant(spell)
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('DNC', {
+    load = ensure_modules_loaded,
+    -- Cooldown check, Utsusemi excluded
+    cooldown = function(spell, eventArgs)
+        if spell.action_type == 'Magic' and (spell.english == 'Utsusemi: Ni' or spell.english == 'Utsusemi: Ichi') then
+            return
         end
-    end
-
-    -- Apply TP gear via unified handler
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-end
+        PrecastPipeline.cooldown(spell, eventArgs)
+    end,
+    after_cooldown = function(spell, eventArgs)
+        if spell.type == 'Samba' and MessageFormatter then
+            job_precast_samba(spell, eventArgs)
+        end
+        if spell.type == 'Flourish3' and spell.english == 'Climactic Flourish' then
+            _G.dnc_climactic_timestamp = os.time()
+        end
+    end,
+    after_ws = function(spell, eventArgs)
+        if spell.type == 'WeaponSkill' and ClimaticManager then
+            ClimaticManager.auto_trigger(spell, eventArgs)
+        end
+    end,
+    before_tp_gear = function(spell, action, spellMap, eventArgs)
+        if spell.type == 'WeaponSkill' then
+            -- DNC-SPECIFIC: Apply WS set variant based on buffs (Fan Dance/Climactic)
+            -- MUST happen BEFORE TP bonus gear to avoid overwriting Moonshade
+            if WSVariantSelector then
+                WSVariantSelector.apply_variant(spell)
+            end
+        end
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

@@ -32,9 +32,9 @@ What PUP adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/pup.lua` | 192 | Entry (the same for every character; `<Char>_PUP.lua` and its template `_master/entry/Tetsouo_PUP.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ first PetMode detection), `job_update` (PetMode, poll, HUD), `init_gear_sets`, `file_unload` (+ poll stop) |
-| `shared/jobs/pup/functions/pup_functions.lua` | 67 | Facade: includes `message_buffs` and the 12 hook files, requires `dualbox_manager`, debug line |
-| `shared/jobs/pup/functions/PUP_PRECAST.lua` | 108 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (TP gear) |
+| `shared/entry/pup.lua` | 162 | Entry (the same for every character; `<Char>_PUP.lua` and its template `_master/entry/Tetsouo_PUP.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ first PetMode detection), `job_update` (PetMode, poll, HUD), `init_gear_sets`, `file_unload` (+ poll stop) |
+| `shared/jobs/pup/functions/pup_functions.lua` | 65 | Facade: includes `message_buffs` and the 12 hook files, requires `dualbox_manager`, debug line |
+| `shared/jobs/pup/functions/PUP_PRECAST.lua` | 42 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (TP gear) |
 | `shared/jobs/pup/functions/PUP_MIDCAST.lua` | 99 | `job_midcast` (empty) / `job_post_midcast` (subjob magic via MidcastManager) / `job_get_spell_map` (Maneuver) |
 | `shared/jobs/pup/functions/PUP_PET_MIDCAST.lua` | 66 | `job_pet_midcast`: automaton weaponskills; automaton spells left to Mote |
 | `shared/jobs/pup/functions/PUP_AFTERCAST.lua` | 21 | `job_aftercast = LifecycleManager.aftercast()` |
@@ -42,10 +42,7 @@ What PUP adds on top of the shared pipeline:
 | `shared/jobs/pup/functions/PUP_ENGAGED.lua` | 31 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/pup/functions/PUP_STATUS.lua` | 55 | `job_status_change` (LifecycleManager), `job_pet_change`, `job_pet_status_change` |
 | `shared/jobs/pup/functions/PUP_BUFFS.lua` | 23 | `LifecycleManager.buff_change` + `refresh_after_buff` (Overdrive) |
-| `shared/jobs/pup/functions/PUP_COMMANDS.lua` | 158 | `job_self_command` router (+ `petmode`), `job_state_change = LifecycleManager.state_change()` |
-| `shared/jobs/pup/functions/PUP_MOVEMENT.lua` | 16 | Header only (`return {}`), kept for the 12-module layout |
-| `shared/jobs/pup/functions/PUP_LOCKSTYLE.lua` | 45 | Lazy `LockstyleManager.create('PUP', 'config/pup/PUP_LOCKSTYLE', 1, 'WAR')` wrappers |
-| `shared/jobs/pup/functions/PUP_MACROBOOK.lua` | 37 | Lazy `MacrobookManager.create('PUP', 'config/pup/PUP_MACROBOOK', 'WAR', 1, 1)` wrapper |
+| `shared/jobs/pup/functions/PUP_COMMANDS.lua` | 110 | `job_self_command` router (+ `petmode`), `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/pup/functions/logic/automaton.lua` | 151 | Live reads: pet out / fighting / TP; head and frame; `refresh_mode` |
 | `shared/jobs/pup/functions/logic/pet_ws.lua` | 117 | `is_due`, `threshold`, the poll (`ensure_running`, `stop`) |
 | `shared/jobs/pup/functions/logic/set_builder.lua` | 187 | Idle and engaged: master base, town, pet layers, Overdrive, pet WS, Mote layers, weapon, movement |

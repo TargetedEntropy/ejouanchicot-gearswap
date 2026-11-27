@@ -17,14 +17,8 @@
 
 package.path = './?.lua;' .. package.path
 
-local done, failed = 0, 0
-local function check(what, got, want)
-    done = done + 1
-    if got ~= want then
-        failed = failed + 1
-        print(('FAILED %s: got %s, wanted %s'):format(what, tostring(got), tostring(want)))
-    end
-end
+local T = dofile('scripts/lib/testlib.lua')
+local check = T.eq
 
 local CFG = {alt = 'Kaories', profile_root = 'Kaories/Sortie/GEO/',
     escort = {indi = 'Indi-Regen', profile = 'Escorte'},
@@ -75,5 +69,4 @@ for _, c in ipairs(sent) do if c:find('gs c escort Indi%-Regen Tetsouo Kaories/S
 check('escort after a reload: the profile', profile_sent, true)
 check('escort after a reload: nothing by hand', by_hand(), nil)
 
-print(('%d checks, %d failed'):format(done, failed))
-os.exit(failed == 0 and 0 or 1)
+T.done()
