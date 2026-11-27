@@ -154,7 +154,8 @@ function AltBuffReporter.report(buff, gained)
         return false
     end
 
-    local main = cfg.main_character or cfg.main_name
+    -- the partner, as get_target_character (dualbox_manager.lua) reads it: main_name is this character's own name
+    local main = cfg.main_character or cfg.alt_name
     if not main then
         trace(buff .. ' - no main character configured, cannot send')
         return false
