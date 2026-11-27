@@ -41,19 +41,16 @@ the sets files (structure and set names only).
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/blu.lua` | 184 | Entry (the same for every character; `<Char>_BLU.lua` and its template `_master/entry/Tetsouo_BLU.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ AzureSets load), `job_update` (HUD only), `init_gear_sets`, `file_unload` (+ AzureSets unload); shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/blu/functions/blu_functions.lua` | 66 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager`, debug line |
-| `shared/jobs/blu/functions/BLU_PRECAST.lua` | 130 | `job_precast` (guard, cooldown, Unbridled Learning, Expiacion hold, WS handler) / `job_post_precast` (TP gear) |
+| `shared/entry/blu.lua` | 153 | Entry (the same for every character; `<Char>_BLU.lua` and its template `_master/entry/Tetsouo_BLU.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ AzureSets load), `job_update` (HUD only), `init_gear_sets`, `file_unload` (+ AzureSets unload); shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/jobs/blu/functions/blu_functions.lua` | 64 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager`, debug line |
+| `shared/jobs/blu/functions/BLU_PRECAST.lua` | 72 | `job_precast` (guard, cooldown, Unbridled Learning, Expiacion hold, WS handler) / `job_post_precast` (TP gear) |
 | `shared/jobs/blu/functions/BLU_MIDCAST.lua` | 163 | `job_midcast` (empty) / `job_post_midcast` (Blue Magic by category + overlays, other skills) / `job_get_spell_map` |
 | `shared/jobs/blu/functions/BLU_AFTERCAST.lua` | 21 | `job_aftercast = LifecycleManager.aftercast()` |
 | `shared/jobs/blu/functions/BLU_IDLE.lua` | 30 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/blu/functions/BLU_ENGAGED.lua` | 30 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/blu/functions/BLU_STATUS.lua` | 21 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/blu/functions/BLU_BUFFS.lua` | 22 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/blu/functions/BLU_COMMANDS.lua` | 115 | `job_self_command` router (shared commands only), `job_state_change = LifecycleManager.state_change()` |
-| `shared/jobs/blu/functions/BLU_MOVEMENT.lua` | 16 | Header only (`return {}`), kept for the 12-module layout; no `job_handle_equipping_gear` |
-| `shared/jobs/blu/functions/BLU_LOCKSTYLE.lua` | 45 | Lazy `LockstyleManager.create('BLU', 'config/blu/BLU_LOCKSTYLE', 1, 'WAR')` wrappers (the old-style path is resolved by `CharPaths.legacy_module`, so `<Character>/blu/display/BLU_LOCKSTYLE.lua` is read) |
-| `shared/jobs/blu/functions/BLU_MACROBOOK.lua` | 37 | Lazy `MacrobookManager.create('BLU', 'config/blu/BLU_MACROBOOK', 'WAR', 1, 1)` wrapper (same path resolution) |
+| `shared/jobs/blu/functions/BLU_COMMANDS.lua` | 43 | `job_self_command` router (shared commands only), `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/blu/functions/logic/spell_map.lua` | 119 | `BLUSpellMap.category(name)` from the character's map, else the database category; `is_unbridled(name)` |
 | `shared/jobs/blu/functions/logic/set_builder.lua` | 148 | Idle and engaged: `.SW` detection, `[OffenseMode]`, Mote defense / Kiting layers, weapons, town, movement |
 | `shared/jobs/blu/functions/logic/unbridled.lua` | 41 | Option `blu_unbridled` (`auto_unbridled` in `BLU_CONFIG.lua`): `BLUUnbridled.apply` -> `AbilityHelper.try_ability` |
@@ -386,10 +383,9 @@ when the main hand changes weapon type. A command starting with `/` is sent as
 
 ## Commands
 
-`job_self_command` (`BLU_COMMANDS.lua`) lowercases the first word and tests, in
-order: `altjobupdate` / `requestjob` (dual-box), watchdog, `CommonCommands`
-(`handle_command(command, 'BLU', table.unpack(args))`), UI, `debugmidcast`,
-`cyclestate`. Anything else is left unhandled, so Mote runs its own commands
+`job_self_command` (`BLU_COMMANDS.lua`) is `JobCommands.router('BLU')`: BLU has no
+command of its own, so every word goes to
+`JobCommands.shared` (`shared/utils/core/job_commands.lua`): watchdog, dual-box internals, `CommonCommands`, UI, `debugmidcast`, `cyclestate`. Anything else is left unhandled, so Mote runs its own commands
 (`cycle`, `set`, `update`, ...) and, last, the dual-box partner's alt commands
 ([commands](../systems/commands-and-debug.md#4-alt-commands-and-name-shadowing)).
 
@@ -522,8 +518,8 @@ the clone script.
 
 **Traps**
 
-- `BLU_MOVEMENT.lua` returns `{}` and defines no hook: that is deliberate
-  (AutoMove handles movement through the set builder).
+- BLU has no movement hook (`job_handle_equipping_gear`): that is deliberate
+  (AutoMove handles movement through the set builder). The empty `BLU_MOVEMENT.lua` was removed on 2026-11-27.
 - Category names at the root of `sets.midcast` shadow the Blue Magic sets.
 - `WeaponResolver` returns nil for `Free`: nothing is laid, the worn weapon
   stays; with `equip_without_set` a value that is a weapon name is laid as a

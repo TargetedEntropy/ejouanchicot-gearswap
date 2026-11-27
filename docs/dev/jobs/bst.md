@@ -45,9 +45,9 @@ idle overlays of `logic/set_builder.lua` re-read on 2026-09-29.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/bst.lua` | 376 | Entry point (the same for every character; `<Char>_BST.lua` and its template `_master/entry/Tetsouo_BST.lua` are one `include` of it): config preload, `get_sets`, `user_setup`, `job_update`, `init_gear_sets`, `job_sub_job_change`, `prerender` pet monitor (`start_pet_monitoring` / `stop_pet_monitoring`), `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/bst/functions/bst_functions.lua` | 109 | Facade: includes `message_buffs.lua` and the 12 hook files (13 includes in all), requires `dualbox_manager` for its auto-init |
-| `shared/jobs/bst/functions/BST_PRECAST.lua` | 202 | `job_precast` / `job_post_precast`; locals `ready_move_info`, `equip_for_summon`, `equip_broth`, `prepare_ready_move` |
+| `shared/entry/bst.lua` | 323 | Entry point (the same for every character; `<Char>_BST.lua` and its template `_master/entry/Tetsouo_BST.lua` are one `include` of it): config preload, `get_sets`, `user_setup`, `job_update`, `init_gear_sets`, `job_sub_job_change`, `prerender` pet monitor (`start_pet_monitoring` / `stop_pet_monitoring`), `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/jobs/bst/functions/bst_functions.lua` | 107 | Facade: includes `message_buffs.lua` and the 12 hook files (13 includes in all), requires `dualbox_manager` for its auto-init |
+| `shared/jobs/bst/functions/BST_PRECAST.lua` | 160 | `job_precast` / `job_post_precast`; locals `ready_move_info`, `equip_for_summon`, `equip_broth`, `prepare_ready_move` |
 | `shared/jobs/bst/functions/BST_MIDCAST.lua` | 204 | `job_midcast` (early returns, no `handled`) / `job_post_midcast` (subjob magic through `MidcastManager`, table `JOB_POST_MIDCAST_HANDLERS`) |
 | `shared/jobs/bst/functions/BST_AFTERCAST.lua` | 127 | `job_aftercast`: pet damage set for Ready moves that were not interrupted (held by `ReadyHold`), delayed `start_pet_monitoring`; `job_pet_aftercast` lets the hold go |
 | `shared/jobs/bst/functions/BST_PET_MIDCAST.lua` | 57 | `job_pet_midcast`: returns without doing anything |
@@ -55,10 +55,7 @@ idle overlays of `logic/set_builder.lua` re-read on 2026-09-29.
 | `shared/jobs/bst/functions/BST_ENGAGED.lua` | 41 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/bst/functions/BST_STATUS.lua` | 33 | `job_status_change = LifecycleManager.status_change()`; `job_pet_change`: a pet out says its correlation in the chat |
 | `shared/jobs/bst/functions/BST_BUFFS.lua` | 19 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/bst/functions/BST_COMMANDS.lua` | 486 | `job_self_command` router, local `display_broth_count`; `job_state_change = LifecycleManager.state_change()` |
-| `shared/jobs/bst/functions/BST_MOVEMENT.lua` | 41 | Empty `job_handle_equipping_gear` |
-| `shared/jobs/bst/functions/BST_LOCKSTYLE.lua` | 49 | Lazy `LockstyleManager.create('BST', 'config/bst/BST_LOCKSTYLE', 1, 'SAM')` wrappers |
-| `shared/jobs/bst/functions/BST_MACROBOOK.lua` | 43 | Lazy `MacrobookManager.create('BST', 'config/bst/BST_MACROBOOK', 'SAM', 1, 1)` wrapper |
+| `shared/jobs/bst/functions/BST_COMMANDS.lua` | 401 | `job_self_command` router, local `display_broth_count`; `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/bst/functions/logic/ecosystem_manager.lua` | 280 | `initialize`, `change_ecosystem`, `change_species`, `equip_pet_broth`, `count_species_jugs`; `correlation(eco)`, `show_correlation(eco, pet)`, `ecosystem_of(name)` (the game's pet name has no spaces: letters and digits compared) |
 | `shared/jobs/bst/functions/logic/ready_hold.lua` | 70 | `ReadyHold`: a Ready move's set held until the pet's move lands (8 s at most, LoadGate), laid over any idle / engaged set rebuilt meanwhile (weapons left out) |
 | `shared/jobs/bst/functions/logic/pet_manager.lua` | 170 | Pet-valid cache (`update_pet_mode` / `get_pet_mode`), `engage_pet` / `disengage_pet`, Ready-move list (`update_ready_moves`, 30 s cache) |
@@ -408,7 +405,7 @@ flowchart TD
   The state handler reads no name but `Moving`, so it acts the same whether it
   receives a state's key (`WeaponSet`) or its description (`Weapon`, what Mote
   passes).
-- `job_handle_equipping_gear` (`BST_MOVEMENT.lua`) is empty.
+- BST defines no `job_handle_equipping_gear` (the empty one in `BST_MOVEMENT.lua` was removed on 2026-11-27; Mote treats an empty hook and a missing one the same).
 
 ## Mote states
 

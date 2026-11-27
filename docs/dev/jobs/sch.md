@@ -32,19 +32,16 @@ What SCH adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/sch.lua` | 170 | Entry (the same for every character; `<Char>_SCH.lua` and its template `_master/entry/Tetsouo_SCH.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
-| `shared/jobs/sch/functions/sch_functions.lua` | 62 | Facade: includes `message_buffs` and the hook files, requires `dualbox_manager` |
-| `shared/jobs/sch/functions/SCH_PRECAST.lua` | 152 | `job_precast` (guard, tier refiner or cooldown, stratagem charges, WS handler) / `job_post_precast` (TP gear, grimoire layers) |
+| `shared/entry/sch.lua` | 140 | Entry (the same for every character; `<Char>_SCH.lua` and its template `_master/entry/Tetsouo_SCH.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
+| `shared/jobs/sch/functions/sch_functions.lua` | 60 | Facade: includes `message_buffs` and the hook files, requires `dualbox_manager` |
+| `shared/jobs/sch/functions/SCH_PRECAST.lua` | 110 | `job_precast` (guard, tier refiner or cooldown, stratagem charges, WS handler) / `job_post_precast` (TP gear, grimoire layers) |
 | `shared/jobs/sch/functions/SCH_MIDCAST.lua` | 134 | `job_midcast` (empty) / `job_post_midcast` (MidcastManager per skill, grimoire layers) |
 | `shared/jobs/sch/functions/SCH_AFTERCAST.lua` | 21 | `LifecycleManager.aftercast()` |
 | `shared/jobs/sch/functions/SCH_IDLE.lua` | 30 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/sch/functions/SCH_ENGAGED.lua` | 30 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/sch/functions/SCH_STATUS.lua` | 19 | `LifecycleManager.status_change()` |
 | `shared/jobs/sch/functions/SCH_BUFFS.lua` | 24 | `LifecycleManager.buff_change` + `refresh_after_buff` (Sublimation) |
-| `shared/jobs/sch/functions/SCH_COMMANDS.lua` | 176 | `job_self_command` router + job commands, `job_state_change` |
-| `shared/jobs/sch/functions/SCH_MOVEMENT.lua` | 16 | Header only, kept for the 12-module layout |
-| `shared/jobs/sch/functions/SCH_LOCKSTYLE.lua` | 45 | Lazy `LockstyleManager.create('SCH', 'config/sch/SCH_LOCKSTYLE', 1, 'RDM')` |
-| `shared/jobs/sch/functions/SCH_MACROBOOK.lua` | 37 | Lazy `MacrobookManager.create('SCH', 'config/sch/SCH_MACROBOOK', 'RDM', 1, 1)` |
+| `shared/jobs/sch/functions/SCH_COMMANDS.lua` | 128 | `job_self_command` router + job commands, `job_state_change` |
 | `shared/jobs/sch/functions/logic/grimoire.lua` | 136 | Arts in force (addendum first), precast / midcast layer lists |
 | `shared/jobs/sch/functions/logic/spell_tiers.lua` | 47 | Tier families for `TierRefiner` |
 | `shared/jobs/sch/functions/logic/spell_commands.lua` | 106 | Element -> nuke / helix / storm names, `cast`, the `strat` block |

@@ -147,28 +147,14 @@ local function collect_modes()
     return modes
 end
 
---- The book / lockstyle a job falls back to with no config file: the numbers its factory call
---- passes (shared/jobs/<job>/functions/<JOB>_MACROBOOK.lua: create(job, path, sub, book, page);
---- <JOB>_LOCKSTYLE.lua: create(job, path, style, sub)).
+--- The book / lockstyle a job falls back to with no config file (shared/data/job_defaults.lua, the numbers
+--- LockstyleManager.install / MacrobookManager.install hand to their factory).
 --- @return table|nil {book, page}, number|nil style
 local function factory_defaults()
-    local job = player.main_job
-    local function args(kind)
-        local path = windower.addon_path .. 'data/shared/jobs/' .. job:lower() .. '/functions/' .. job .. '_' .. kind .. '.lua'
-        local f = io.open(path, 'r')
-        if not f then return {} end
-        local text = f:read('*a')
-        f:close()
-        local call = text:match(kind == 'MACROBOOK' and 'MacrobookManager%.create%((.-)%)' or 'LockstyleManager%.create%((.-)%)') or ''
-        call = call:gsub('%-%-[^\n]*', '')
-        local nums = {}
-        for n in call:gmatch('%f[%w](%d+)%f[%W]') do nums[#nums + 1] = tonumber(n) end
-        return nums
-    end
-    local ok_m, m = pcall(args, 'MACROBOOK')
-    local ok_l, l = pcall(args, 'LOCKSTYLE')
-    local book = ok_m and #m >= 2 and {book = m[#m - 1], page = m[#m]} or nil
-    return book, ok_l and l[1] or nil
+    local ok, JobDefaults = pcall(require, 'shared/data/job_defaults')
+    if not ok then return nil, nil end
+    local d = JobDefaults.get(player.main_job)
+    return {book = d.book, page = d.page}, d.lockstyle
 end
 
 --- A job config table (MACROBOOK / LOCKSTYLE), from the character's folder.

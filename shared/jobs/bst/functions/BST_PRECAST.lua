@@ -10,6 +10,8 @@
 ---   @date    Created: 2025-10-05
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -21,10 +23,6 @@ end
 
 local MessageFormatter = nil
 local MessagePrecast = nil  -- Debug formatter
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
-local BSTTPConfig = nil
 local ReadyMoveCategorizer = nil
 
 local modules_loaded = false
@@ -39,20 +37,6 @@ local function ensure_modules_loaded()
     local mp_ok, mp = pcall(require, 'shared/utils/messages/formatters/magic/message_precast')
     if not mp_ok then mp = nil end
     MessagePrecast = mp
-
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if not cc_ok then cc = nil end
-    CooldownChecker = cc
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    if not pg_ok then pg = nil end
-    PrecastGuard = pg
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if not wph_ok then wph = nil end
-    WSPrecastHandler = wph
-
-    BSTTPConfig = _G.BSTTPConfig or {}
 
     -- BST specific
     local rmc_ok, rmc = pcall(require, 'shared/jobs/bst/functions/logic/ready_move_categorizer')
@@ -127,65 +111,39 @@ local function prepare_ready_move(spell, category)
     end
 end
 
---- Precast hook: guard, cooldown (not for Ready moves), WS, summon gear + broth,
---- Ready move precast piece (Sic set).
---- @param spell table Spell information from GearSwap
---- @param action table Action information from GearSwap
---- @param spellMap string Spell mapping from Mote-Include
---- @param eventArgs table Event arguments (eventArgs.cancel for cancellation)
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
+---  ═══════════════════════════════════════════════════════════════════════════
+---   PRECAST HOOKS
+---  ═══════════════════════════════════════════════════════════════════════════
 
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    local is_ready_move, ready_move_category = ready_move_info(spell)
-
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('BST', {
+    load = ensure_modules_loaded,
     -- Ready moves (type 'Monster') spend charges. Their recast (id 102) is the
     -- charge timer, which runs while charges remain, so a cooldown check would
     -- refuse a move the game allows; the game refuses it itself at 0 charges.
-    if CooldownChecker and spell.type ~= 'Monster' then
-        if spell.action_type == 'Ability' then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
-        elseif spell.action_type == 'Magic' then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
+    cooldown = function(spell, eventArgs)
+        if spell.type ~= 'Monster' then
+            PrecastPipeline.cooldown(spell, eventArgs)
         end
-    end
-    if eventArgs.cancel then
-        return
-    end
-
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, BSTTPConfig) then
-        return
-    end
-
-    if spell.name == 'Call Beast' or spell.name == 'Bestial Loyalty' then
-        equip_for_summon(spell)
-        return
-    end
-
-    if is_ready_move then
-        prepare_ready_move(spell, ready_move_category)
-    end
-end
-
----   Apply final gear adjustments before equipping: the broth on Call Beast /
----   Bestial Loyalty (after Mote's summon set), the TP piece on a weaponskill
----   @param spell table Spell/ability data
----   @param action table Action information from GearSwap
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-    if spell.name == 'Call Beast' or spell.name == 'Bestial Loyalty' then
-        equip_broth()
-        return
-    end
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-end
+    end,
+    after_ws = function(spell)
+        if spell.name == 'Call Beast' or spell.name == 'Bestial Loyalty' then
+            equip_for_summon(spell)
+            return
+        end
+        local is_ready_move, ready_move_category = ready_move_info(spell)
+        if is_ready_move then
+            prepare_ready_move(spell, ready_move_category)
+        end
+    end,
+    before_tp_gear = function(spell)
+        if spell.name == 'Call Beast' or spell.name == 'Bestial Loyalty' then
+            equip_broth()
+            return true
+        end
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

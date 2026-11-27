@@ -41,19 +41,16 @@ numbers are avoided because they drift.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/pld.lua` | 264 | Entry point (the same for every character; `<Char>_PLD.lua` and its template `_master/entry/Tetsouo_PLD.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/pld/functions/pld_functions.lua` | 121 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager` |
-| `shared/jobs/pld/functions/PLD_PRECAST.lua` | 182 | `job_precast` (guard, cooldown, auto-abilities, WS) / `job_post_precast` (/SCH weaponskill variants, TP gear, CureSelf FC, enmity override) |
+| `shared/entry/pld.lua` | 222 | Entry point (the same for every character; `<Char>_PLD.lua` and its template `_master/entry/Tetsouo_PLD.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/jobs/pld/functions/pld_functions.lua` | 119 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager` |
+| `shared/jobs/pld/functions/PLD_PRECAST.lua` | 131 | `job_precast` (guard, cooldown, auto-abilities, WS) / `job_post_precast` (/SCH weaponskill variants, TP gear, CureSelf FC, enmity override) |
 | `shared/jobs/pld/functions/PLD_MIDCAST.lua` | 203 | `job_midcast` (Cure to Cure IV) / `job_post_midcast` (name-before-skill dispatch, enmity override) |
 | `shared/jobs/pld/functions/PLD_AFTERCAST.lua` | 36 | `LifecycleManager.aftercast()`, empty `job_post_aftercast` |
 | `shared/jobs/pld/functions/PLD_IDLE.lua` | 51 | `customize_idle_set` -> `SetBuilder.build_idle_set` (+ `UPDATE_DEBUG` trace) |
 | `shared/jobs/pld/functions/PLD_ENGAGED.lua` | 51 | `customize_melee_set` -> `SetBuilder.build_engaged_set` (+ trace) |
 | `shared/jobs/pld/functions/PLD_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/pld/functions/PLD_BUFFS.lua` | 20 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/pld/functions/PLD_COMMANDS.lua` | 285 | `job_self_command` router (incl. `ws`/`wsN`), local `rebuild_ws_slots` (exported `_G.pld_rebuild_ws_slots`), `job_state_change` (profile, WS slots, ammo lock, keybind refresh) |
-| `shared/jobs/pld/functions/PLD_MOVEMENT.lua` | 23 | Placeholder for the 12-module layout (comments only) |
-| `shared/jobs/pld/functions/PLD_LOCKSTYLE.lua` | 49 | Lazy `LockstyleManager.create('PLD', 'config/pld/PLD_LOCKSTYLE', 1, 'SAM')` wrappers |
-| `shared/jobs/pld/functions/PLD_MACROBOOK.lua` | 43 | Lazy `MacrobookManager.create('PLD', ..., 'SAM', 1, 1)` wrapper |
+| `shared/jobs/pld/functions/PLD_COMMANDS.lua` | 207 | `job_self_command` router (incl. `ws`/`wsN`), local `rebuild_ws_slots` (exported `_G.pld_rebuild_ws_slots`), `job_state_change` (profile, WS slots, ammo lock, keybind refresh) |
 | `shared/jobs/pld/functions/logic/set_builder.lua` | 415 | Idle/engaged construction: weapon, shield, grip, ammo, HybridMode map, XP, Regen, movement, town; reads `PLD_WEAPONS.lua` (local `weapons_config`); `current_weapon()` is the authority on what is in hand |
 | `shared/jobs/pld/functions/logic/enmity_override.lua` | 149 | /SCH Tanking: FullEnmity spells wear `sets.EnmityMax`; JAs keep their set and gain what EnmityMax adds |
 | `shared/jobs/pld/functions/logic/cure_set_builder.lua` | 54 | CureSelf / CureOther choice for Cure to Cure IV, `is_cure` |
@@ -543,9 +540,9 @@ Mote defaults also exist: `OffenseMode`, `IdleMode`, `CastingMode`,
 
 ## Commands
 
-`job_self_command` (`PLD_COMMANDS.lua`) lowercases the first word and tests, in
-order: watchdog, dual-box internals, **CommonCommands** (built-in names and warp
-aliases), `ui`, `debugmidcast`, `cyclestate`, then PLD commands. A name none of
+`job_self_command` (`PLD_COMMANDS.lua`) lowercases the first word, answers the
+bare `aoe` first (it must win over the common `aoe`), then asks
+`JobCommands.shared` (`shared/utils/core/job_commands.lua`): watchdog, dual-box internals, `CommonCommands`, UI, `debugmidcast`, `cyclestate` (the common names: built-in and warp aliases), then the PLD commands. A name none of
 them answers goes to Mote, whose last lookup is the dual-box partner's alt config,
 and `//gs c alt <name>` sends the alt's. See
 [commands and debug](../systems/commands-and-debug.md#4-alt-commands-and-name-shadowing).
@@ -619,7 +616,7 @@ The player-facing list is [pld/sets.md](../../user/jobs/pld/sets.md).
 | `<char>/pld/keys/PLD_CUSTOM.lua` | nothing active | file | `KeybindManager` / `CustomStates` ([keybinds and custom states](../systems/keybinds-and-custom.md)) |
 | `<char>/pld/display/PLD_HUD.lua` | empty lists | file | HUD ([UI overlay](../systems/ui-overlay.md)); rewritten by `//gs c ui order` / `roworder` |
 | `<char>/pld/combat/PLD_WS_CONFIG.lua` -> `_G.PLDWSConfig` | 2 slots, 3 swords | file (`CharPaths.optional`: a missing file gives nil and no slots, a broken one still errors) | `configure`, `rebuild_ws_slots` |
-| `<char>/pld/display/PLD_LOCKSTYLE.lua` `default`, `by_subjob`, `get_style` | 3 (Kaories overlay 4) | file; factory fallback 1 (`PLD_LOCKSTYLE.lua` wrapper) | `LockstyleManager` |
+| `<char>/pld/display/PLD_LOCKSTYLE.lua` `default`, `by_subjob`, `get_style` | 3 (Kaories overlay 4) | file; factory fallback 1 (`shared/data/job_defaults.lua`) | `LockstyleManager` |
 | `<char>/pld/display/PLD_MACROBOOK.lua` `default`, `solo[sub]`, `dualbox[alt][sub]` | book 15 page 1 | file; factory fallback book 1 page 1 | `MacrobookManager` |
 | `<char>/pld/combat/PLD_WEAPONS.lua` `shields`, `stance_weapon`, `grips` | nothing forced; `grips` = `{Shining = 'Alber Strap'}` | `set_builder.lua` `DEFAULT_GRIPS`; the file is optional (`CharPaths.optional`, missing = empty) | `set_builder.lua` `weapons_config`, once per load |
 | `<char>/pld/combat/PLD_CONFIG.lua` `auto_divine_emblem`, `auto_majesty` | true, true | file; on when a key is absent (`AutoOptions.enabled(name, true)`) | `PLD_PRECAST.lua` `job_precast` through `auto_options.lua` |

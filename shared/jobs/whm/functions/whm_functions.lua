@@ -19,8 +19,8 @@ local TIMER = Profiler.create_timer('WHM')
 -- ═══════════════════════════════════════════════════════════════════
 
 -- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
-include('../shared/jobs/whm/functions/WHM_LOCKSTYLE.lua')
-include('../shared/jobs/whm/functions/WHM_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('WHM')
+require('shared/utils/macrobook/macrobook_manager').install('WHM')
 include('../shared/jobs/whm/functions/WHM_PRECAST.lua')
 TIMER('WHM_PRECAST')
 include('../shared/jobs/whm/functions/WHM_MIDCAST.lua')
@@ -37,8 +37,6 @@ include('../shared/jobs/whm/functions/WHM_BUFFS.lua')
 TIMER('WHM_BUFFS')
 include('../shared/jobs/whm/functions/WHM_COMMANDS.lua')
 TIMER('WHM_COMMANDS')
-include('../shared/jobs/whm/functions/WHM_MOVEMENT.lua')
-TIMER('WHM_MOVEMENT')
 
 -- Load dual-boxing manager (uses deferred init + lazy message loading)
 require('shared/utils/dualbox/dualbox_manager')

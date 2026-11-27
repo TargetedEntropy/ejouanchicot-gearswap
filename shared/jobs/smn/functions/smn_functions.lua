@@ -57,12 +57,10 @@ TIMER('SMN_BUFFS')
 ---   UTILITY HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-include('../shared/jobs/smn/functions/SMN_LOCKSTYLE.lua')
-include('../shared/jobs/smn/functions/SMN_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('SMN')
+require('shared/utils/macrobook/macrobook_manager').install('SMN')
 include('../shared/jobs/smn/functions/SMN_COMMANDS.lua')
 TIMER('SMN_COMMANDS')
-include('../shared/jobs/smn/functions/SMN_MOVEMENT.lua')
-TIMER('SMN_MOVEMENT')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DUAL-BOXING SYSTEM

@@ -1,8 +1,8 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   Macrobook Manager - Centralized Macrobook Management Factory
 ---  ═══════════════════════════════════════════════════════════════════════════
----   Factory pattern that creates job-specific macrobook modules: every
----   [JOB]_MACROBOOK.lua is a thin create() call on this file. Picks the book
+---   Factory pattern that creates job-specific macrobook modules; a job's
+---   facade calls install(job) (shared/data/job_defaults.lua). Picks the book
 ---   from the subjob, or from the dual-box alt's job when one is online.
 ---
 ---   @file    shared/utils/macrobook/macrobook_manager.lua
@@ -224,6 +224,21 @@ function MacrobookManager.create(job_code, config_path, default_subjob, default_
         -- the name the keybind intro and older keybind files ask for (keybind_manager.lua show_intro)
         ['get_' .. jl .. '_macro_info'] = api.get_macro_info,
     }
+end
+
+--- The global a job's facade needs at load, the job's module built by create() at its first call. The config is
+--- the character's <job>/display/<JOB>_MACROBOOK.lua; with no entry for the subjob, shared/data/job_defaults.lua.
+--- @param job_code string Job code ('WAR')
+function MacrobookManager.install(job_code)
+    local jl = job_code:lower()
+    local module
+    _G.select_default_macro_book = function()
+        if not module then
+            local d = require('shared/data/job_defaults').get(job_code)
+            module = MacrobookManager.create(job_code, 'config/' .. jl .. '/' .. job_code .. '_MACROBOOK', d.subjob, d.book, d.page)
+        end
+        return module.select_default_macro_book()
+    end
 end
 
 return MacrobookManager

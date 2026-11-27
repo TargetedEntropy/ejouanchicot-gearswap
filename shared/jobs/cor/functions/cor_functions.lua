@@ -74,8 +74,8 @@ TIMER('COR_BUFFS')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 -- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
-include('../shared/jobs/cor/functions/COR_LOCKSTYLE.lua')
-include('../shared/jobs/cor/functions/COR_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('COR')
+require('shared/utils/macrobook/macrobook_manager').install('COR')
 include('../shared/jobs/cor/functions/COR_COMMANDS.lua')
 TIMER('COR_COMMANDS')
 include('../shared/jobs/cor/functions/COR_MOVEMENT.lua')

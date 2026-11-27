@@ -10,15 +10,13 @@
 ---   @date    Created: 2025-10-05
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 local MessagePrecast = nil
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
-local RUNTPConfig = nil
 
 local modules_loaded = false
 
@@ -30,51 +28,7 @@ local function ensure_modules_loaded()
     success, result = pcall(require, 'shared/utils/messages/formatters/magic/message_precast')
     if success then MessagePrecast = result end
 
-    success, result = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if success then CooldownChecker = result end
-
-    success, result = pcall(require, 'shared/utils/debuff/precast_guard')
-    if success then PrecastGuard = result end
-
-    success, result = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if success then WSPrecastHandler = result end
-
-    -- The entry requires RUN_TP_CONFIG, which sets _G.RUNTPConfig. {} is the
-    -- fallback when it did not load: no TP-bonus gear is computed then.
-    RUNTPConfig = _G.RUNTPConfig or {}
-
     modules_loaded = true
-end
-
---- Precast order: debuff guard → cooldown → WS handler
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    -- Debuff guard
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- Cooldown check (stratagems, which share one charge pool, are exempt
-    -- inside CooldownChecker: shared/utils/precast/cooldown_checker.lua)
-    if CooldownChecker then
-        if spell.action_type == 'Ability' then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
-        elseif spell.action_type == 'Magic' then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
-        end
-        if eventArgs.cancel then return end
-    end
-
-    -- WS handling (range check, TP requirement, gear)
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, RUNTPConfig) then
-        return
-    end
-    -- Fast Cast handled automatically by Mote-Include (sets.precast.FC)
 end
 
 ---   Self cure (Cure to Cure IV from the subjob): sets.precast.FC.CureSelf, a
@@ -92,51 +46,50 @@ local function apply_cure_self_fc(spell)
     end
 end
 
----   Apply TP-bonus gear for weaponskills and the self-cure Fast Cast set,
----   then the optional precast debug display
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-    apply_cure_self_fc(spell)
+---  ═══════════════════════════════════════════════════════════════════════════
+---   PRECAST HOOKS
+---  ═══════════════════════════════════════════════════════════════════════════
 
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- DEBUG: PRECAST SET DISPLAY (Universal System)
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- Mote-Include already handles FC fallback: spell.name > spell.skill > base
-    -- We just add debug display to show which set was selected
-    if _G.PrecastDebugState and spell.action_type == 'Magic' then
-        local selected_set = nil
-        local set_name = 'sets.precast.FC'
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('RUN', {
+    load = ensure_modules_loaded,
+    after_tp_gear = function(spell, action, spellMap, eventArgs)
+        apply_cure_self_fc(spell)
 
-        -- Detect which set Mote-Include selected
-        if sets.precast.FC[spell.name] then
-            selected_set = sets.precast.FC[spell.name]
-            set_name = 'sets.precast.FC.' .. spell.name
-        elseif spell.skill and sets.precast.FC[spell.skill] then
-            selected_set = sets.precast.FC[spell.skill]
-            set_name = 'sets.precast.FC[\'' .. spell.skill .. '\']'
-        else
-            selected_set = sets.precast.FC
-            set_name = 'sets.precast.FC'
+        -- ══════════════════════════════════════════════════════════════════════════
+        -- DEBUG: PRECAST SET DISPLAY (Universal System)
+        -- ══════════════════════════════════════════════════════════════════════════
+        -- Mote-Include already handles FC fallback: spell.name > spell.skill > base
+        -- We just add debug display to show which set was selected
+        if _G.PrecastDebugState and spell.action_type == 'Magic' then
+            local selected_set = nil
+            local set_name = 'sets.precast.FC'
+
+            -- Detect which set Mote-Include selected
+            if sets.precast.FC[spell.name] then
+                selected_set = sets.precast.FC[spell.name]
+                set_name = 'sets.precast.FC.' .. spell.name
+            elseif spell.skill and sets.precast.FC[spell.skill] then
+                selected_set = sets.precast.FC[spell.skill]
+                set_name = 'sets.precast.FC[\'' .. spell.skill .. '\']'
+            else
+                selected_set = sets.precast.FC
+                set_name = 'sets.precast.FC'
+            end
+
+            -- Show debug info
+            MessagePrecast.show_debug_header(spell.name, spell.skill or 'Unknown')
+            MessagePrecast.show_equipped_set(set_name)
+
+            if selected_set then
+                MessagePrecast.show_equipment(selected_set)
+            end
+
+            MessagePrecast.show_completion()
         end
-
-        -- Show debug info
-        MessagePrecast.show_debug_header(spell.name, spell.skill or 'Unknown')
-        MessagePrecast.show_equipped_set(set_name)
-
-        if selected_set then
-            MessagePrecast.show_equipment(selected_set)
-        end
-
-        MessagePrecast.show_completion()
-    end
-end
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

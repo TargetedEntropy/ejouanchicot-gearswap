@@ -34,19 +34,16 @@ from `H2H_WS_DATABASE.lua`.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/mnk.lua` | 169 | Entry (the same for every character; `<Char>_MNK.lua` and its template `_master/entry/Tetsouo_MNK.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
-| `shared/jobs/mnk/functions/mnk_functions.lua` | 63 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager`, debug line |
-| `shared/jobs/mnk/functions/MNK_PRECAST.lua` | 119 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (WS buff layers, then TP gear) |
+| `shared/entry/mnk.lua` | 138 | Entry (the same for every character; `<Char>_MNK.lua` and its template `_master/entry/Tetsouo_MNK.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
+| `shared/jobs/mnk/functions/mnk_functions.lua` | 61 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager`, debug line |
+| `shared/jobs/mnk/functions/MNK_PRECAST.lua` | 66 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (WS buff layers, then TP gear) |
 | `shared/jobs/mnk/functions/MNK_MIDCAST.lua` | 75 | `job_midcast` (empty) / `job_post_midcast` (subjob magic via MidcastManager) |
 | `shared/jobs/mnk/functions/MNK_AFTERCAST.lua` | 21 | `job_aftercast = LifecycleManager.aftercast()` |
 | `shared/jobs/mnk/functions/MNK_IDLE.lua` | 30 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/mnk/functions/MNK_ENGAGED.lua` | 31 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/mnk/functions/MNK_STATUS.lua` | 21 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/mnk/functions/MNK_BUFFS.lua` | 24 | `LifecycleManager.buff_change` + `refresh_after_buff` (the four layer buffs) |
-| `shared/jobs/mnk/functions/MNK_COMMANDS.lua` | 115 | `job_self_command` router (shared commands only), `job_state_change = LifecycleManager.state_change()` |
-| `shared/jobs/mnk/functions/MNK_MOVEMENT.lua` | 16 | Header only (`return {}`), kept for the 12-module layout |
-| `shared/jobs/mnk/functions/MNK_LOCKSTYLE.lua` | 45 | Lazy `LockstyleManager.create('MNK', 'config/mnk/MNK_LOCKSTYLE', 1, 'WAR')` wrappers |
-| `shared/jobs/mnk/functions/MNK_MACROBOOK.lua` | 37 | Lazy `MacrobookManager.create('MNK', 'config/mnk/MNK_MACROBOOK', 'WAR', 1, 1)` wrapper |
+| `shared/jobs/mnk/functions/MNK_COMMANDS.lua` | 43 | `job_self_command` router (shared commands only), `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/mnk/functions/logic/buff_layers.lua` | 103 | `ENGAGED` / `WS` tables, `lay_engaged`, `ws_layers`, `equip_ws` |
 | `shared/jobs/mnk/functions/logic/set_builder.lua` | 108 | Idle and engaged: base selection, buff layers, Mote layers, weapon, movement |
 | `_master/config/mnk/MNK_STATES.lua` | 72 | Mote mode options, `MainWeapon`, `FastCast`, `AutoMedicine` |

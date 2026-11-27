@@ -19,6 +19,8 @@
 ---   @requires Tetsouo architecture, MessageFormatter, CooldownChecker
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -26,20 +28,13 @@
 
 local MessageFormatter = nil
 local MessagePrecast = nil
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
 local SongRefinement = nil
 local InstrumentLockConfig = nil
-
-local BRDTPConfig = nil
 
 local modules_loaded = false
 
 local function ensure_modules_loaded()
     if modules_loaded then return end
-
-    BRDTPConfig = _G.BRDTPConfig or {}
 
     -- Load universal systems
     local mf_ok, mf = pcall(require, 'shared/utils/messages/message_formatter')
@@ -49,18 +44,6 @@ local function ensure_modules_loaded()
     local mp_ok, mp = pcall(require, 'shared/utils/messages/formatters/magic/message_precast')
     if not mp_ok then mp = nil end
     MessagePrecast = mp
-
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if not cc_ok then cc = nil end
-    CooldownChecker = cc
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    if not pg_ok then pg = nil end
-    PrecastGuard = pg
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if not wph_ok then wph = nil end
-    WSPrecastHandler = wph
 
     -- Load BRD-specific systems
     local sr_ok, sr = pcall(require, 'shared/jobs/brd/functions/logic/song_refinement')
@@ -75,7 +58,7 @@ local function ensure_modules_loaded()
 end
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   PRECAST HOOKS
+---   PRECAST STEPS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 --- Song aimed at another player: cancel it, send Pianissimo, then re-send the
@@ -206,126 +189,89 @@ local function try_marcato(spell, eventArgs)
     return true
 end
 
---- Precast hook: guard, song refinement, cooldown, Pianissimo/Marcato, WS, instrument lock.
---- @param spell table Spell information from GearSwap
---- @param action table Action information from GearSwap
---- @param spellMap string Spell mapping from Mote-Include
---- @param eventArgs table Event arguments (eventArgs.cancel for cancellation)
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
+---  ═══════════════════════════════════════════════════════════════════════════
+---   PRECAST HOOKS
+---  ═══════════════════════════════════════════════════════════════════════════
 
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- Refinement runs BEFORE the cooldown check, and must keep doing so.
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('BRD', {
+    load = ensure_modules_loaded,
     -- A song on recast can be downgraded - Lullaby II to Lullaby I - but
     -- only if it is still alive to downgrade; checking the cooldown first
     -- cancels it outright and the downgrade never happens. BLM, RDM and WHM
     -- depart from the standard order for the same reason.
-    if spell.type == 'BardSong' and SongRefinement.refine_song(spell, eventArgs) then
-        return
-    end
-
-    if CooldownChecker then
-        if spell.action_type == 'Ability' then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
-        elseif spell.action_type == 'Magic' then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
+    before_cooldown = function(spell, eventArgs)
+        return spell.type == 'BardSong' and SongRefinement.refine_song(spell, eventArgs)
+    end,
+    after_cooldown = function(spell, eventArgs)
+        if spell.type == 'BardSong' then
+            job_precast_bardsong(spell, eventArgs)
+            return eventArgs.cancel or try_marcato(spell, eventArgs)
         end
-    end
-
-    if eventArgs.cancel then
-        return
-    end
-
-    -- Pianissimo and Marcato spend a job ability and re-send the song, so they
-    -- wait until the song's own recast has passed: a song on recast would
-    -- burn the ability and then be refused.
-    if spell.type == 'BardSong' then
-        job_precast_bardsong(spell, eventArgs)
-        if eventArgs.cancel or try_marcato(spell, eventArgs) then
-            return
+    end,
+    after_ws = function(spell)
+        if spell.type == 'BardSong' and InstrumentLockConfig.requires_lock(spell.english) then
+            job_precast_bardsong_2(spell)
         end
-    end
-
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, BRDTPConfig) then
-        return
-    end
-
-    -- Honor March and Aria of Passion need their instrument to stay on for the
-    -- whole cast, or the song simply fails.
-    if spell.type == 'BardSong' and InstrumentLockConfig.requires_lock(spell.english) then
-        job_precast_bardsong_2(spell)
-    end
-end
-
----   Apply final gear adjustments before equipping (WS TP gear, precast debug)
----   @param spell table Spell/ability data
----   @param action table Action information from GearSwap
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-
-    -- A song keeps its instrument: the game takes the instrument off when an
-    -- ammo goes on, and Honor March / Aria of Passion are then refused at the
-    -- cast's start. A Fast Cast set's ammo (Sapience Orb in sets.precast.FC,
-    -- inherited by FC.BardSong) did it: trace 2026-11-06, "interrupted" with no
-    -- action started. Here, after Mote laid the precast set over job_precast.
-    if spell.type == 'BardSong' then
-        equip({ammo = empty})
-        -- Honor March / Aria of Passion: their instrument again, over the
-        -- precast set's range. job_precast put it on, then Mote laid the Fast
-        -- Cast set over it: Kaories' sets.precast.FC has range = 'Loughnashade',
-        -- so Honor March went out with Loughnashade and was refused four times
-        -- (trace 2026-11-08 02:46, "interrupted").
-        if _G.casting_locked_song and _G.locked_song_name == spell.english and _G.locked_instrument then
-            equip({range = _G.locked_instrument})
-        end
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- DEBUG: PRECAST SET DISPLAY (Universal System)
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- Show the set Mote-Include picked: under sets.precast.FC, the spell's
-    -- name, else its map, else its skill (then name / map under it), else its
-    -- type, else FC itself (Mote-Include get_precast_set). Not
-    -- sets.precast.BardSong or sets.precast['<song>']: Mote never reads them.
-    if _G.PrecastDebugState and spell.action_type == 'Magic' then
-        local fc = sets.precast.FC or {}
-        local selected_set, set_name = fc, 'sets.precast.FC'
-        local function named(t, path)
-            if t[spell.english] then return t[spell.english], path .. "['" .. spell.english .. "']" end
-            if spellMap and t[spellMap] then return t[spellMap], path .. "['" .. spellMap .. "']" end
-            return nil
-        end
-        local found, found_name = named(fc, 'sets.precast.FC')
-        if found then
-            selected_set, set_name = found, found_name
-        elseif spell.skill and fc[spell.skill] then
-            local path = "sets.precast.FC['" .. spell.skill .. "']"
-            selected_set, set_name = fc[spell.skill], path
-            found, found_name = named(fc[spell.skill], path)
-            if found then selected_set, set_name = found, found_name end
-        elseif spell.type and fc[spell.type] then
-            selected_set, set_name = fc[spell.type], "sets.precast.FC['" .. spell.type .. "']"
+    end,
+    after_tp_gear = function(spell, action, spellMap, eventArgs)
+        -- A song keeps its instrument: the game takes the instrument off when an
+        -- ammo goes on, and Honor March / Aria of Passion are then refused at the
+        -- cast's start. A Fast Cast set's ammo (Sapience Orb in sets.precast.FC,
+        -- inherited by FC.BardSong) did it: trace 2026-11-06, "interrupted" with no
+        -- action started. Here, after Mote laid the precast set over job_precast.
+        if spell.type == 'BardSong' then
+            equip({ammo = empty})
+            -- Honor March / Aria of Passion: their instrument again, over the
+            -- precast set's range. job_precast put it on, then Mote laid the Fast
+            -- Cast set over it: Kaories' sets.precast.FC has range = 'Loughnashade',
+            -- so Honor March went out with Loughnashade and was refused four times
+            -- (trace 2026-11-08 02:46, "interrupted").
+            if _G.casting_locked_song and _G.locked_song_name == spell.english and _G.locked_instrument then
+                equip({range = _G.locked_instrument})
+            end
         end
 
-        -- Show debug info
-        MessagePrecast.show_debug_header(spell.name, spell.skill or 'Unknown')
-        MessagePrecast.show_equipped_set(set_name)
+        -- ══════════════════════════════════════════════════════════════════════════
+        -- DEBUG: PRECAST SET DISPLAY (Universal System)
+        -- ══════════════════════════════════════════════════════════════════════════
+        -- Show the set Mote-Include picked: under sets.precast.FC, the spell's
+        -- name, else its map, else its skill (then name / map under it), else its
+        -- type, else FC itself (Mote-Include get_precast_set). Not
+        -- sets.precast.BardSong or sets.precast['<song>']: Mote never reads them.
+        if _G.PrecastDebugState and spell.action_type == 'Magic' then
+            local fc = sets.precast.FC or {}
+            local selected_set, set_name = fc, 'sets.precast.FC'
+            local function named(t, path)
+                if t[spell.english] then return t[spell.english], path .. "['" .. spell.english .. "']" end
+                if spellMap and t[spellMap] then return t[spellMap], path .. "['" .. spellMap .. "']" end
+                return nil
+            end
+            local found, found_name = named(fc, 'sets.precast.FC')
+            if found then
+                selected_set, set_name = found, found_name
+            elseif spell.skill and fc[spell.skill] then
+                local path = "sets.precast.FC['" .. spell.skill .. "']"
+                selected_set, set_name = fc[spell.skill], path
+                found, found_name = named(fc[spell.skill], path)
+                if found then selected_set, set_name = found, found_name end
+            elseif spell.type and fc[spell.type] then
+                selected_set, set_name = fc[spell.type], "sets.precast.FC['" .. spell.type .. "']"
+            end
 
-        if selected_set then
-            MessagePrecast.show_equipment(selected_set)
+            -- Show debug info
+            MessagePrecast.show_debug_header(spell.name, spell.skill or 'Unknown')
+            MessagePrecast.show_equipped_set(set_name)
+
+            if selected_set then
+                MessagePrecast.show_equipment(selected_set)
+            end
+
+            MessagePrecast.show_completion()
         end
-
-        MessagePrecast.show_completion()
-    end
-end
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

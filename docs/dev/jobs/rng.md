@@ -32,19 +32,16 @@ What RNG adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/rng.lua` | 168 | Entry (the same for every character; `<Char>_RNG.lua` and its template `_master/entry/Tetsouo_RNG.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
-| `shared/jobs/rng/functions/rng_functions.lua` | 64 | Facade: includes `message_buffs` and the hook files, requires `dualbox_manager`, debug line |
-| `shared/jobs/rng/functions/RNG_PRECAST.lua` | 123 | `job_precast` (guard, cooldown, Flurry groups, WS handler) / `job_post_precast` (TP gear, Velocity Shot layer on the aim); starts `FlurryTracker` at load |
+| `shared/entry/rng.lua` | 138 | Entry (the same for every character; `<Char>_RNG.lua` and its template `_master/entry/Tetsouo_RNG.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
+| `shared/jobs/rng/functions/rng_functions.lua` | 62 | Facade: includes `message_buffs` and the hook files, requires `dualbox_manager`, debug line |
+| `shared/jobs/rng/functions/RNG_PRECAST.lua` | 61 | `job_precast` (guard, cooldown, Flurry groups, WS handler) / `job_post_precast` (TP gear, Velocity Shot layer on the aim); starts `FlurryTracker` at load |
 | `shared/jobs/rng/functions/RNG_MIDCAST.lua` | 90 | `job_midcast` (empty) / `job_post_midcast` (ranged attack and subjob magic via MidcastManager, ranged buff layers) |
 | `shared/jobs/rng/functions/RNG_AFTERCAST.lua` | 37 | `LifecycleManager.aftercast` + `QuiverManager.after_ranged_attack(spell, nil, nil, 15)` |
 | `shared/jobs/rng/functions/RNG_IDLE.lua` | 31 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/rng/functions/RNG_ENGAGED.lua` | 31 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/rng/functions/RNG_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/rng/functions/RNG_BUFFS.lua` | 22 | `job_buff_change = LifecycleManager.buff_change()` (no `refresh_after_buff`: no RNG buff swaps idle / engaged gear) |
-| `shared/jobs/rng/functions/RNG_COMMANDS.lua` | 115 | `job_self_command` router, `job_state_change = LifecycleManager.state_change()` |
-| `shared/jobs/rng/functions/RNG_MOVEMENT.lua` | 16 | Header only (`return {}`), kept for the 12-module layout |
-| `shared/jobs/rng/functions/RNG_LOCKSTYLE.lua` | 45 | Lazy `LockstyleManager.create('RNG', 'config/rng/RNG_LOCKSTYLE', 1, 'WAR')` wrappers |
-| `shared/jobs/rng/functions/RNG_MACROBOOK.lua` | 37 | Lazy `MacrobookManager.create('RNG', 'config/rng/RNG_MACROBOOK', 'WAR', 1, 1)` wrapper |
+| `shared/jobs/rng/functions/RNG_COMMANDS.lua` | 43 | `job_self_command` router, `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/rng/functions/logic/ranged.lua` | 85 | `PRECAST_LAYERS`, `MIDCAST_LAYERS`, `layers`, `equip_layers`, `prepare_precast` (Flurry groups), `start` (Flurry listener) |
 | `shared/jobs/rng/functions/logic/set_builder.lua` | 118 | Idle and engaged: HybridMode, town, Mote layers, weapons (main, sub, range), movement |
 | `_master/config/rng/RNG_STATES.lua` | 80 | Mote mode options, `RangeWeapon`, `MainWeapon`, `SubWeapon`, `FastCast`, `AutoMedicine` |

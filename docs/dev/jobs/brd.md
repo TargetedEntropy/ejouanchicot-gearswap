@@ -41,19 +41,17 @@ function; line numbers are given only where no function name fits.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/brd.lua` | 265 | Entry point (the same for every character; `<Char>_BRD.lua` and its template `_master/entry/Tetsouo_BRD.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (song slots, then `EntryKit.update_hud`), `init_gear_sets`, `file_unload` (also stops the instrument skill-up loop: `BRDSkillUp.cancel`); shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/brd.lua` | 209 | Entry point (the same for every character; `<Char>_BRD.lua` and its template `_master/entry/Tetsouo_BRD.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (song slots, then `EntryKit.update_hud`), `init_gear_sets`, `file_unload` (also stops the instrument skill-up loop: `BRDSkillUp.cancel`); shared hooks from `shared/utils/core/entry_kit.lua` |
 | `shared/jobs/brd/functions/brd_functions.lua` | 85 | Facade: includes the 11 hook files, requires `dualbox_manager` |
-| `shared/jobs/brd/functions/BRD_PRECAST.lua` | 342 | `job_precast` (guard, `SongRefinement.refine_song`, cooldown, `job_precast_bardsong` Pianissimo, `try_marcato`, WS, `job_precast_bardsong_2` instrument lock) / `job_post_precast` (TP gear; on a song, ammo emptied and the locked instrument put back over the Fast Cast set's `range`; precast debug) |
+| `shared/jobs/brd/functions/BRD_PRECAST.lua` | 288 | `job_precast` (guard, `SongRefinement.refine_song`, cooldown, `job_precast_bardsong` Pianissimo, `try_marcato`, WS, `job_precast_bardsong_2` instrument lock) / `job_post_precast` (TP gear; on a song, ammo emptied and the locked instrument put back over the Fast Cast set's `range`; precast debug) |
 | `shared/jobs/brd/functions/BRD_MIDCAST.lua` | 145 | `job_midcast` (empty), `job_customize_midcast_set` (passthrough, never called), `job_post_midcast` (context + skill dispatch to the router) |
 | `shared/jobs/brd/functions/BRD_AFTERCAST.lua` | 73 | `job_aftercast`: watchdog, Pianissimo flag, `SongQueue.on_aftercast`, `DummyNext.on_aftercast`, instrument lock release |
 | `shared/jobs/brd/functions/BRD_IDLE.lua` | 42 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/brd/functions/BRD_ENGAGED.lua` | 42 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/brd/functions/BRD_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/brd/functions/BRD_BUFFS.lua` | 19 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/brd/functions/BRD_COMMANDS.lua` | 584 | `job_self_command` router, `cast_song_to_target`, `job_state_change = LifecycleManager.state_change()` |
+| `shared/jobs/brd/functions/BRD_COMMANDS.lua` | 512 | `job_self_command` router, `cast_song_to_target`, `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/brd/functions/BRD_MOVEMENT.lua` | 39 | `job_handle_equipping_gear` (re-equips the locked instrument) |
-| `shared/jobs/brd/functions/BRD_LOCKSTYLE.lua` | 55 | Lazy `LockstyleManager.create('BRD', ..., 1, 'WHM')` wrappers |
-| `shared/jobs/brd/functions/BRD_MACROBOOK.lua` | 49 | Lazy `MacrobookManager.create('BRD', ..., 'WHM', 1, 1)` wrapper |
 | `shared/jobs/brd/functions/logic/midcast_router.lua` | 344 | `handle_singing` (dummy / debuff / normal), `handle_healing`, `handle_enhancing`, `handle_enfeebling`, `handle_elemental`; `apply_main_instrument` |
 | `shared/jobs/brd/functions/logic/skillup.lua` | 254 | Instrument skill-up loop (`//gs c skillup` horn / harp / off / status): `handle`, `instrument` (read by `handle_singing`), `cancel`; exported as `_G.BRDSkillUp` once required |
 | `shared/jobs/brd/functions/logic/song_rotation_manager.lua` | 272 | `get_current_pack`, `get_songs_with_replacement`, `update_song_slots` (HUD), `get_required_instrument`, `cast_songs_with_phases`, `cast_dummy_songs` |

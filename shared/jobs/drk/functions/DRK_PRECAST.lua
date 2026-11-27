@@ -11,107 +11,41 @@
 ---   @date    Created: 2025-10-05
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   PRECAST HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
-local DRKTPConfig = nil
-
-local modules_loaded = false
-
-local function ensure_modules_loaded()
-    if modules_loaded then return end
-
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if not cc_ok then cc = nil end
-    CooldownChecker = cc
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    if not pg_ok then pg = nil end
-    PrecastGuard = pg
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if not wph_ok then wph = nil end
-    WSPrecastHandler = wph
-
-    DRKTPConfig = _G.DRKTPConfig or {}
-
-    modules_loaded = true
-end
-
----   Handle precast actions
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    -- Debuff guard
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- Cooldown check (stratagems, which share one charge pool, are exempt
-    -- inside CooldownChecker: shared/utils/precast/cooldown_checker.lua)
-    if CooldownChecker then
-        if spell.action_type == 'Ability' then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
-        elseif spell.action_type == 'Magic' then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('DRK', {
+    after_cooldown = function(spell)
+        if spell.type == 'JobAbility' then
+            if spell.name == 'Dark Seal' then
+                _G.drk_dark_seal_pending = true
+            elseif spell.name == 'Nether Void' then
+                _G.drk_nether_void_pending = true
+            end
         end
-        if eventArgs.cancel then
-            return
+    end,
+    after_ws = function(spell)
+        if spell.type == 'JobAbility' then
+            if spell.name == 'Last Resort' and sets.precast and sets.precast.JA and sets.precast.JA['Last Resort'] then
+                equip(sets.precast.JA['Last Resort'])
+            elseif spell.name == 'Weapon Bash' and sets.precast and sets.precast.JA and sets.precast.JA['Weapon Bash'] then
+                equip(sets.precast.JA['Weapon Bash'])
+            elseif spell.name == 'Souleater' and sets.precast and sets.precast.JA and sets.precast.JA['Souleater'] then
+                equip(sets.precast.JA['Souleater'])
+            elseif spell.name == 'Arcane Circle' and sets.precast and sets.precast.JA and sets.precast.JA['Arcane Circle'] then
+                equip(sets.precast.JA['Arcane Circle'])
+            end
         end
-    end
-
-    -- DRK-SPECIFIC: Buff pending flags (Dark Seal, Nether Void)
-    if spell.type == 'JobAbility' then
-        if spell.name == 'Dark Seal' then
-            _G.drk_dark_seal_pending = true
-        elseif spell.name == 'Nether Void' then
-            _G.drk_nether_void_pending = true
+        if spell.action_type == 'Magic' and sets.precast and sets.precast.FC then
+            equip(sets.precast.FC)
         end
-    end
-
-    -- WEAPONSKILL HANDLING (Unified via WSPrecastHandler)
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, DRKTPConfig) then
-        return
-    end
-
-    -- DRK-SPECIFIC PRECAST GEAR
-    if spell.type == 'JobAbility' then
-        if spell.name == 'Last Resort' and sets.precast and sets.precast.JA and sets.precast.JA['Last Resort'] then
-            equip(sets.precast.JA['Last Resort'])
-        elseif spell.name == 'Weapon Bash' and sets.precast and sets.precast.JA and sets.precast.JA['Weapon Bash'] then
-            equip(sets.precast.JA['Weapon Bash'])
-        elseif spell.name == 'Souleater' and sets.precast and sets.precast.JA and sets.precast.JA['Souleater'] then
-            equip(sets.precast.JA['Souleater'])
-        elseif spell.name == 'Arcane Circle' and sets.precast and sets.precast.JA and sets.precast.JA['Arcane Circle'] then
-            equip(sets.precast.JA['Arcane Circle'])
-        end
-    end
-
-    -- Fast Cast for Magic
-    if spell.action_type == 'Magic' and sets.precast and sets.precast.FC then
-        equip(sets.precast.FC)
-    end
-end
-
----   Apply final gear adjustments before equipping
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-end
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

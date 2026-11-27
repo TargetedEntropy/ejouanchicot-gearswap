@@ -30,7 +30,7 @@ does not).
 | Path | Lines | Role |
 |---|---|---|
 | `shared/utils/messages/message_formatter.lua` | 308 | Facade: 130 lazy one-line wrappers `MessageFormatter.show_x -> <module>.show_y`, the `COLORS` proxy, `show_debug` |
-| `shared/utils/messages/message_core.lua` | 196 | Colour-code builder, job tag and job prefix, `SEPARATOR_WIDTH` (player's `chat.width` or 69), separator line, direct-output helpers (`info/success/error/warning/raw/...`); installs the chat-line filter on the sandbox `add_to_chat` |
+| `shared/utils/messages/message_core.lua` | 198 | Colour-code builder, job tag and job prefix, `SEPARATOR_WIDTH` (player's `chat.width` or 69), separator line, direct-output helpers (`info/success/error/warning/raw/...`); installs the chat-line filter on the sandbox `add_to_chat` |
 | `shared/utils/messages/chat_separators.lua` | 145 | `ChatSeparators.apply(text)`: redraws or drops separator lines and framed titles according to the player's `chat` options; called for every chat line by the wrapper in `message_core.lua` |
 | `shared/utils/messages/chat_palette.lua` | 113 | Named chat colours (template tags) with the player's `chat.colors` overrides, alias rules, job-tag switch and `strip_job_tag` |
 | `shared/utils/messages/message_colors.lua` | 204 | Named colour constants (`SUCCESS`, `ERROR`, `WARNING`...) resolved at each read through the player's overrides; region-dependent orange; `//gs c trace` probe of the orange |

@@ -49,79 +49,29 @@ Related files read to establish behaviour (owned by other pages): `shared/utils/
 
 Every `[JOB]_COMMANDS.lua` defines `job_self_command(cmdParams, eventArgs)` and exports it as `_G.job_self_command`. Each one:
 
-1. returns if `cmdParams[1]` is missing, then calls its local `ensure_commands_loaded()` (lazy `require` of `COMMON_COMMANDS`, `WATCHDOG_COMMANDS`, `UI_COMMANDS`, `CYCLE_HANDLER`, `message_formatter`, `message_commands`);
-2. computes `command = cmdParams[1]:lower()`;
-3. tests a sequence of shared prefixes, each ending with `return`;
+1. returns if `cmdParams[1]` is missing, then computes `command = cmdParams[1]:lower()`;
+2. tests the job words that must win over a common word of the same name (PLD / RUN `aoe`, DRG `jump`, BST `debugprecast`), and words of its own that it tests first (PUP `petmode`, THF `steal`, BRD `forceidle` / `skillup`, SMN `skillup`);
+3. calls `JobCommands.shared(command, cmdParams, eventArgs, '<JOB>')` (`shared/utils/core/job_commands.lua`) and returns when it answers;
 4. then tests its own job commands.
 
-The common-command step has the same shape in all 22 files (BST and SMN also nil-check `CommonCommands`):
+A job with no command of its own (BLU, DRK, MNK, NIN, RNG) is `job_self_command = JobCommands.router('<JOB>')`.
 
-```lua
-if CommonCommands.is_common_command(command) then
-    local args = {}
-    for i = 2, #cmdParams do table.insert(args, cmdParams[i]) end
-    if CommonCommands.handle_command(command, '<JOB>', table.unpack(args)) then
-        eventArgs.handled = true
-    end
-    return
-end
-```
+`JobCommands.shared` answers, in this order: `watchdog` (`WatchdogCommands.handle_command`, `handled` set when it answers), `altjobupdate` (`DualBoxManager.receive_alt_job(cmdParams[2..7])`, `handled`), `requestjob` (`DualBoxManager.handle_job_request()`, `handled`), every common word (`CommonCommands.handle_command(command, job, unpack(cmdParams, 2))`, `handled` when it returns true), `ui` (`UICommands.handle_ui_command`, `handled`), `debugmidcast` (`MidcastManager.toggle_debug()` and its message, `handled`), `cyclestate` (`eventArgs.handled = CycleHandler.handle_cyclestate(...)`). None of these words is a job command, so their order among themselves changes nothing; a job word tested after the call is never a common word: `scripts/atelier/job_commands_test.lua` reads every job's router and fails on one (COR's `colors` and WAR's `perf` were such dead branches until 2026-11-27).
 
-`table.unpack` is not Lua 5.1: it comes from Windower's `libs/tables.lua`. Called with no extra argument it is plain `unpack(t)`, which is what forwarding needs. Passing only `cmdParams[1]` would drop every subcommand, so `warp all` would lose its `all`. Called with extra arguments, it treats them as keys, not as a start index (see Gotchas).
+`altjobupdate` passes the sender's name (its 5th word, `cmdParams[6]`) to `DualBoxManager.receive_alt_job`, so an update from a box outside the pair is ignored (see [dualbox.md](dualbox.md)).
 
-When `handle_command` returns false or nil, the job file still returns and `eventArgs.handled` stays false. Mote then tries `selfCommandMaps[cmdParams[1]]`, which finds nothing for a common name. The alt fallback refuses every name `CommonCommands.runs_locally` claims, so the command ends silently.
-
-Order of the shared prefixes in each job file, first to last (`alt/req` = `altjobupdate` then `requestjob`; `wd` = `watchdog`; `common` = `is_common_command`; `dm` = `debugmidcast`; `cs` = `cyclestate`):
-
-| Job | Order before the job's own commands | Notes |
-|---|---|---|
-| BLM, BLU | alt/req, wd, common, ui, dm, cs | BLM answers `cycle Storm` itself (`handle_blm_standard_cycles`), so on BLM that one never reaches Mote |
-| DNC, DRK, MNK, NIN, RNG, SAM, THF, WHM | alt/req, wd, common, ui, dm, cs | |
-| DRG | alt/req, `jump`, wd, common, ui, dm, cs | DRG answers `jump` itself, before the common `jump` |
-| PUP | alt/req, `petmode`, wd, common, ui, dm, cs | |
-| SCH | alt/req, its own commands (`handle_job_command`: `nuke`, `helix`, `storm`, `strat`, `schhelp`), wd, common, ui, dm, cs | |
-| PLD, RUN, WAR | wd, alt/req, common, ui, dm, cs | WAR keeps a `perf` branch after `cs` that the common `perf` shadows |
-| BRD | alt/req, ui, `forceidle`, dm, `skillup`, cs, wd, common | Nothing in the repository sends `forceidle`. `skillup horn` / `harp` / `off` / `status` runs the instrument skill-up loop (`shared/jobs/brd/functions/logic/skillup.lua`) |
-| BST | alt/req, ui, dm, `debugprecast`, cs, wd, common | BST's own `debugprecast` answers before the common one and toggles `_G.BST_DEBUG_PRECAST` |
-| COR, GEO | alt/req, ui, dm, cs, wd, common | COR keeps a `testcolors` / `colors` branch that the common one shadows |
-| RDM | alt/req, ui, wd, common, raw Mote names, dm, cs | After `common`, every raw `selfCommandMaps` key is left to Mote. An unknown command at the end is cast as a JA / WS / spell name (read from `res`); if it is none of these and `selfCommandMaps` (the alt fallback) answers it, it is left to Mote; otherwise RDM prints "Command not recognized" |
-| SMN | alt/req, ui, dm, cs, wd, `skillup`, common | |
-
-In all 22 files, `altjobupdate` passes the sender's name (its 5th word, `cmdParams[6]`) to `DualBoxManager.receive_alt_job`, so an update from a box outside the pair is ignored (see [dualbox.md](dualbox.md)).
-
-`ui`, `watchdog`, `cyclestate`, `debugmidcast`, `altjobupdate` and `requestjob` are not common names, so the different orders matter only for names that collide (Gotchas: `perf`, `testcolors`, `debugprecast`).
+RDM tests, after the shared call, every raw `selfCommandMaps` key and leaves it to Mote. An unknown command at the end is cast as a JA / WS / spell name (read from `res`); if it is none of these and `selfCommandMaps` (the alt fallback) answers it, it is left to Mote; otherwise RDM prints "Command not recognized".
 
 ### 3. `CommonCommands.handle_command(command, job_name, ...)`
 
 1. **Normalise.** A string `command` is lower-cased and rebuilt into `cmdParams = {command, ...}`. A table is taken as `cmdParams` directly (no caller passes a table today). `args = cmdParams[2..n]`.
-2. **Module commands**, each handed to its own module, in this order:
-
-   | Word | Module call |
-   |---|---|
-   | `sortie` | `SortieCommands.handle(args)` |
-   | `alts`, `main`, `setalt`, `altreport`, `altmirror`, `altlead` | `AltGroup.route(cmd, args)` |
-   | `rollshow` | `RollShare.receive(args)` |
-   | `stealth` | `Stealth.handle(args)` |
-   | `cleanse` | `Cleanse.handle(args)` |
-   | `combatmode` | `combat_mode_commands.handle(args)` |
-   | `keyconflicts`, `kc` | `KeybindManager.show_possible_conflicts()` |
-   | `th` | `treasure_commands.handle(args)` |
-   | `dw` | `DualWield.command(args)` |
-   | `support` | `SupportTier.command(args)` |
-   | `fights` | `FightTracker.command(args)` |
-   | `dealwatch` | `RandomDealWatch.command(args)` |
-   | `belt` | `ElementalBelt.show_status()` |
-   | any word of `DebugCommands.WORDS` | `DebugCommands.run(cmd, args)` (`DEBUG_COMMANDS.lua`); a nil return goes on down the router |
-   | `tb` | `TempBinds.handle(args)` |
-   | `trace` | `TraceLog.handle(args)` |
-   | `atelier` | `atelier/atelier_export.lua` `handle(args)` |
-   | `version`, `upgrade` | `core/release_info.lua` `handle(cmd)` |
-
-3. **Warp.** First an exact match against `warp_command_registry.COMMANDS` (105 aliases). Then any word ending in `all` whose base is an alias (`warpall`, `sdall`, and also `wall` = `w` + `all`). Both go to `handle_warp_commands(cmdParams)`, which requires `shared/utils/warp/warp_commands` and returns `WarpCommands.handle_command(cmdParams)`. If that module fails to load, it prints a module-by-module diagnostic instead.
-4. **Named commands.** First `^ja%d*$` (`ja1`, `ja2`..., or `ja N`) -> `commands/sub_abilities.lua` (`index_of`, then `use(index)`, else `usage()`); then one `if/elseif` chain for the named commands (table below).
+2. **Named commands.** One table, `WORDS` (word -> `fn(args, cmdParams, job_name)`, aliases filled in under it), with the commands of the table below (`sortie`, `alts`, `stealth`, `th`, `dw`, `naked`, `reload`, `wo`, ...). `CommonCommands.words()` lists them.
+3. **Diagnostics.** A word of `DebugCommands.WORDS` -> `DebugCommands.run(cmd, args)` (`DEBUG_COMMANDS.lua`).
+4. **Warp, then `ja<n>`.** A warp alias (`warp_command_registry.SET`, 105 aliases) or a word ending in `all` whose base is one (`warpall`, `sdall`, and also `wall` = `w` + `all`): `is_warp(cmd)`, then `handle_warp_commands(cmdParams)`, which requires `shared/utils/warp/warp_commands` and returns `WarpCommands.handle_command(cmdParams)` (a module-by-module diagnostic when it fails to load). Then `^ja%d*$` (`ja1`, `ja2`..., or `ja N`) -> `commands/sub_abilities.lua` (`index_of`, then `use(index)`, else `usage()`).
+   No word is in two of these lists (`scripts/atelier/job_commands_test.lua` checks it), so their order changes nothing.
 5. **Anything else** returns false. `handle_command` never sends anything to the alt.
 
-`is_common_command(command)` looks the word up in the local table `COMMON_WORDS` (built at module load from one space-separated string of the router's words, then every key of `DebugCommands.WORDS` added to it), then tests `^ja%d*$`, the warp exact and `<alias>all` forms. It does not look at the alt's config. The string must be kept in step with the router by hand (its comment says so); a word of `DebugCommands.WORDS` is counted on its own. A name added to `handle_command` only is unreachable from every job file.
+`is_common_command(command)` is true for a key of `WORDS`, a key of `DebugCommands.WORDS`, `^ja%d*$` or a warp alias (`is_warp`). It reads the same table as the router, so a word added there is reachable from every job file at once. It does not look at the alt's config.
 
 ```mermaid
 sequenceDiagram
@@ -382,7 +332,7 @@ No `handle_*` function is called from outside `handle_command`. This was checked
 | `handle_debugwarp()`, `handle_debugprecast()`, `handle_automovedebug()`, `handle_debugjobchange()`, `handle_debugupdate()` | The five persistent toggles, through the local `flip_debug(key)` |
 | `handle_debugmsg()` | Message modes dump |
 
-Callers: `DebugCommands.WORDS` / `run`, which `handle_command` asks before its own branches (the `perf` branch calls `DebugCommands.handle_perf` itself). The `CommonCommands.handle_*` aliases of these were removed on 2026-10-28: none had a caller.
+Callers: `DebugCommands.WORDS` / `run`, which `handle_command` asks once its `WORDS` table has no entry (the `perf` entry of `WORDS` calls `DebugCommands.handle_perf` itself). The `CommonCommands.handle_*` aliases of these were removed on 2026-10-28: none had a caller.
 
 ### InfoCommand (`info_command.lua`)
 
@@ -639,8 +589,8 @@ Output goes through the `PROFILER` message namespace (`shared/utils/messages/dat
 
 ### Adding a common command
 
-1. **Write the handler.** Put it in `COMMON_COMMANDS.lua`, or in `DEBUG_COMMANDS.lua` for a diagnostic (then give it an entry in `DebugCommands.WORDS`: the router and `is_common_command` both read that table, nothing else to register). A self-contained feature is better as its own module with a `handle(args)` returning `true`, routed in the "module commands" block the way `sortie`, `stealth`, `th`, `dw`, `tb` and `trace` are. `COMMON_COMMANDS.lua` is 778 lines (2026-10-28), close to the 800-line hard limit.
-2. **Register the name twice.** Add the branch in `handle_command` **and** the same name(s) in the word string of `COMMON_WORDS` (just above `is_common_command`). Missing the second step makes the command unreachable from every job file. A diagnostic added to `DebugCommands.WORDS` needs neither: both read that table.
+1. **Write the handler.** An entry of `WORDS` in `COMMON_COMMANDS.lua` (`word = function(args, cmdParams, job_name) ... end`, or `by('<module>', '<fn>')` for a self-contained module with a `handle(args)` returning `true`, the way `sortie`, `stealth`, `th`, `dw`, `tb` and `trace` are), its aliases in the alias table under `WORDS`; or in `DEBUG_COMMANDS.lua` for a diagnostic (an entry in `DebugCommands.WORDS`).
+2. **Nothing to register twice.** `is_common_command` reads `WORDS` and `DebugCommands.WORDS` itself.
 3. **Return a boolean.** Return `true` when handled; `nil` counts as false, which leaves `eventArgs.handled` false (harmless for a common name, since `runs_locally` stops the alt fallback, but misleading).
 4. **Lower-case what you compare.** Lower-case every argument you compare. On a word you do not recognise, print usage instead of running a mutating default.
 5. **Check the name for collisions** before choosing it:
@@ -669,7 +619,7 @@ Flip it with `flip_debug('<KEY>')` in `DEBUG_COMMANDS.lua` and add its line to t
 
 ### Traps
 
-- A job-specific branch placed **after** the common block for a name `is_common_command` claims is dead code. Examples today: WAR `perf`, COR `testcolors`.
+- A job-specific branch placed **after** the `JobCommands.shared` call for a name `is_common_command` claims is dead code; `scripts/atelier/job_commands_test.lua` fails on one (WAR `perf` and COR `testcolors` were, until 2026-11-27).
 - A job-specific branch placed **before** the common block silently overrides the common command on that job only. Example: BST `debugprecast`.
 - Any `gs c ...` your code sends (e.g. `gs c update`) re-enters this pipe in full: the job's prefixes, then `is_common_command`, then Mote.
 
@@ -679,7 +629,6 @@ Open:
 
 - `wo` subcommands are case-sensitive and fall back to a full organize (`COMMON_COMMANDS.lua` `handle_wardrobeorganize`).
 - Fixed 2026-09-28: `handle_memcheck` and `handle_debugmsg` called the one-argument `show_error` with a prefix and the reason, so the chat showed only `MEMCHECK` / `MSG`; each now passes one message (`MEMCHECK: failed to open output file: <err>`, `MSG: MESSAGE_SETTINGS is nil`).
-- Job branches shadowed by common names are unreachable: WAR `perf` (commented as unreachable), COR `testcolors` / `colors`.
 - `GlobalProbe.EXPECTED` whitelists `name` and `x`; nothing shows they are real globals.
 - The syscheck WarpInit check trusts a flag that outlives the environment (`check_warp`).
 - `data/fulltest_report.txt` and `data/debug_lag.txt` are shared by all characters (`FullTest.export`, `LagDebugger.export`).

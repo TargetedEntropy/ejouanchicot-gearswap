@@ -48,12 +48,10 @@ include('../shared/jobs/nin/functions/NIN_BUFFS.lua')     -- Doom, Yonin / Innin
 TIMER('NIN_BUFFS')
 
 -- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
-include('../shared/jobs/nin/functions/NIN_LOCKSTYLE.lua')
-include('../shared/jobs/nin/functions/NIN_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('NIN')
+require('shared/utils/macrobook/macrobook_manager').install('NIN')
 include('../shared/jobs/nin/functions/NIN_COMMANDS.lua')  -- Commands, state change hook
 TIMER('NIN_COMMANDS')
-include('../shared/jobs/nin/functions/NIN_MOVEMENT.lua')  -- Movement status API
-TIMER('NIN_MOVEMENT')
 
 -- Dual-boxing manager (deferred init + lazy message loading)
 require('shared/utils/dualbox/dualbox_manager')

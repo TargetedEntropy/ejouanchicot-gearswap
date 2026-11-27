@@ -17,8 +17,8 @@ local TIMER = Profiler.create_timer('SAM')
 -- ═══════════════════════════════════════════════════════════════════
 
 -- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
-include('../shared/jobs/sam/functions/SAM_LOCKSTYLE.lua')
-include('../shared/jobs/sam/functions/SAM_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('SAM')
+require('shared/utils/macrobook/macrobook_manager').install('SAM')
 include('../shared/jobs/sam/functions/SAM_PRECAST.lua')
 TIMER('SAM_PRECAST')
 include('../shared/jobs/sam/functions/SAM_MIDCAST.lua')
@@ -35,8 +35,6 @@ include('../shared/jobs/sam/functions/SAM_BUFFS.lua')
 TIMER('SAM_BUFFS')
 include('../shared/jobs/sam/functions/SAM_COMMANDS.lua')
 TIMER('SAM_COMMANDS')
-include('../shared/jobs/sam/functions/SAM_MOVEMENT.lua')
-TIMER('SAM_MOVEMENT')
 
 -- Load dual-boxing manager (uses deferred init + lazy message loading)
 require('shared/utils/dualbox/dualbox_manager')

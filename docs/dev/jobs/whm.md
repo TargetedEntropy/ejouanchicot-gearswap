@@ -40,19 +40,16 @@ the sets file (structure and set names only).
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/whm.lua` | 250 | Entry (the same for every character; `<Char>_WHM.lua` and its template `_master/entry/Tetsouo_WHM.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD only), `init_gear_sets`, `file_unload` (releases the `Melee ON` lock and clears its `windower._weapon_locks.whm_melee` record, then `EntryKit.unload`); shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/whm/functions/whm_functions.lua` | 51 | Facade: includes the 11 hook files, requires `dualbox_manager`, debug line |
-| `shared/jobs/whm/functions/WHM_PRECAST.lua` | 150 | `job_precast`: guard, `CureManager.retier`, cooldown, `paralyna_on_self`, WS; `job_post_precast` (TP gear) |
+| `shared/entry/whm.lua` | 195 | Entry (the same for every character; `<Char>_WHM.lua` and its template `_master/entry/Tetsouo_WHM.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD only), `init_gear_sets`, `file_unload` (releases the `Melee ON` lock and clears its `windower._weapon_locks.whm_melee` record, then `EntryKit.unload`); shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/jobs/whm/functions/whm_functions.lua` | 49 | Facade: includes the 11 hook files, requires `dualbox_manager`, debug line |
+| `shared/jobs/whm/functions/WHM_PRECAST.lua` | 98 | `job_precast`: guard, `CureManager.retier`, cooldown, `paralyna_on_self`, WS; `job_post_precast` (TP gear) |
 | `shared/jobs/whm/functions/WHM_MIDCAST.lua` | 299 | `job_midcast` (Cure sets by mode), `job_post_midcast` (overlays + `MidcastManager`), `job_get_spell_map` |
 | `shared/jobs/whm/functions/WHM_AFTERCAST.lua` | 27 | `job_aftercast = LifecycleManager.aftercast()` |
 | `shared/jobs/whm/functions/WHM_IDLE.lua` | 42 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/whm/functions/WHM_ENGAGED.lua` | 40 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/whm/functions/WHM_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/whm/functions/WHM_BUFFS.lua` | 19 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/whm/functions/WHM_COMMANDS.lua` | 235 | `job_self_command` router, `job_state_change` (`Melee ON` lock, HUD) |
-| `shared/jobs/whm/functions/WHM_MOVEMENT.lua` | 39 | Empty `job_handle_equipping_gear` |
-| `shared/jobs/whm/functions/WHM_LOCKSTYLE.lua` | 47 | Lazy `LockstyleManager.create('WHM', 'config/whm/WHM_LOCKSTYLE', 1, 'SAM')` |
-| `shared/jobs/whm/functions/WHM_MACROBOOK.lua` | 42 | Lazy `MacrobookManager.create('WHM', 'config/whm/WHM_MACROBOOK', 'SAM', 1, 1)` |
+| `shared/jobs/whm/functions/WHM_COMMANDS.lua` | 157 | `job_self_command` router, `job_state_change` (`Melee ON` lock, HUD) |
 | `shared/jobs/whm/functions/logic/set_builder.lua` | 97 | Idle: town, latent refresh, weapons, movement; engaged: `SupportTier.engaged` (the set's `.Solo` / `.Group` version when it has one), weapons |
 | `shared/utils/whm/cure_manager.lua` | 497 | `CureManager.select_cure_tier` (auto-tier + recast fallback) |
 | `shared/utils/whm/whm_message_formatter.lua` | 262 | Cure tier / Afflatus messages and CureManager debug lines (direct `add_to_chat`, a documented exception: it is a formatter stored outside `utils/messages/`) |
@@ -99,7 +96,7 @@ facade and the lockstyle cancel registration.
    lockstyle after 8 s.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-`WHM_PRECAST` reads `_G.WHMTPConfig` on its first action (`ensure_modules_loaded`),
+`WHM_PRECAST` reads `_G.WHMTPConfig` on its first action (`PrecastPipeline.hooks`),
 after the entry set it.
 
 ### Precast
@@ -289,9 +286,8 @@ replaces the list; the state then has no description. WHM keeps no
 
 ## Commands
 
-`job_self_command` (`WHM_COMMANDS.lua`) lowercases the first word and tests, in
-order: `altjobupdate`, `requestjob`, watchdog, `CommonCommands`, UI,
-`debugmidcast`, `cyclestate`, `afflatus`. Anything else falls through to Mote's
+`job_self_command` (`WHM_COMMANDS.lua`) lowercases the first word and asks
+`JobCommands.shared` (`shared/utils/core/job_commands.lua`): watchdog, dual-box internals, `CommonCommands`, UI, `debugmidcast`, `cyclestate`, then `afflatus`. Anything else falls through to Mote's
 own `cycle`, `set`, `update`, ... handlers, and last to the dual-box alt's
 commands ([dualbox](../systems/dualbox.md)).
 

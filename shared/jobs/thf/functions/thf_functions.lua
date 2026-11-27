@@ -85,12 +85,10 @@ TIMER('THF_BUFFS')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 -- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
-include('../shared/jobs/thf/functions/THF_LOCKSTYLE.lua') -- Lockstyle management with delays
-include('../shared/jobs/thf/functions/THF_MACROBOOK.lua') -- Macro book selection per subjob
+require('shared/utils/lockstyle/lockstyle_manager').install('THF') -- Lockstyle management with delays
+require('shared/utils/macrobook/macrobook_manager').install('THF') -- Macro book selection per subjob
 include('../shared/jobs/thf/functions/THF_COMMANDS.lua')  -- Custom commands (smartbuff, fbc, range)
 TIMER('THF_COMMANDS')
-include('../shared/jobs/thf/functions/THF_MOVEMENT.lua')  -- Movement status API
-TIMER('THF_MOVEMENT')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   LOGIC MODULES (Loaded via require() in hook modules)

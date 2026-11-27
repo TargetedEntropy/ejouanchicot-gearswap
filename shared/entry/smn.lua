@@ -21,20 +21,8 @@ local CharPaths = require('shared/utils/core/char_paths')
 -- The hooks every entry shares (job_update, subjob change, unload, keybind error)
 local EntryKit = require('shared/utils/core/entry_kit')
 
-local LockstyleConfig_ok, LockstyleConfig = pcall(require, CharPaths.module('common', 'LOCKSTYLE_CONFIG'))
-if not LockstyleConfig_ok then LockstyleConfig = nil end
-LockstyleConfig = LockstyleConfig or {
-    initial_load_delay = 8.0
-}
-
-local RegionConfig_ok, RegionConfig = pcall(require, CharPaths.module('common', 'REGION_CONFIG'))
-if not RegionConfig_ok then RegionConfig = nil end
-if RegionConfig then
-    _G.RegionConfig = RegionConfig
-end
-
-local ConfigLoader = require('shared/utils/config/config_loader')
-local UIConfig = ConfigLoader.load_ui_config(CharPaths.name(), 'SMN')
+-- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
+local LockstyleConfig, UIConfig = EntryKit.load_configs('SMN')
 
 -- Core modules, after config_loader: UI_MANAGER reads _G.UIConfig when it loads.
 -- The require cache is already in (char_paths.lua, required first, installs it).
@@ -56,36 +44,16 @@ function get_sets()
     include('Mote-Include.lua')
     Profiler.mark('After Mote-Include')
 
-    include('../shared/utils/core/INIT_SYSTEMS.lua')
-    Profiler.mark('After INIT_SYSTEMS')
-
-    require('shared/utils/data/data_loader')
-    Profiler.mark('After data_loader')
-
-    include('../shared/hooks/init_spell_messages.lua')
-    Profiler.mark('After spell messages')
-
-    include('../shared/hooks/init_ability_messages.lua')
-    Profiler.mark('After ability messages')
-
-    include('../shared/hooks/init_ws_messages.lua')
-    Profiler.mark('After WS messages')
+    -- the shared systems, the data, the spell / ability / weaponskill messages
+    EntryKit.after_mote(Profiler)
 
     _G.LockstyleConfig = LockstyleConfig
     _G.UIConfig = UIConfig
     _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
     Profiler.mark('After configs')
 
-    if jcm_success and JobChangeManager then
-        JobChangeManager.cancel_all()
-    end
-
-    include('../shared/jobs/smn/functions/smn_functions.lua')
-    Profiler.mark('After smn_functions')
-
-    if jcm_success and JobChangeManager and cancel_smn_lockstyle_operations then
-        JobChangeManager.register_lockstyle_cancel("SMN", cancel_smn_lockstyle_operations)
-    end
+    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
+    EntryKit.load_facade('SMN', Profiler)
 
     Profiler.finish()
 end

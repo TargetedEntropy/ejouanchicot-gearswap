@@ -11,36 +11,7 @@
 ---   @date    Created: 2025-10-21
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
----  ═══════════════════════════════════════════════════════════════════════════
-
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
-local SAMTPConfig = nil
-
-local modules_loaded = false
-
-local function ensure_modules_loaded()
-    if modules_loaded then return end
-
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if not cc_ok then cc = nil end
-    CooldownChecker = cc
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    if not pg_ok then pg = nil end
-    PrecastGuard = pg
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if not wph_ok then wph = nil end
-    WSPrecastHandler = wph
-
-    SAMTPConfig = _G.SAMTPConfig or {}
-
-    modules_loaded = true
-end
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   SAM-SPECIFIC HELPERS
@@ -129,79 +100,34 @@ end
 ---   PRECAST HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Handle precast actions
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('SAM', {
+    after_cooldown = function(spell, eventArgs)
+        remember_stance(spell)
+        return try_seigan_before_third_eye(spell, eventArgs)
+    end,
+    after_ws = function(spell, eventArgs)
+        try_third_eye_ws(spell, eventArgs)
+    end,
+    after_tp_gear = function(spell, action, spellMap, eventArgs)
+        -- SAM-SPECIFIC: Apply buff gear for WS
+        -- Read the buffs themselves: Mote sets state.Buff[name] true on the JA
+        -- press, and a press cancelled on recast never gains the buff, so no
+        -- buff_change ever sets it back to false.
+        if spell.type == 'WeaponSkill' then
+            -- Apply Sekkanoki buff gear
+            if buffactive['Sekkanoki'] and sets.buff and sets.buff.Sekkanoki then
+                equip(sets.buff.Sekkanoki)
+            end
 
-    -- FIRST: Debuff guard
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
-    -- SECOND: Cooldown check
-    if CooldownChecker then
-        if spell.action_type == 'Ability' then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
-        elseif spell.action_type == 'Magic' then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
+            -- Apply Meikyo Shisui buff gear
+            if buffactive['Meikyo Shisui'] and sets.buff and sets.buff['Meikyo Shisui'] then
+                equip(sets.buff['Meikyo Shisui'])
+            end
         end
-    end
-
-    if eventArgs.cancel then
-        return
-    end
-
-    remember_stance(spell)
-
-    -- SAM-SPECIFIC: Auto-cast Seigan before Third Eye (Seigan stance only)
-    if try_seigan_before_third_eye(spell, eventArgs) then
-        return
-    end
-
-    -- WEAPONSKILL HANDLING (Unified via WSPrecastHandler)
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, SAMTPConfig) then
-        return
-    end
-
-    -- SAM-SPECIFIC: Third Eye before the WS, only for a WS the handler accepted
-    if try_third_eye_ws(spell, eventArgs) then
-        return
-    end
-end
-
----   Apply TP gear and the Sekkanoki / Meikyo Shisui layers for weaponskills
----   @param spell table Spell/ability data
----   @param action string Action type
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-
-    -- Apply TP gear via unified handler
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-
-    -- SAM-SPECIFIC: Apply buff gear for WS
-    -- Read the buffs themselves: Mote sets state.Buff[name] true on the JA
-    -- press, and a press cancelled on recast never gains the buff, so no
-    -- buff_change ever sets it back to false.
-    if spell.type == 'WeaponSkill' then
-        -- Apply Sekkanoki buff gear
-        if buffactive['Sekkanoki'] and sets.buff and sets.buff.Sekkanoki then
-            equip(sets.buff.Sekkanoki)
-        end
-
-        -- Apply Meikyo Shisui buff gear
-        if buffactive['Meikyo Shisui'] and sets.buff and sets.buff['Meikyo Shisui'] then
-            equip(sets.buff['Meikyo Shisui'])
-        end
-    end
-end
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

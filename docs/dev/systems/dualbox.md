@@ -33,11 +33,11 @@ a name would not locate the spot (they move often in this folder).
 | `shared/utils/dualbox/dualbox_manager.lua` | 479 | Config load, job exchange protocol, `_G.AltJobState`, auto-init once per load |
 | `shared/utils/dualbox/alt_states.lua` | 193 | Job, subjob and weapon type of every box of the group by name (`_G.AltStates`); `matches()` for keybind `alt` conditions; `watch_weapon()` reports a main-hand weapon type change; `on_weapon_change(key, fn)` is the shared listener behind it, also used by keybind entries with `weapon` (one packet hook per load, listeners on `_G._own_weapon_watch`) |
 | `shared/utils/dualbox/alt_commands.lua` | 567 | Loads the alt's command configs, resolves tier/target, builds and sends `send <alt> input ...`; installs the `selfCommandMaps` fallback |
-| `shared/utils/dualbox/alt_buff_reporter.lua` | 359 | ALT: report tracked buffs. MAIN: store them, guess/expire, trace log |
+| `shared/utils/dualbox/alt_buff_reporter.lua` | 360 | ALT: report tracked buffs. MAIN: store them, guess/expire, trace log |
 | `shared/utils/dualbox/dualbox_sync_ipc.lua` | 189 | Windower IPC broadcast/hook registry for `ls`/`rf` mirroring |
-| `shared/utils/dualbox/alt_group.lua` | 477 | `//gs c alts`: orders to every other member of the box group (`sm on/off`, follow, `do <command>`, mirror, window); `route()` also dispatches `altreport`, `altmirror`, `altlead`, `main`, `setalt` |
+| `shared/utils/dualbox/alt_group.lua` | 476 | `//gs c alts`: orders to every other member of the box group (`sm on/off`, follow, `do <command>`, mirror, window); `route()` also dispatches `altreport`, `altmirror`, `altlead`, `main`, `setalt` |
 | `shared/utils/dualbox/alt_window.lua` | 384 | Fixed-size overlay on the main: each alt (job, party, zone, Sneak / Invi time left from `StealthTimers`) and the Auto / Follow / Mirror / Step state |
-| `shared/utils/dualbox/dualbox_role.lua` | 165 | `//gs c main` / `setalt`: switches the roles at runtime and saves them in `<Character>/saved/dualbox_role.lua` |
+| `shared/utils/dualbox/dualbox_role.lua` | 164 | `//gs c main` / `setalt`: switches the roles at runtime and saves them in `<Character>/saved/dualbox_role.lua` |
 | `shared/utils/dualbox/roll_share.lua` | 110 | A COR alt's roll results and busts sent to the main (`gs c rollshow`) and shown there in the same format |
 | `shared/utils/messages/formatters/system/message_altgroup.lua` + `data/systems/altgroup_messages.lua` | - | `[ALTS]` / `[DUALBOX]` lines of the box-group modules (including `not_ready`, `window_main_only`, `no_follower`) |
 | `shared/utils/messages/formatters/ui/message_dualbox.lua` | 121 | Chat output for the job exchange (via `M.send('DUALBOX', ...)`) |
@@ -72,7 +72,7 @@ The module body schedules the auto-init. It runs when the module is `require`d w
 which since the require cache is installed by `char_paths` (the first file of the entry, at file level) means
 **once per load**:
 
-- Every shared entry requires it at the end of `user_setup()` (e.g. `shared/entry/war.lua:245`). That is the first `require` of the load, so it executes the body.
+- Every shared entry requires it at the end of `user_setup()` (e.g. `shared/entry/war.lua:193`). That is the first `require` of the load, so it executes the body.
 - Every job facade requires it again (e.g. `shared/jobs/war/functions/war_functions.lua`); the job
   COMMANDS files require it to deliver `altjobupdate` / `requestjob`. Both are cache hits.
 - On a subjob change Mote re-runs `user_setup()` in the old environment: also a cache hit, so the dying
@@ -117,8 +117,8 @@ Until step 4 runs, `_G.DualBoxConfig` is nil. This window lasts 2 s at minimum a
 
 | Wire command (sent via `send`) | Sender | When | Handler on receiver |
 |---|---|---|---|
-| `send <other> gs c altjobupdate <JOB> <SUB> <mlvl> <slvl> <sender> <weapon>` | either box, `send_job_update` | Auto-init of either box. Reply to `requestjob` (forced past the de-dup). When the main hand changes weapon type (`AltStates.watch_weapon`, packet 0x050 slot 0, read 0.5 s later); `<weapon>` is the skill name without spaces (`Sword`, `GreatKatana`, `None`), part of the de-dup payload. | Every job COMMANDS file (22), e.g. `WAR_COMMANDS.lua:91-98`, calls `receive_alt_job(cmdParams[2..7])` |
-| `send <each other box> gs c requestjob` | either box, `request_alt_job` (every member of `AltGroup.get_alts()`, the partner alone when there is no group) | Auto-init of either box, `DualBoxRole` resync | Every job COMMANDS file, e.g. `WAR_COMMANDS.lua:103-108`, calls `handle_job_request`, which answers on either role with `send_job_update(true)` |
+| `send <other> gs c altjobupdate <JOB> <SUB> <mlvl> <slvl> <sender> <weapon>` | either box, `send_job_update` | Auto-init of either box. Reply to `requestjob` (forced past the de-dup). When the main hand changes weapon type (`AltStates.watch_weapon`, packet 0x050 slot 0, read 0.5 s later); `<weapon>` is the skill name without spaces (`Sword`, `GreatKatana`, `None`), part of the de-dup payload. | `JobCommands.shared` (`shared/utils/core/job_commands.lua:58-65`), which every job's COMMANDS file (22) calls, calls `receive_alt_job(cmdParams[2..7])` |
+| `send <each other box> gs c requestjob` | either box, `request_alt_job` (every member of `AltGroup.get_alts()`, the partner alone when there is no group) | Auto-init of either box, `DualBoxRole` resync | `JobCommands.shared` (`job_commands.lua:67-71`), from every job's COMMANDS file, calls `handle_job_request`, which answers on either role with `send_job_update(true)` |
 | `send <main> gs c altbuff <Buff Name> <0\|1>` | ALT, `AltBuffReporter.report` | GEO `job_buff_change`. `report_all` at ALT auto-init and on `altbuffsync` | `CommonCommands.handle_command` (`altbuff`) calls `AltBuffReporter.receive` |
 | `send <alt> gs c altbuffsync` | MAIN, `request_sync` | `//gs c altsync`, or `sync_after` seconds after an alt command that declares it | `CommonCommands.handle_command` (`altbuffsync`) calls `report_all` (sends only on the ALT) |
 | `send <other boxes> gs c altlead <leader\|off>` | the box that changed the follow, `AltGroup` `follow` | `//gs c alts follow` | `AltGroup.receive_lead` updates the saved follow state |
@@ -206,7 +206,7 @@ flowchart TD
 ```
 
 - Every job `job_self_command` checks `CommonCommands.is_common_command(command)` **before** its
-  job-specific branches (e.g. `WAR_COMMANDS.lua:113`, `BLM_COMMANDS.lua:273`).
+  job-specific branches: `JobCommands.shared` (`shared/utils/core/job_commands.lua:48`) answers it first.
   `CommonCommands.is_common_command` knows only built-in names and warp aliases; it does
   not look at the alt's config.
 - The alt's keys are Mote's last lookup. When `COMMON_COMMANDS` is loaded (once per job-file load, on the
@@ -219,7 +219,7 @@ flowchart TD
   calls `AltCommands.execute(name, args)`.
 - The result: a job command, a common command and a Mote command all keep their names; a bare alt key
   works only for names nothing on the MAIN answers. `//gs c alt <name>` always reaches the alt. RDM's
-  cast-by-name catch-all leaves a name unhandled when `selfCommandMaps` answers it (`RDM_COMMANDS.lua:396-399`). See
+  cast-by-name catch-all leaves a name unhandled when `selfCommandMaps` answers it (`RDM_COMMANDS.lua:318-321`). See
   [commands and debug](commands-and-debug.md#4-alt-commands-and-name-shadowing) for the names that collide
   today.
 
@@ -554,8 +554,8 @@ When the box is an alt (`DualBoxConfig.role == 'alt'`) playing COR, `RollTracker
 
 | Command | Run on | Handler | Effect |
 |---|---|---|---|
-| `//gs c altjobupdate <JOB> <SUB> [mlvl] [slvl] [sender] [weapon]` | either box | job COMMANDS, e.g. `WAR_COMMANDS.lua:91`, then `receive_alt_job` | Store the other box's job. Sent automatically |
-| `//gs c requestjob` | either box | job COMMANDS, e.g. `WAR_COMMANDS.lua:103`, then `handle_job_request` | Pushes this box's job to the other box (past the de-dup) |
+| `//gs c altjobupdate <JOB> <SUB> [mlvl] [slvl] [sender] [weapon]` | either box | `JobCommands.shared` (`job_commands.lua:58`), then `receive_alt_job` | Store the other box's job. Sent automatically |
+| `//gs c requestjob` | either box | `JobCommands.shared` (`job_commands.lua:67`), then `handle_job_request` | Pushes this box's job to the other box (past the de-dup) |
 | `//gs c alt` | MAIN | `CommonCommands.handle_alt_command`, then `AltCommands.handle` | Same as `altcmds` |
 | `//gs c alt <name> [args]` | MAIN | same | Explicit form of an alt command |
 | `//gs c altcmds [group\|search]`, `altlist` | MAIN | `AltCommands.handle` -> `list` | Overview by group, or filtered view; names that run locally are listed apart under `//gs c alt <name>` |
@@ -740,7 +740,7 @@ Behaviour per event:
   `//gs c alt <name>`. `altcmds` lists the names `runs_locally` claims apart, but it cannot see
   job-specific commands, so a job command that shares an alt key is still listed in the bare form.
 - A job whose `job_self_command` marks every unknown name as handled would hide every alt key. Only RDM
-  has a catch-all, and it leaves names that `selfCommandMaps` answers unhandled (`RDM_COMMANDS.lua:396-399`).
+  has a catch-all, and it leaves names that `selfCommandMaps` answers unhandled (`RDM_COMMANDS.lua:318-321`).
 - `requestjob` is answered on either role, always past the de-dup window.
 - The de-dup window is keyed on the payload only and applies to the auto-init push; if both boxes
   initialise within the send latency, each can receive the other's job twice (push and reply).
@@ -809,8 +809,8 @@ Behaviour per event:
 - **New IPC-mirrored command.** Call `SyncIPC.register_hook('<cmd>', fn)` in `INIT_SYSTEMS.lua`, next to the
   existing hooks, and `SyncIPC.broadcast('<cmd>')` from the local handler after the local work. The
   hook must not call the handler that broadcasts.
-- **New job.** Its `*_COMMANDS.lua` must copy the `altjobupdate`/`requestjob` block (present
-  verbatim in all 22 job COMMANDS files, e.g. `WAR_COMMANDS.lua:91-108`, forwarding `cmdParams[2..7]`). Its facade or `user_setup` must
+- **New job.** Its `*_COMMANDS.lua` calls `JobCommands.shared` (or is `JobCommands.router('<JOB>')`), which answers
+  `altjobupdate` / `requestjob` (`shared/utils/core/job_commands.lua`, forwarding `cmdParams[2..7]`). Its facade or `user_setup` must
   `require('shared/utils/dualbox/dualbox_manager')`, or no auto-init runs for that job.
 
 ## Known issues

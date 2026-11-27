@@ -8,8 +8,8 @@
 ---                      (logic/jumps.lua). Taken here before the common
 ---                      `jump`, which serves /DRG only.
 ---
----   Order: dual-box (altjobupdate, requestjob) >> jump >> watchdog >>
----   common (reload, checksets, warp...) >> UI >> debugmidcast >> cyclestate.
+---   Order: jump (it must win over the common jump) >> JobCommands.shared (watchdog >> dual-box >> common >> UI >>
+---   debugmidcast >> cyclestate).
 ---
 ---   @file    shared/jobs/drg/functions/DRG_COMMANDS.lua
 ---   @author  ejouanchicot
@@ -32,6 +32,8 @@ local function ensure_commands_loaded()
     MessageCommands = require('shared/utils/messages/formatters/ui/message_commands')
 end
 
+local JobCommands = require('shared/utils/core/job_commands')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   JOB SELF COMMAND HANDLER
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -44,63 +46,13 @@ function job_self_command(cmdParams, eventArgs)
     ensure_commands_loaded()
     local command = cmdParams[1]:lower()
 
-    if command == 'altjobupdate' then
-        local DualBoxManager = require('shared/utils/dualbox/dualbox_manager')
-        if cmdParams[2] and cmdParams[3] then
-            DualBoxManager.receive_alt_job(cmdParams[2], cmdParams[3], cmdParams[4], cmdParams[5], cmdParams[6], cmdParams[7])
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'requestjob' then
-        require('shared/utils/dualbox/dualbox_manager').handle_job_request()
-        eventArgs.handled = true
-        return
-    end
-
     if command == 'jump' then
         require('shared/jobs/drg/functions/logic/jumps').execute()
         eventArgs.handled = true
         return
     end
 
-    if WatchdogCommands.is_watchdog_command(command) then
-        if WatchdogCommands.handle_command(cmdParams, eventArgs) then
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    if CommonCommands.is_common_command(command) then
-        local args = {}
-        for i = 2, #cmdParams do
-            args[#args + 1] = cmdParams[i]
-        end
-        if CommonCommands.handle_command(command, 'DRG', table.unpack(args)) then
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    if UICommands.is_ui_command(command) then
-        UICommands.handle_ui_command(cmdParams)
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'debugmidcast' then
-        require('shared/utils/midcast/midcast_manager').toggle_debug()
-        MessageCommands.show_debugmidcast_toggled('DRG', _G.MidcastManagerDebugState)
-        eventArgs.handled = true
-        return
-    end
-
-    -- UI-aware cycle: silent HUD update when the HUD is shown, Mote's message otherwise
-    if command == 'cyclestate' then
-        eventArgs.handled = CycleHandler.handle_cyclestate(cmdParams, eventArgs)
-        return
-    end
+    if JobCommands.shared(command, cmdParams, eventArgs, 'DRG') then return end
 end
 
 ---  ═══════════════════════════════════════════════════════════════════════════

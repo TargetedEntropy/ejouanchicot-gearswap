@@ -21,34 +21,18 @@
 ---   @requires shared/utils/messages/message_formatter, shared/utils/precast/cooldown_checker
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local PrecastPipeline = require('shared/utils/precast/precast_pipeline')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local CooldownChecker = nil
-local PrecastGuard = nil
-local WSPrecastHandler = nil
-local WHMTPConfig = nil
 local CureManager = nil
 
 local modules_loaded = false
 
 local function ensure_modules_loaded()
     if modules_loaded then return end
-
-    local cc_ok, cc = pcall(require, 'shared/utils/precast/cooldown_checker')
-    if not cc_ok then cc = nil end
-    CooldownChecker = cc
-
-    local pg_ok, pg = pcall(require, 'shared/utils/debuff/precast_guard')
-    if not pg_ok then pg = nil end
-    PrecastGuard = pg
-
-    local wph_ok, wph = pcall(require, 'shared/utils/precast/ws_precast_handler')
-    if not wph_ok then wph = nil end
-    WSPrecastHandler = wph
-
-    WHMTPConfig = _G.WHMTPConfig or {}
 
     local cm_ok, cm = pcall(require, 'shared/utils/whm/cure_manager')
     if not cm_ok then cm = nil end
@@ -58,7 +42,7 @@ local function ensure_modules_loaded()
 end
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   PRECAST HOOKS
+---   PRECAST STEPS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 --- Curing your own paralysis: no precast set.
@@ -81,60 +65,24 @@ local function paralyna_on_self(spell, eventArgs)
     return false
 end
 
---- Precast hook: guard, cure re-tier, cooldown, Paralyna on self, WS.
---- @param spell table Spell/ability data
---- @param action string Action type
---- @param spellMap string Spell mapping
---- @param eventArgs table Event arguments
-function job_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
+---  ═══════════════════════════════════════════════════════════════════════════
+---   PRECAST HOOKS
+---  ═══════════════════════════════════════════════════════════════════════════
 
-    if PrecastGuard and PrecastGuard.guard_precast(spell, eventArgs) then
-        return
-    end
-
+--- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
+--- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
+job_precast, job_post_precast = PrecastPipeline.hooks('WHM', {
+    load = ensure_modules_loaded,
     -- Cures are re-tiered before the recast check: the checker would cancel
     -- a tier on recast before CureManager could swap it for a ready one.
     -- A cure left as it is still goes through the check below.
-    if CureManager and CureManager.retier(spell, eventArgs) then
-        return
-    end
-
-    if CooldownChecker then
-        if spell.action_type == 'Ability' then
-            CooldownChecker.check_ability_cooldown(spell, eventArgs)
-        elseif spell.action_type == 'Magic' then
-            CooldownChecker.check_spell_cooldown(spell, eventArgs)
-        end
-    end
-    if eventArgs.cancel then
-        return
-    end
-
-    if paralyna_on_self(spell, eventArgs) then
-        return
-    end
-
-    if WSPrecastHandler and not WSPrecastHandler.handle(spell, eventArgs, WHMTPConfig) then
-        return
-    end
-end
-
----   Post-precast hook: TP gear for weaponskills.
----   Called after main precast set selection but before gear is equipped.
----
----   @param spell table Spell/ability data
----   @param action string Action type (not used)
----   @param spellMap string Spell mapping
----   @param eventArgs table Event arguments
----   @return void
-function job_post_precast(spell, action, spellMap, eventArgs)
-    ensure_modules_loaded()
-    if WSPrecastHandler then
-        WSPrecastHandler.apply_tp_gear(spell)
-    end
-
-end
+    before_cooldown = function(spell, eventArgs)
+        return CureManager and CureManager.retier(spell, eventArgs)
+    end,
+    after_cooldown = function(spell, eventArgs)
+        return paralyna_on_self(spell, eventArgs)
+    end,
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   MODULE EXPORT

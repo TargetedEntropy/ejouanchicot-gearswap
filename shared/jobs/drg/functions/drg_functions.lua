@@ -50,12 +50,10 @@ include('../shared/jobs/drg/functions/DRG_BUFFS.lua')        -- Doom, Spirit Sur
 TIMER('DRG_BUFFS')
 
 -- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
-include('../shared/jobs/drg/functions/DRG_LOCKSTYLE.lua')
-include('../shared/jobs/drg/functions/DRG_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('DRG')
+require('shared/utils/macrobook/macrobook_manager').install('DRG')
 include('../shared/jobs/drg/functions/DRG_COMMANDS.lua')     -- Commands (jump), state change hook
 TIMER('DRG_COMMANDS')
-include('../shared/jobs/drg/functions/DRG_MOVEMENT.lua')     -- Movement status API
-TIMER('DRG_MOVEMENT')
 
 -- Dual-boxing manager (deferred init + lazy message loading)
 require('shared/utils/dualbox/dualbox_manager')

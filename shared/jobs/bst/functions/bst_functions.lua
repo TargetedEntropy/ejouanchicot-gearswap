@@ -60,12 +60,10 @@ TIMER('BST_BUFFS')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 -- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
-include('../shared/jobs/bst/functions/BST_LOCKSTYLE.lua')
-include('../shared/jobs/bst/functions/BST_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('BST')
+require('shared/utils/macrobook/macrobook_manager').install('BST')
 include('../shared/jobs/bst/functions/BST_COMMANDS.lua')
 TIMER('BST_COMMANDS')
-include('../shared/jobs/bst/functions/BST_MOVEMENT.lua')
-TIMER('BST_MOVEMENT')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   LOGIC MODULES REFERENCE

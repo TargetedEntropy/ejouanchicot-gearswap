@@ -31,8 +31,8 @@ local Profiler = require('shared/utils/debug/performance_profiler')
 local TIMER = Profiler.create_timer('BRD')
 
 -- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
-include('../shared/jobs/brd/functions/BRD_LOCKSTYLE.lua')
-include('../shared/jobs/brd/functions/BRD_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('BRD')
+require('shared/utils/macrobook/macrobook_manager').install('BRD')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   SECTION 2: COMBAT ACTION HOOKS

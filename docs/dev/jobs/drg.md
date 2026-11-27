@@ -28,9 +28,9 @@ What DRG adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/drg.lua` | 169 | Entry (the same for every character; `<Char>_DRG.lua` and its template `_master/entry/Tetsouo_DRG.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
-| `shared/jobs/drg/functions/drg_functions.lua` | 66 | Facade: includes `message_buffs` and the hook files, requires `dualbox_manager`, debug line |
-| `shared/jobs/drg/functions/DRG_PRECAST.lua` | 109 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (TP gear) |
+| `shared/entry/drg.lua` | 139 | Entry (the same for every character; `<Char>_DRG.lua` and its template `_master/entry/Tetsouo_DRG.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
+| `shared/jobs/drg/functions/drg_functions.lua` | 64 | Facade: includes `message_buffs` and the hook files, requires `dualbox_manager`, debug line |
+| `shared/jobs/drg/functions/DRG_PRECAST.lua` | 43 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (TP gear) |
 | `shared/jobs/drg/functions/DRG_MIDCAST.lua` | 100 | `job_midcast` (empty) / `job_post_midcast` (subjob magic via MidcastManager, then the Healing Breath trigger) |
 | `shared/jobs/drg/functions/DRG_PET_MIDCAST.lua` | 43 | `job_pet_midcast`: wyvern breaths |
 | `shared/jobs/drg/functions/DRG_AFTERCAST.lua` | 21 | `job_aftercast = LifecycleManager.aftercast()` |
@@ -38,10 +38,7 @@ What DRG adds on top of the shared pipeline:
 | `shared/jobs/drg/functions/DRG_ENGAGED.lua` | 30 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/drg/functions/DRG_STATUS.lua` | 23 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/drg/functions/DRG_BUFFS.lua` | 23 | `LifecycleManager.buff_change` + `refresh_after_buff` (Spirit Surge) |
-| `shared/jobs/drg/functions/DRG_COMMANDS.lua` | 125 | `job_self_command` router (+ `jump`), `job_state_change = LifecycleManager.state_change()` |
-| `shared/jobs/drg/functions/DRG_MOVEMENT.lua` | 16 | Header only (`return {}`), kept for the 12-module layout |
-| `shared/jobs/drg/functions/DRG_LOCKSTYLE.lua` | 45 | Lazy `LockstyleManager.create('DRG', 'config/drg/DRG_LOCKSTYLE', 1, 'SAM')` wrappers |
-| `shared/jobs/drg/functions/DRG_MACROBOOK.lua` | 37 | Lazy `MacrobookManager.create('DRG', 'config/drg/DRG_MACROBOOK', 'SAM', 1, 1)` wrapper |
+| `shared/jobs/drg/functions/DRG_COMMANDS.lua` | 77 | `job_self_command` router (+ `jump`), `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/drg/functions/logic/set_builder.lua` | 154 | Idle and engaged: base, town / HybridMode, wyvern layer, Spirit Surge, Mote layers, weapons, movement |
 | `shared/jobs/drg/functions/logic/wyvern.lua` | 71 | `TRIGGER_HPP` by subjob, `trigger_line`, `spell_triggers_breath`, `breath_set` |
 | `shared/jobs/drg/functions/logic/jumps.lua` | 81 | `order`, `pick`, `execute` (`//gs c jump`) |

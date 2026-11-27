@@ -104,12 +104,10 @@ TIMER('BLM_BUFFS')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 -- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
-include('../shared/jobs/blm/functions/BLM_LOCKSTYLE.lua')
-include('../shared/jobs/blm/functions/BLM_MACROBOOK.lua')
+require('shared/utils/lockstyle/lockstyle_manager').install('BLM')
+require('shared/utils/macrobook/macrobook_manager').install('BLM')
 include('../shared/jobs/blm/functions/BLM_COMMANDS.lua')
 TIMER('BLM_COMMANDS')
-include('../shared/jobs/blm/functions/BLM_MOVEMENT.lua')
-TIMER('BLM_MOVEMENT')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   LOGIC MODULES REFERENCE (Lazy Loaded - loaded on first use)

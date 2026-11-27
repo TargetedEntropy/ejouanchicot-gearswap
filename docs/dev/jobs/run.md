@@ -37,19 +37,16 @@ drift.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/run.lua` | 232 | Entry point (the same for every character; `<Char>_RUN.lua` and its template `_master/entry/Tetsouo_RUN.lua` are one `include` of it): same shape as PLD; BLU and TP configs loaded in `get_sets`; keybinds deferred 0.5 s; initial macro book / lockstyle deferred 0.2 s (`EntryKit.macro_and_lockstyle`, `shared/utils/core/entry_kit.lua`) |
-| `shared/jobs/run/functions/run_functions.lua` | 113 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager` |
-| `shared/jobs/run/functions/RUN_PRECAST.lua` | 152 | `job_precast` (guard, cooldown, WS) / `job_post_precast` (TP gear, self-cure FC, precast debug display) |
+| `shared/entry/run.lua` | 178 | Entry point (the same for every character; `<Char>_RUN.lua` and its template `_master/entry/Tetsouo_RUN.lua` are one `include` of it): same shape as PLD; BLU and TP configs loaded in `get_sets`; keybinds deferred 0.5 s; initial macro book / lockstyle deferred 0.2 s (`EntryKit.macro_and_lockstyle`, `shared/utils/core/entry_kit.lua`) |
+| `shared/jobs/run/functions/run_functions.lua` | 111 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager` |
+| `shared/jobs/run/functions/RUN_PRECAST.lua` | 105 | `job_precast` (guard, cooldown, WS) / `job_post_precast` (TP gear, self-cure FC, precast debug display) |
 | `shared/jobs/run/functions/RUN_MIDCAST.lua` | 157 | `job_midcast` (Cure to Cure IV) / `job_post_midcast` (dispatch) |
 | `shared/jobs/run/functions/RUN_AFTERCAST.lua` | 38 | `LifecycleManager.aftercast()`, empty `job_post_aftercast` |
 | `shared/jobs/run/functions/RUN_IDLE.lua` | 43 | `customize_idle_set` -> `SetBuilder.build_idle_set` |
 | `shared/jobs/run/functions/RUN_ENGAGED.lua` | 41 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/run/functions/RUN_STATUS.lua` | 20 | `LifecycleManager.status_change()` |
 | `shared/jobs/run/functions/RUN_BUFFS.lua` | 19 | `LifecycleManager.buff_change()` |
-| `shared/jobs/run/functions/RUN_COMMANDS.lua` | 203 | `job_self_command` router, `job_state_change = LifecycleManager.state_change()` (HUD refresh only) |
-| `shared/jobs/run/functions/RUN_MOVEMENT.lua` | 24 | Comments only |
-| `shared/jobs/run/functions/RUN_LOCKSTYLE.lua` | 47 | Lazy `LockstyleManager.create('RUN', 'config/run/RUN_LOCKSTYLE', 1, 'SAM')` |
-| `shared/jobs/run/functions/RUN_MACROBOOK.lua` | 42 | Lazy `MacrobookManager.create('RUN', ..., 'SAM', 1, 1)` |
+| `shared/jobs/run/functions/RUN_COMMANDS.lua` | 125 | `job_self_command` router, `job_state_change = LifecycleManager.state_change()` (HUD refresh only) |
 | `shared/jobs/run/functions/logic/set_builder.lua` | 156 | Idle/engaged: HybridMode, weapon, grip, town, movement |
 | `shared/jobs/run/functions/logic/aoe_manager.lua` | 182 | BLU rotation (same code as PLD's except strings; refuses without /BLU) |
 | `shared/jobs/run/functions/logic/cure_set_builder.lua` | 57 | CureSelf / CureOther for Cure to Cure IV (subjob), `is_cure` |
@@ -260,8 +257,8 @@ creates, so the HUD always waited the full 5 s `init_delay`.
 
 ## Commands
 
-`job_self_command` (`RUN_COMMANDS.lua`): watchdog, dual-box internals, the bare
-`aoe`, CommonCommands, `ui`, `debugmidcast`, `cyclestate`, then `rune`.
+`job_self_command` (`RUN_COMMANDS.lua`): the bare `aoe` first (it must win over
+the common `aoe`), then `JobCommands.shared` (`shared/utils/core/job_commands.lua`): watchdog, dual-box internals, `CommonCommands`, UI, `debugmidcast`, `cyclestate`, then `rune`.
 
 | Command | Effect | Handler |
 |---------|--------|---------|

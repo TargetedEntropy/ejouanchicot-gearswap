@@ -147,6 +147,8 @@ local function get_current_etude()
     return BRDSongConfig.ETUDES[state.EtudeType.current]
 end
 
+local JobCommands = require('shared/utils/core/job_commands')
+
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HANDLERS
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -163,35 +165,6 @@ function job_self_command(cmdParams, eventArgs)
     end
 
     local command = cmdParams[1]:lower()
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- DUAL-BOXING: Receive alt job update
-    -- ══════════════════════════════════════════════════════════════════════════
-    if command == 'altjobupdate' then
-        local DualBoxManager = require('shared/utils/dualbox/dualbox_manager')
-        if cmdParams[2] and cmdParams[3] then
-            DualBoxManager.receive_alt_job(cmdParams[2], cmdParams[3], cmdParams[4], cmdParams[5], cmdParams[6], cmdParams[7])
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- DUAL-BOXING: Handle job request from MAIN
-    -- ══════════════════════════════════════════════════════════════════════════
-    if command == 'requestjob' then
-        local DualBoxManager = require('shared/utils/dualbox/dualbox_manager')
-        DualBoxManager.handle_job_request()
-        eventArgs.handled = true
-        return
-    end
-
-    -- UI commands (ui save, ui hide, etc.)
-    if UICommands.is_ui_command(command) then
-        UICommands.handle_ui_command(cmdParams)
-        eventArgs.handled = true
-        return
-    end
 
     -- ══════════════════════════════════════════════════════════════════════════
     -- WARP RING FIX COMMAND
@@ -242,21 +215,6 @@ function job_self_command(cmdParams, eventArgs)
         return
     end
 
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- DEBUG COMMANDS
-    -- ══════════════════════════════════════════════════════════════════════════
-    if command == 'debugmidcast' then
-        -- Toggle MidcastManager debug mode
-        local MidcastManager = require('shared/utils/midcast/midcast_manager')
-        MidcastManager.toggle_debug()
-
-        -- Confirmation message
-        MessageCommands.show_debugmidcast_toggled('BRD', _G.MidcastManagerDebugState)
-
-        eventArgs.handled = true
-        return
-    end
-
     -- Instrument skill-up loop: //gs c skillup horn | harp | off | status
     -- (logic/skillup.lua)
     if command == 'skillup' then
@@ -265,37 +223,7 @@ function job_self_command(cmdParams, eventArgs)
         return
     end
 
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- CUSTOM CYCLE STATE (UI-aware cycle)
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- Intercepts cycle commands to check UI visibility
-    -- If UI visible: custom cycle + UI update (no message)
-    -- If UI invisible: delegate to Mote-Include (shows message)
-
-    if command == 'cyclestate' then
-        eventArgs.handled = CycleHandler.handle_cyclestate(cmdParams, eventArgs)
-        return
-    end
-
-    -- Watchdog commands
-    if WatchdogCommands.is_watchdog_command(command) then
-        if WatchdogCommands.handle_command(cmdParams, eventArgs) then
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- Common commands (reload, checksets, warp)
-    if CommonCommands.is_common_command(command) then
-        local args = {}
-        for i = 2, #cmdParams do
-            table.insert(args, cmdParams[i])
-        end
-        if CommonCommands.handle_command(command, 'BRD', table.unpack(args)) then
-            eventArgs.handled = true
-        end
-        return
-    end
+    if JobCommands.shared(command, cmdParams, eventArgs, 'BRD') then return end
 
     -- BRD-SPECIFIC COMMANDS
 
