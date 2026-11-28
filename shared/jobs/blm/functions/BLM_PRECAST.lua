@@ -84,7 +84,7 @@ end
 --- would refuse a cast the game would have allowed. Tiered spells go through
 --- refinement, which checks the recast itself and steps down a tier rather
 --- than cancelling. Everything else takes the plain check.
-local function check_recast_or_refine(spell, eventArgs)
+local function check_recast_or_refine(spell, action, spellMap, eventArgs)
     if spell.action_type == 'Ability' then
         if not has_charges(spell) then
             PrecastPipeline.ability_cooldown(spell, eventArgs)
@@ -111,7 +111,7 @@ job_precast, job_post_precast = PrecastPipeline.hooks('BLM', {
     load = ensure_modules_loaded,
     -- an ability with charges has no recast to check; a spell with lower tiers is re-tiered instead
     cooldown = check_recast_or_refine,
-    after_cooldown = function(spell, eventArgs)
+    after_cooldown = function(spell, action, spellMap, eventArgs)
         if spell.skill == 'Elemental Magic' and checkArts then
             checkArts(spell, eventArgs)
         end

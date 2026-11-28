@@ -76,10 +76,10 @@ job_precast, job_post_precast = PrecastPipeline.hooks('WHM', {
     -- Cures are re-tiered before the recast check: the checker would cancel
     -- a tier on recast before CureManager could swap it for a ready one.
     -- A cure left as it is still goes through the check below.
-    before_cooldown = function(spell, eventArgs)
+    before_cooldown = function(spell, action, spellMap, eventArgs)
         return CureManager and CureManager.retier(spell, eventArgs)
     end,
-    after_cooldown = function(spell, eventArgs)
+    after_cooldown = function(spell, action, spellMap, eventArgs)
         return paralyna_on_self(spell, eventArgs)
     end,
 })

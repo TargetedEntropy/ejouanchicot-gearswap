@@ -103,11 +103,11 @@ end
 --- guard >> cooldown >> weaponskill in PrecastPipeline's order, with this job's own steps;
 --- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
 job_precast, job_post_precast = PrecastPipeline.hooks('SAM', {
-    after_cooldown = function(spell, eventArgs)
+    after_cooldown = function(spell, action, spellMap, eventArgs)
         remember_stance(spell)
         return try_seigan_before_third_eye(spell, eventArgs)
     end,
-    after_ws = function(spell, eventArgs)
+    after_ws = function(spell, action, spellMap, eventArgs)
         try_third_eye_ws(spell, eventArgs)
     end,
     after_tp_gear = function(spell, action, spellMap, eventArgs)
