@@ -37,6 +37,7 @@
 -- (shared/utils/core/entry_kit.lua), with BRD's song configs (before Mote-Include, so user_setup has them), song slots and song
 -- ownership
 local CharPaths = require('shared/utils/core/char_paths')
+local try_require = require('shared/utils/core/try_require')
 local UIConfig
 
 local function update_song_slots()
@@ -59,8 +60,8 @@ _, UIConfig = require('shared/utils/core/entry_kit').job('BRD', {
         coroutine.schedule(update_song_slots, UIConfig.init_delay + 0.5)
         -- Which songs up are ours (end times of packet 0x063), against other
         -- bards' and Trusts' songs: shared/jobs/brd/functions/logic/song_owner.lua
-        local owner_ok, SongOwner = pcall(require, 'shared/jobs/brd/functions/logic/song_owner')
-        if owner_ok and SongOwner then SongOwner.start() end
+        local SongOwner = try_require('shared/jobs/brd/functions/logic/song_owner')
+        if SongOwner then SongOwner.start() end
     end,
     -- the song slots follow SongMode (they show the pack)
     update = update_song_slots,

@@ -16,20 +16,15 @@
 -- First: char_paths installs the require cache (ModuleCache), so that every module required from here on is
 -- loaded once per sandbox. A one-line entry requires this file before anything else.
 require('shared/utils/core/char_paths')
+local try_require = require('shared/utils/core/try_require')
 
 local EntryKit = {}
 
 -- after user_setup(), get_sets() has loaded the job's files by then (load_job)
 local JOB_FILES_WAIT = 0.2
 
-local function job_change_manager()
-    local ok, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    return ok and JobChangeManager or nil
-end
-
 local function formatter()
-    local ok, MessageFormatter = pcall(require, 'shared/utils/messages/message_formatter')
-    return ok and MessageFormatter or nil
+    return try_require('shared/utils/messages/message_formatter')
 end
 
 --- What an entry reads when its file is loaded, before get_sets: the lockstyle
@@ -40,12 +35,9 @@ end
 --- UI_MANAGER reads it when it loads, so it comes before UI_MANAGER).
 --- @return table LockstyleConfig, table UIConfig
 local function load_configs(job, CharPaths)
-    local ok, LockstyleConfig = pcall(require, CharPaths.module('common', 'LOCKSTYLE_CONFIG'))
-    if not ok or not LockstyleConfig then
-        LockstyleConfig = {initial_load_delay = 8.0}
-    end
-    local region_ok, RegionConfig = pcall(require, CharPaths.module('common', 'REGION_CONFIG'))
-    if region_ok and RegionConfig then
+    local LockstyleConfig = try_require(CharPaths.module('common', 'LOCKSTYLE_CONFIG')) or {initial_load_delay = 8.0}
+    local RegionConfig = try_require(CharPaths.module('common', 'REGION_CONFIG'))
+    if RegionConfig then
         _G.RegionConfig = RegionConfig
     end
     local UIConfig = require('shared/utils/config/config_loader').load_ui_config(CharPaths.name(), job)
@@ -114,8 +106,8 @@ end
 --- then its lockstyle and macro book (the shared managers, shared/data/job_defaults.lua)
 --- and its hook files (EntryKit.job_files), each timed under //gs c perf; then the
 --- job's lockstyle cancel (defined by LockstyleManager.install) goes to JobChangeManager.
-local function load_job(job, Profiler)
-    local JobChangeManager = job_change_manager()
+--- @param JobChangeManager table|nil EntryKit.job's
+local function load_job(job, Profiler, JobChangeManager)
     if JobChangeManager then
         JobChangeManager.cancel_all()
     end
@@ -150,8 +142,8 @@ local function update_hud(job)
                 '[UPDATE_DEBUG] 2. job_update RECEIVED | t=%.3f | delta=%.3fms', now, delta * 1000))
         end
     end
-    local ok, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
-    if ok and KeybindUI and KeybindUI.update then
+    local KeybindUI = try_require('shared/utils/ui/UI_MANAGER')
+    if KeybindUI and KeybindUI.update then
         KeybindUI.update()
     end
 end
@@ -228,9 +220,9 @@ function EntryKit.job(job, spec)
     local jl = job:lower()
     local CharPaths = require('shared/utils/core/char_paths')
     local LockstyleConfig, UIConfig = load_configs(job, CharPaths)
-    -- after load_configs: UI_MANAGER reads _G.UIConfig when it loads
-    local jcm_ok, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    local ui_ok, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
+    -- after load_configs: UI_MANAGER reads _G.UIConfig when it loads. Both once, for every hook below.
+    local JobChangeManager = try_require('shared/utils/core/job_change_manager')
+    local KeybindUI = try_require('shared/utils/ui/UI_MANAGER')
 
     local function common_configs()
         _G.LockstyleConfig = LockstyleConfig
@@ -255,7 +247,7 @@ function EntryKit.job(job, spec)
         if spec.configs then spec.configs() end
         Profiler.mark('After configs')
         -- what the last job scheduled is cancelled, the job's files loaded, its lockstyle cancel registered
-        load_job(job, Profiler)
+        load_job(job, Profiler, JobChangeManager)
         if spec.after_load then spec.after_load() end
         Profiler.finish()
     end
@@ -292,16 +284,16 @@ function EntryKit.job(job, spec)
         else
             bind_keys()
         end
-        if ui_ok and KeybindUI then
+        if KeybindUI then
             KeybindUI.smart_init(job, UIConfig.init_delay)
         else
-            local mf_ok, MessageFormatter = pcall(require, 'shared/utils/messages/message_formatter')
-            if mf_ok and MessageFormatter then
+            local MessageFormatter = formatter()
+            if MessageFormatter then
                 MessageFormatter.show_error('[' .. job .. '] Failed to load UI_MANAGER')
             end
         end
         if spec.after_ui then spec.after_ui(KeybindUI) end
-        if jcm_ok and JobChangeManager then
+        if JobChangeManager then
             JobChangeManager.initialize()
             EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)
         end
@@ -314,9 +306,8 @@ function EntryKit.job(job, spec)
     -- Mote, on a subjob change: JobChangeManager debounces and reloads (the entry's job while player is not
     -- readable). The dual-box message goes from user_setup() after the reload.
     _G.job_sub_job_change = function(new_subjob)
-        local JCM = job_change_manager()
-        if JCM then
-            JCM.on_job_change(player and player.main_job or job, new_subjob)
+        if JobChangeManager then
+            JobChangeManager.on_job_change(player and player.main_job or job, new_subjob)
         end
     end
 
@@ -332,9 +323,8 @@ function EntryKit.job(job, spec)
     -- reload).
     _G.file_unload = function(next_file)
         if spec.unload then spec.unload(next_file) end
-        local JCM = job_change_manager()
-        if JCM then
-            JCM.cancel_all()
+        if JobChangeManager then
+            JobChangeManager.cancel_all()
         end
         local keybinds = rawget(_G, job .. 'Keybinds')
         if keybinds and keybinds.unbind_all then

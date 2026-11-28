@@ -15,6 +15,7 @@
 -- (shared/utils/core/entry_kit.lua), with BST's pet data (before Mote-Include, so user_setup has it), its ecosystems, the bst-hud
 -- addon and the pet monitor
 local CharPaths = require('shared/utils/core/char_paths')
+local try_require = require('shared/utils/core/try_require')
 
 local monitor_event_id = nil
 local last_check = 0
@@ -76,8 +77,8 @@ local function start_pet_monitoring()
             pcall(function() require('shared/utils/debug/trace_log').log('BST', 'monitor error: %s', tostring(err)) end)
             if not monitor_error_shown then
                 monitor_error_shown = true
-                local ok_mf, MessageFormatter = pcall(require, 'shared/utils/messages/message_formatter')
-                if ok_mf and MessageFormatter then
+                local MessageFormatter = try_require('shared/utils/messages/message_formatter')
+                if MessageFormatter then
                     MessageFormatter.show_error('[BST] Pet monitor error: ' .. tostring(err))
                 end
             end
@@ -105,12 +106,12 @@ require('shared/utils/core/entry_kit').job('BST', {
         _G.BSTEcosystemData = eco_ok and eco_data or nil
     end,
     after_states = function()
-        local em_success, EcosystemManager = pcall(require, 'shared/jobs/bst/functions/logic/ecosystem_manager')
-        if em_success and EcosystemManager then
+        local EcosystemManager = try_require('shared/jobs/bst/functions/logic/ecosystem_manager')
+        if EcosystemManager then
             EcosystemManager.initialize()
         else
-            local msg_success, MessageFormatter = pcall(require, 'shared/utils/messages/message_formatter')
-            if msg_success and MessageFormatter then
+            local MessageFormatter = try_require('shared/utils/messages/message_formatter')
+            if MessageFormatter then
                 MessageFormatter.show_error('[BST] Failed to load EcosystemManager')
             end
         end

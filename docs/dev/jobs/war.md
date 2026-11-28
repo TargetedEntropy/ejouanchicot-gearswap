@@ -48,7 +48,7 @@ numbers are avoided because they drift.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/war.lua` | 76 | Entry point (the same for every character; `<Char>_WAR.lua` and its template `_master/entry/Tetsouo_WAR.lua` are one `include` of it): one `EntryKit.job('WAR', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with WAR's steps: `before_mote` sets `_G.WARWSConfig`, `after_sets` = the local `sync_weapon_with_hand`, `after_states` `AmpullaLock.apply`, `unload` `AmpullaLock.release` |
+| `shared/entry/war.lua` | 72 | Entry point (the same for every character; `<Char>_WAR.lua` and its template `_master/entry/Tetsouo_WAR.lua` are one `include` of it): one `EntryKit.job('WAR', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with WAR's steps: `before_mote` sets `_G.WARWSConfig`, `after_sets` = the local `sync_weapon_with_hand`, `after_states` `AmpullaLock.apply`, `unload` `AmpullaLock.release` |
 | `shared/jobs/war/functions/WAR_PRECAST.lua` | 43 | `job_precast` / `job_post_precast`: guard, cooldown, WS handler (which runs AutoJump), TP gear |
 | `shared/jobs/war/functions/WAR_MIDCAST.lua` | 74 | `job_midcast` (empty) / `job_post_midcast`: Healing and Enhancing routed to `MidcastManager` |
 | `shared/jobs/war/functions/WAR_AFTERCAST.lua` | 37 | `job_aftercast`: empty |

@@ -46,7 +46,7 @@ the sets files (structure and set names only).
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/rdm.lua` | 53 | Entry (the same for every character; `<Char>_RDM.lua` and its template `_master/entry/Tetsouo_RDM.lua` are one `include` of it): one `EntryKit.job('RDM', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with RDM's steps: `configs` (`_G.RDMSaboteurConfig`), `after_states` (`CureManager.setup_state`, Cure Auto-Tier) |
+| `shared/entry/rdm.lua` | 54 | Entry (the same for every character; `<Char>_RDM.lua` and its template `_master/entry/Tetsouo_RDM.lua` are one `include` of it): one `EntryKit.job('RDM', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with RDM's steps: `configs` (`_G.RDMSaboteurConfig`), `after_states` (`CureManager.setup_state`, Cure Auto-Tier) |
 | `shared/jobs/rdm/functions/RDM_PRECAST.lua` | 394 | `job_precast` as stages (guard, cooldown/refine, Phalanx, Saboteur) + WS + `SpellGearLock.begin`; `job_post_precast` (TP gear, spell FC set, lock hold, `debugprecast` trace) |
 | `shared/jobs/rdm/functions/RDM_MIDCAST.lua` | 387 | `job_midcast` (empty), `job_post_midcast` -> `route_midcast` (`SKILL_HANDLERS` table) + `SpellGearLock.hold` |
 | `shared/jobs/rdm/functions/RDM_AFTERCAST.lua` | 27 | `job_aftercast = LifecycleManager.aftercast(...)` with `SpellGearLock.release` as the extra step |

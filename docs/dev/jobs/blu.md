@@ -41,7 +41,7 @@ the sets files (structure and set names only).
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/blu.lua` | 45 | Entry (the same for every character; `<Char>_BLU.lua` and its template `_master/entry/Tetsouo_BLU.lua` are one `include` of it): one `EntryKit.job('BLU', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with BLU's steps: `after_setup` AzureSets load, `unload` AzureSets unload |
+| `shared/entry/blu.lua` | 42 | Entry (the same for every character; `<Char>_BLU.lua` and its template `_master/entry/Tetsouo_BLU.lua` are one `include` of it): one `EntryKit.job('BLU', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with BLU's steps: `after_setup` AzureSets load, `unload` AzureSets unload |
 | `shared/jobs/blu/functions/BLU_PRECAST.lua` | 72 | `job_precast` (guard, cooldown, Unbridled Learning, Expiacion hold, WS handler) / `job_post_precast` (TP gear) |
 | `shared/jobs/blu/functions/BLU_MIDCAST.lua` | 163 | `job_midcast` (empty) / `job_post_midcast` (Blue Magic by category + overlays, other skills) / `job_get_spell_map` |
 | `shared/jobs/blu/functions/BLU_AFTERCAST.lua` | 21 | `job_aftercast = LifecycleManager.aftercast()` |
