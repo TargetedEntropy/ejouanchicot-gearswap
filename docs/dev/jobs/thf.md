@@ -43,7 +43,7 @@ function; line numbers are deliberately not used.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/thf.lua` | 195 | Entry point (the same for every character; `<Char>_THF.lua` and its template `_master/entry/Tetsouo_THF.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ `RangeLock.sync_state`), `job_update`, `init_gear_sets`, `file_unload` (+ `RangeLock.release`, first); shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/thf.lua` | 62 | Entry point (the same for every character; `<Char>_THF.lua` and its template `_master/entry/Tetsouo_THF.lua` are one `include` of it): one `EntryKit.job('THF', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with THF's steps: `after_states` `RangeLock.sync_state`, `unload` `RangeLock.release` (first in `file_unload`) |
 | `shared/jobs/thf/functions/thf_functions.lua` | 13 | What THF defines besides its hook files: calls `TreasureHunter.init()` (THF layer). Loaded last of the job files (`JOB_FILES` `own`, `shared/utils/core/entry_kit.lua`) |
 | `shared/jobs/thf/functions/THF_PRECAST.lua` | 79 | `job_precast` / `job_post_precast`: guard, cooldown, SA/TA pending flags, WS handler; post: SA/TA WS variant, then TP gear |
 | `shared/jobs/thf/functions/THF_MIDCAST.lua` | 94 | `job_midcast` (ranged lock via `RangeLock.engage`) / `job_post_midcast` (watchdog, MidcastManager for Ninjutsu, Healing, Enhancing) |
@@ -92,23 +92,23 @@ hook files exist.
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as <Character>_THF.lua
+    participant E as shared/entry/thf.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
-    GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG)
+    GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
-    M->>E: user_setup() (states, RangeLock sync, keybinds + intro, UI, JCM, macrobook/lockstyle, dualbox)
+    M->>E: user_setup() (states, after_states: RangeLock sync, keybinds + intro, UI, JCM, macrobook/lockstyle, dualbox)
     M->>E: init_gear_sets() -> include sets file
-    E->>E: INIT_SYSTEMS (hooks: belt, DW, TH, midcast fallback, custom, cast time, combat mode), data_loader, message hooks
-    E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, _G.THFTPConfig
+    E->>E: EntryKit.after_mote: INIT_SYSTEMS (hooks: belt, DW, TH, midcast fallback, custom, cast time, combat mode), data_loader, message hooks
+    E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.THFTPConfig
     E->>E: EntryKit.load_job("THF"): JobChangeManager.cancel_all()
     E->>F: load_job_files('THF')
     F->>F: lockstyle + macro book install, message_buffs + 8 hook files, thf_functions.lua (TreasureHunter.init()), require dualbox_manager
     E->>E: register_lockstyle_cancel("THF", ...)
 ```
 
-`user_setup()`:
+`user_setup()` (`EntryKit.job`; THF's `after_states` is the end of step 1):
 
 1. `THFStates.configure()` creates every state (see [Mote states](#mote-states)),
    then `RangeLock.sync_state()` turns `RangeLock` back on when the range/ammo
@@ -121,7 +121,7 @@ sequenceDiagram
    `!numpad0`) and Treasure Mode, which reuses THF's own `^numpad3` entry. A
    failed `require` prints `[THF] Keybinds failed to load: <error>`
    (`EntryKit.keybind_error`).
-3. `KeybindUI.smart_init("THF", ...)`. The UI waits for `state.TreasureMode`
+3. `KeybindUI.smart_init("THF", UIConfig.init_delay)`. The UI waits for `state.TreasureMode`
    (`ui_lifecycle.lua` `are_states_ready`).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
@@ -291,7 +291,7 @@ The paths that lock:
   passes the description), reads `state.RangeLock.value` and calls
   `RangeLock.set_slots` with a "Ranged weapons locked/unlocked" message.
 - The lock lives in GearSwap's `disable_table`, which outlives the job file.
-  `file_unload` calls `RangeLock.release()` first, before anything that could
+  `file_unload` calls `RangeLock.release()` first (THF's `unload` step), before anything that could
   throw (GearSwap runs `file_unload` inside one `pcall`), so a reload, subjob
   change or main job change starts with the slots free and `RangeLock` Off. A
   subjob change re-runs `user_setup()` in the same sandbox first;

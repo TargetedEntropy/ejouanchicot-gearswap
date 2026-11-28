@@ -72,7 +72,7 @@ The module body schedules the auto-init. It runs when the module is `require`d w
 which since the require cache is installed by `char_paths` (the first file of the entry, at file level) means
 **once per load**:
 
-- Every shared entry requires it at the end of `user_setup()` (e.g. `shared/entry/war.lua:193`). That is the first `require` of the load, so it executes the body.
+- Every shared entry requires it at the end of `user_setup()` (`EntryKit.job`, `shared/utils/core/entry_kit.lua:355`). That is the first `require` of the load, so it executes the body.
 - `EntryKit.load_job_files` requires it again after the job's hook files (`shared/utils/core/entry_kit.lua:116`); the job
   COMMANDS files require it to deliver `altjobupdate` / `requestjob`. Both are cache hits.
 - On a subjob change Mote re-runs `user_setup()` in the old environment: also a cache hit, so the dying

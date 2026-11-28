@@ -20,7 +20,7 @@
 ---   - PetTP addon loaded on GEO, unloaded on file_unload
 ---
 --- Architecture Overview:
----   Main File (this) >> EntryKit.load_job_files >> Specialized Modules
+---   EntryKit.job >> EntryKit.load_job_files >> Specialized Modules
 ---
 --- Module Organization:
 ---   ├── <Character>/geo/sets/geo_sets.lua [Equipment Sets]
@@ -31,175 +31,22 @@
 ---   GEO_IDLE | GEO_ENGAGED | GEO_COMMANDS
 ---============================================================================
 
----============================================================================
--- INITIALIZATION
----============================================================================
-
--- Load lockstyle timing configuration
--- Where the character's files are (_common/, <job>/, saved/; older config/ and sets/)
-local CharPaths = require('shared/utils/core/char_paths')
--- The hooks every entry shares (job_update, subjob change, unload, keybind error)
-local EntryKit = require('shared/utils/core/entry_kit')
-
--- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
-local LockstyleConfig, UIConfig = EntryKit.load_configs('GEO')
-
---- GearSwap entry hook: loads Mote-Include, the shared systems and the GEO modules.
---- Called by GearSwap each time this job file is loaded.
---- @return void
-function get_sets()
-    -- PERFORMANCE PROFILING (enable with: //gs c perf start)
-    local Profiler = require('shared/utils/debug/performance_profiler')
-    Profiler.start('get_sets')
-
-    mote_include_version = 2
-    include('Mote-Include.lua')
-    Profiler.mark('After Mote-Include')
-    -- the shared systems, the data, the spell / ability / weaponskill messages
-    EntryKit.after_mote(Profiler)
-
-    _G.LockstyleConfig = LockstyleConfig
-    _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
-
-    -- GEO-specific configs
-    _G.GEOTPConfig = require(CharPaths.module('job', 'GEO_TP_CONFIG', 'GEO'))
-
-    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
-    -- cancel registered
-    EntryKit.load_job('GEO', Profiler)
-
-    -- Initial macrobook/lockstyle are triggered from user_setup();
-    -- subjob changes go through JobChangeManager (job_sub_job_change).
-
-    Profiler.finish()
-end
-
----============================================================================
--- JOB CHANGE HANDLING
----============================================================================
-
---- Handle sub job change events (called by Mote-Include)
---- Coordinates lockstyle, macros, keybinds, and UI reload via JobChangeManager
---- @param newSubjob string New subjob
---- @param oldSubjob string Old subjob
---- @return void
-function job_sub_job_change(newSubjob, oldSubjob)
-    EntryKit.sub_job_change('GEO', newSubjob)
-end
-
----============================================================================
--- USER SETUP
----============================================================================
-
---- Configure states, PetTP addon, keybinds, UI and the initial macrobook/lockstyle.
---- Called by Mote-Include from init_include() (inside include('Mote-Include.lua'),
---- before init_gear_sets) and again on every subjob change, before job_sub_job_change().
---- @return void
-function user_setup()
-    -- ==========================================================================
-    -- STATE DEFINITIONS (Loaded from GEO_STATES.lua)
-    -- ==========================================================================
-
-    local GEOStates = require(CharPaths.module('job', 'GEO_STATES', 'GEO'))
-    GEOStates.configure()
-
-    -- ==========================================================================
-    -- ADDON LOADING - PetTP for Luopan management
-    -- ==========================================================================
-    -- (pettp = false in _common/tools/ADDONS_CONFIG.lua: left alone)
-    -- The flag lives on `windower`, which outlives the job sandbox: a subjob
-    -- change or //gs reload of GEO sends neither the unload nor the load again
-    -- (same pattern as BLU, shared/jobs/blu/functions/logic/azure_sets.lua).
-    if not windower._geo_pettp_loaded then
-        windower._geo_pettp_loaded = require('shared/utils/core/job_addons').run('load', 'pettp')
-    end
-    -- Silent load - PetTP addon handles its own messaging
-
-    -- ==========================================================================
-    -- KEYBIND LOADING (Always executed after reload)
-    -- ==========================================================================
-    local success, keybinds = pcall(require, CharPaths.module('job', 'GEO_KEYBINDS', 'GEO'))
-    if success and keybinds then
-        GEOKeybinds = keybinds
-        GEOKeybinds.bind_all()
-    else
-        EntryKit.keybind_error('GEO', keybinds)
-    end
-
-    -- ==========================================================================
-    -- UI INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    local ui_success, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
-    if ui_success and KeybindUI then
-        KeybindUI.smart_init("GEO", UIConfig.init_delay)
-    else
-        local msg_success, MessageFormatter = pcall(require, 'shared/utils/messages/message_formatter')
-        if msg_success and MessageFormatter then
-            MessageFormatter.show_error('[GEO] Failed to load UI_MANAGER')
+-- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
+-- (shared/utils/core/entry_kit.lua), with GEO's PetTP addon and its stand-behind run
+require('shared/utils/core/entry_kit').job('GEO', {
+    -- PetTP for Luopan management (pettp = false in _common/tools/ADDONS_CONFIG.lua: left alone). The flag lives on
+    -- `windower`, which outlives the job sandbox: a subjob change or //gs reload of GEO sends neither the unload nor
+    -- the load again (same pattern as BLU, shared/jobs/blu/functions/logic/azure_sets.lua). PetTP handles its own
+    -- messages.
+    after_states = function()
+        if not windower._geo_pettp_loaded then
+            windower._geo_pettp_loaded = require('shared/utils/core/job_addons').run('load', 'pettp')
         end
-    end
-
-    -- ==========================================================================
-    -- JOB CHANGE MANAGER INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    if jcm_success and JobChangeManager then
-        -- Initialize with current job state
-        JobChangeManager.initialize()
-
-        EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)
-    end
-
-    -- ==========================================================================
-    -- DUALBOX IPC (covers main job change - job_sub_job_change is subjob-only)
-    -- The require() triggers dualbox_manager auto-init which schedules the
-    -- correct IPC call once per gs reload (request_alt_job for MAIN role,
-    -- send_job_update for ALT role). Do NOT call them explicitly here.
-    -- ==========================================================================
-    pcall(require, 'shared/utils/dualbox/dualbox_manager')
-end
-
----============================================================================
--- STATE UPDATE HOOK
----============================================================================
-
---- Called by Mote-Include after state changes (e.g., cycling MainIndi, MainGeo)
---- Updates the UI to reflect current state values. The Combat Mode lock is
---- shared/utils/core/combat_mode.lua's.
---- @param cmdParams table Parameters passed to Mote's handle_update
---- @param eventArgs table Mote event arguments (unused)
---- @return void
-function job_update(cmdParams, eventArgs)
-    EntryKit.update_hud('GEO')
-end
-
----============================================================================
--- GEAR SET INITIALIZATION
----============================================================================
-
---- Load the GEO equipment sets.
---- Called by Mote-Include at the end of init_include(), after user_setup().
---- @return void
-function init_gear_sets()
-    include(CharPaths.relative('sets', 'geo_sets.lua', 'GEO'))
-end
-
----============================================================================
--- CLEANUP
----============================================================================
-
---- Called by GearSwap when this job file is unloaded (job change, reload).
---- Cancels pending job-change operations, unloads PetTP and unbinds the job keys.
---- @param next_file string|nil The job file being unloaded, as GearSwap passes it (refresh.lua
----   user_pcall2('file_unload', current_file)); nil when the GearSwap addon itself is unloaded
----   (gearswap.lua): only that nil is read here
---- @return void
-function file_unload(next_file)
-    -- //gs c behind: a run under way stops here, or nothing would ever stop it (logic/stand_behind.lua)
-    pcall(function() require('shared/jobs/geo/functions/logic/stand_behind').unload() end)
-    -- Unload PetTP addon (external addon, must be unloaded manually)
-    -- Silent unload - addon handles its own messaging
-    if windower._geo_pettp_loaded then
+    end,
+    unload = function(next_file)
+        -- //gs c behind: a run under way stops here, or nothing would ever stop it (logic/stand_behind.lua)
+        pcall(function() require('shared/jobs/geo/functions/logic/stand_behind').unload() end)
+        if not windower._geo_pettp_loaded then return end
         local function unload_pettp()
             windower._geo_pettp_loaded = nil
             windower.send_command('lua unload pettp')
@@ -208,16 +55,14 @@ function file_unload(next_file)
             -- GearSwap itself is unloading: no later check would ever run
             unload_pettp()
         else
-            -- GearSwap still reports the old job here, and the next file may
-            -- be GEO again (subjob change, //gs reload): ask the game 2 s later.
-            -- Only windower.* in this coroutine: it runs after the sandbox is gone.
+            -- GearSwap still reports the old job here, and the next file may be GEO again (subjob change,
+            -- //gs reload): ask the game 2 s later. Only windower.* in this coroutine: it runs after the sandbox is
+            -- gone.
             coroutine.schedule(function()
                 local me = windower.ffxi.get_player()
                 if me and me.main_job == 'GEO' then return end
                 unload_pettp()
             end, 2)
         end
-    end
-
-    EntryKit.unload(GEOKeybinds)
-end
+    end,
+})

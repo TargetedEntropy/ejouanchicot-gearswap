@@ -32,7 +32,7 @@ What PUP adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/pup.lua` | 162 | Entry (the same for every character; `<Char>_PUP.lua` and its template `_master/entry/Tetsouo_PUP.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ first PetMode detection), `job_update` (PetMode, poll, HUD), `init_gear_sets`, `file_unload` (+ poll stop) |
+| `shared/entry/pup.lua` | 51 | Entry (the same for every character; `<Char>_PUP.lua` and its template `_master/entry/Tetsouo_PUP.lua` are one `include` of it): one `EntryKit.job('PUP', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with PUP's steps: `after_states` (first PetMode detection), `update` (PetMode, poll, before the HUD), `unload` (poll stop) |
 | `shared/jobs/pup/functions/PUP_PRECAST.lua` | 42 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (TP gear) |
 | `shared/jobs/pup/functions/PUP_MIDCAST.lua` | 99 | `job_midcast` (empty) / `job_post_midcast` (subjob magic via MidcastManager) / `job_get_spell_map` (Maneuver) |
 | `shared/jobs/pup/functions/PUP_PET_MIDCAST.lua` | 66 | `job_pet_midcast`: automaton weaponskills; automaton spells left to Mote |
@@ -79,32 +79,34 @@ Shared files changed for PUP:
 Same shape as BLU ([core lifecycle](../systems/core-lifecycle.md#how-a-job-file-boots)):
 Mote-Include calls `user_setup()` and `init_gear_sets()` from inside
 `include('Mote-Include.lua')`, before `INIT_SYSTEMS` and before the PUP hook
-files exist. The entry sets `_G.RegionConfig` first, then loads the UI config
-(`config_loader`), as the WAR entry does.
+files exist. The entry is `EntryKit.job('PUP', ...)`: at file level it sets
+`_G.RegionConfig`, then loads the UI config (`EntryKit.load_configs`), as on
+every job.
 
 `user_setup()`:
 
 1. `PUPStates.configure()` creates the states (see [Mote states](#mote-states)).
-2. `Automaton.refresh_mode(true)`: PetMode from the automaton's head before the
+2. `after_states`: `Automaton.refresh_mode(true)`: PetMode from the automaton's head before the
    HUD first draws it (the HUD caches what it reads in `user_setup`).
 3. `PUP_KEYBINDS` into the global `PUPKeybinds`, `bind_all()`; a failed
    require prints `[PUP] Keybinds failed to load: <error>`
    (`EntryKit.keybind_error`).
-4. `KeybindUI.smart_init("PUP", init_delay)`.
+4. `KeybindUI.smart_init("PUP", init_delay)` (`[PUP] Failed to load
+   UI_MANAGER` when it did not load).
 5. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`: macro
    book 0.2 s later, once `EntryKit.load_job_files` has defined it, lockstyle after
    `LockstyleConfig.initial_load_delay`.
 6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-`get_sets()` then sets `_G.LockstyleConfig`, `_G.RECAST_CONFIG`,
+`get_sets()` then sets `_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`,
 `_G.PUPTPConfig`; then `EntryKit.load_job` cancels pending job-change work, loads the job files
 and registers `cancel_pup_lockstyle_operations`.
 
 `job_update` (every `gs c update`, cycle, set, toggle; Mote calls it before it
-equips): `Automaton.refresh_mode()`, `PetWS.ensure_running()`, then
+equips): `update`: `Automaton.refresh_mode()`, `PetWS.ensure_running()`, then
 `EntryKit.update_hud('PUP')` (`KeybindUI.update()`).
 
-`file_unload`: `PetWS.stop()` first (GearSwap runs `file_unload` under one
+`file_unload`: `unload`, `PetWS.stop()`, first (GearSwap runs `file_unload` under one
 `pcall`), then `EntryKit.unload(PUPKeybinds)`: `JobChangeManager.cancel_all()`,
 then `PUPKeybinds.unbind_all()`. The shared hooks are in
 `shared/utils/core/entry_kit.lua`.

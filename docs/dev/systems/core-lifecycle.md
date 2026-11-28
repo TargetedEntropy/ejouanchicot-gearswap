@@ -44,7 +44,7 @@ Verified against the code on 2026-09-28; the file list and the INIT_SYSTEMS tabl
 | `optional_state.lua`, `optional_state_commands.lua` | 150, 147 | Base of Combat Mode and Treasure Mode (shown / hidden / key per job) | [keybinds-and-custom.md](keybinds-and-custom.md), [factories-and-helpers.md](factories-and-helpers.md) |
 | `COMMON_COMMANDS.lua` | 782 | Every `//gs c` command shared by all jobs | [commands-and-debug.md](commands-and-debug.md) |
 | `DEBUG_COMMANDS.lua` | 622 | Debug toggles and dumps (`djc`, `debugupdate`, `debugstate`, `memcheck`...) | [commands-and-debug.md](commands-and-debug.md) |
-| `entry_kit.lua` | 254 | What the 22 shared entries did the same way (2026-10-15): `load_configs`, `after_mote`, the job files (`job_files(job)`, the list from the `JOB_FILES` table; `load_job_files(job)`, which installs the lockstyle and macro book, includes them and requires `dualbox_manager`; `load_job(job, Profiler)`, the same between `JobChangeManager.cancel_all()` and the lockstyle cancel registration), `update_hud` (body of `job_update`: HUD refresh, step 2 of the `//gs c debugupdate` trace), `sub_job_change` (-> `JobChangeManager.on_job_change`), `unload(keybinds)` (end of `file_unload`), `keybind_error`, `macro_and_lockstyle(delay)` (first macro book and lockstyle once the job files are loaded, through `LoadGate.defer`) and `reload_pending` | here ([How a job file boots](#how-a-job-file-boots)) |
+| `entry_kit.lua` | 378 | What the 22 shared entries did the same way (2026-10-15): `job(job, spec)` (the whole entry: defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload` and runs the job's spec steps at fixed points), `load_configs`, `after_mote`, the job files (`job_files(job)`, the list from the `JOB_FILES` table; `load_job_files(job)`, which installs the lockstyle and macro book, includes them and requires `dualbox_manager`; `load_job(job, Profiler)`, the same between `JobChangeManager.cancel_all()` and the lockstyle cancel registration), `update_hud` (body of `job_update`: HUD refresh, step 2 of the `//gs c debugupdate` trace), `sub_job_change` (-> `JobChangeManager.on_job_change`), `unload(keybinds)` (end of `file_unload`), `keybind_error`, `macro_and_lockstyle(delay)` (first macro book and lockstyle once the job files are loaded, through `LoadGate.defer`) and `reload_pending` | here ([How a job file boots](#how-a-job-file-boots)) |
 | `log_keeper.lua` | 98 | The journals never grow without end: `rotate(path)` moves a line-by-line journal to `<name>.old.log` past `MAX_BYTES` (2 MB, one old copy; called by `CharPaths.log`), `prune_once(char)` deletes the files older than `KEEP_DAYS` (60) in the dated folders `logs/fights`, `logs/enhtest`, `logs/sortie`, once a session (INIT_SYSTEMS, +30 s) | here ([INIT_SYSTEMS](#init_systemslua-in-execution-order)) |
 | `lua_data.lua` | 316 | Lua text read as data, never run: `parse(text)` gives the value of a `return <value>` file of strings, numbers, booleans, nil and tables (nil and the reason for anything else: a call, an operator, a name); `only_data_changed(a, b)`. Reads the files the Atelier page writes (`set_overrides`, `key_overrides`, `mode_overrides`) and checks the settings files it rewrites through the game's HTTP door (`atelier_live.lua`, `atelier_configs.lua`, `set_push.lua`) | [commands-and-debug.md](commands-and-debug.md#files) (Atelier) |
 | `mode_overrides.lua` | 219 | Start values and weapon-cycle changes chosen in the Atelier page (`<Char>/atelier/overrides/mode_overrides.lua`), laid over the job's modes once per job load by `KeybindManager.create` | [keybinds-and-custom.md](keybinds-and-custom.md) |
@@ -55,7 +55,7 @@ Verified against the code on 2026-09-28; the file list and the INIT_SYSTEMS tabl
 | Path | Role |
 |---|---|
 | `shared/utils/config/config_loader.lua` | Required at file level by every entry. Its first statement installs `ModuleCache` if `char_paths.lua` has not already; `load_ui_config(char, job)` `dofile`s `<char>/_common/display/UI_CONFIG.lua` and fills `_G.UIConfig` / `_G.ui_display_config` (details in [ui-overlay.md](ui-overlay.md)) |
-| `shared/entry/<job>.lua` (22) | Entry code, the same for every character: `get_sets`, `user_setup`, `init_gear_sets`, `job_sub_job_change`, `job_update`, `file_unload` |
+| `shared/entry/<job>.lua` (22) | Entry code, the same for every character: one `EntryKit.job('<JOB>', spec)` call with the job's own steps (one line for MNK, DRG, NIN, RNG, SCH, BLM, DRK, SAM) |
 | `_master/entry/Tetsouo_<JOB>.lua` (22) | One-line entry templates (`include('../shared/entry/<job>.lua')`), deployed as `<Name>/<Name>_<JOB>.lua`; see [characters-and-templates.md](../architecture/characters-and-templates.md) |
 
 Engine files referenced (outside the repo, read-only): `addons/GearSwap/refresh.lua`, `user_functions.lua`, `packet_parsing.lua`, `gearswap.lua`, `flow.lua`, `libs/Mote-Include.lua`, `libs/Mote-SelfCommands.lua`, `libs/Modes.lua`.
@@ -87,12 +87,12 @@ A subjob change does not reload anything: 0x061 with a new subjob id fires the `
 
 ## How a job file boots
 
-Example: `Tetsouo/Tetsouo_WAR.lua`, whose only statement is `include('../shared/entry/war.lua')`; the code below is that shared file. Every shared entry follows the same shape: `config_loader` required at file level, `include('Mote-Include.lua')`, `include('../shared/utils/core/INIT_SYSTEMS.lua')` one to three lines later (only `Profiler.mark` calls in between), then the message hooks, the job configs, `JobChangeManager.cancel_all()`, the job files and `register_lockstyle_cancel` (these three are `EntryKit.load_job`, written out by COR, PLD and SAM). What differs is the work done before Mote-Include (WAR `_G.WARWSConfig`; BRD, BST config globals) and between INIT_SYSTEMS and the job files.
+Example: `Tetsouo/Tetsouo_WAR.lua`, whose only statement is `include('../shared/entry/war.lua')`. Every shared entry is one `EntryKit.job('<JOB>', spec)` call (`shared/utils/core/entry_kit.lua:276`, since the entry-builder change): it loads the configs at file level, then defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update` and `file_unload` in one fixed order, and runs the job's spec steps at fixed points (`before_mote`, `configs`, `after_load`, `after_sets`, `after_states`, `after_ui`, `after_setup`, `update`, `unload`; `early_configs`, `tp_config = false` and `keybinds_delay` change a step). WAR's: `before_mote` sets `_G.WARWSConfig`, `after_sets` syncs the weapon, `after_states` / `unload` apply and release the Ampulla lock. Eight entries (MNK, DRG, NIN, RNG, SCH, BLM, DRK, SAM) add no step.
 
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap load_user_files
-    participant Entry as shared/entry/war.lua
+    participant Entry as shared/entry/war.lua (EntryKit.job)
     participant CL as config_loader
     participant Mote as Mote-Include
     participant Init as INIT_SYSTEMS.lua
@@ -104,37 +104,38 @@ sequenceDiagram
     CL->>CL: ModuleCache.install() (no-op), LoadGate.begin(), load_ui_config
     Entry->>Entry: require job_change_manager, UI_MANAGER (cached)
     GS->>Entry: get_sets()
+    Entry->>Entry: before_mote(): _G.WARWSConfig
     Entry->>Mote: include Mote-Include.lua
     Mote->>Mote: init_include(): state, classes, sets skeleton, Mote-Globals
-    Mote->>Entry: job_setup(), user_setup(): states, bind_all, HUD smart_init, JCM.initialize(), EntryKit.macro_and_lockstyle (runs at +0.2 s), dualbox_manager
-    Mote->>Entry: init_gear_sets(): set file
+    Mote->>Entry: job_setup(), user_setup(): states, after_states (Ampulla), bind_all, HUD smart_init, JCM.initialize(), EntryKit.macro_and_lockstyle (runs at +0.2 s), dualbox_manager
+    Mote->>Entry: init_gear_sets(): set file, after_sets (weapon sync)
     Mote->>Mote: define handle_equipping_gear, cleanup_*, default file_unload if absent
-    Entry->>Init: include INIT_SYSTEMS.lua
+    Entry->>Init: EntryKit.after_mote: include INIT_SYSTEMS.lua
     Init->>Init: sync systems + hook chain; schedule +0.5/+2/+3/+5 s blocks
-    Entry->>Entry: data_loader, message hooks, config globals
+    Entry->>Entry: data_loader, message hooks, common configs, configs()
     Entry->>Entry: EntryKit.load_job('WAR'): JCM.cancel_all()
     Entry->>Jobf: load_job_files('WAR') (lockstyle/macrobook install, hook modules, dualbox_manager)
-    Entry->>Entry: JCM.register_lockstyle_cancel('WAR', ...)
+    Entry->>Entry: JCM.register_lockstyle_cancel('WAR', ...), after_load()
 ```
 
-Step by step, with the WAR entry (`shared/entry/war.lua`, 274 lines):
+Step by step, with the WAR entry (`shared/entry/war.lua`, 76 lines) and `EntryKit.job` (`shared/utils/core/entry_kit.lua`):
 
 | # | Where | What |
 |---|---|---|
-| 1 | file level, `:36-51` | `char_paths` (where the character's files are), `entry_kit` (the hooks every entry shares, `shared/utils/core/entry_kit.lua`), `LOCKSTYLE_CONFIG` (fallback table if missing) and `REGION_CONFIG` -> `_G.RegionConfig`, both through `CharPaths.module('common', ...)`. `char_paths.lua` installs the module cache at its end (since 2026-10-17), so these two are already cached and checked for a broken file. |
-| 2 | file level, `:57-58` | `config_loader`: its first statement is `ModuleCache.install()`, a no-op after `char_paths` (kept for an entry that would not start with it); next it calls `LoadGate.begin()`, which numbers the load. Then `load_ui_config(CharPaths.name(), 'WAR')`. |
-| 3 | file level, `:62-63` | `job_change_manager`, `UI_MANAGER` (after `config_loader` on purpose: cached, and `UI_MANAGER` reads `_G.UIConfig` at load). BST and SMN do the same; the other entries require them inside `get_sets()`/`user_setup()` instead, also after the cache exists. |
-| 4 | `get_sets`, `:83` | `_G.WARWSConfig = CharPaths.optional('job', 'WAR_WS_CONFIG', 'WAR')` set before Mote, because `user_setup()` needs it. |
-| 5 | `get_sets`, `:86` | `include('Mote-Include.lua')`. Mote runs `init_include()` at the end of its own load (`Mote-Include.lua:188`): creates `state`, `classes`, `sets.*` skeletons, includes Mote-Utility / Mote-SelfCommands / Mote-Globals, calls `job_setup()` then `user_setup()` (`:165-172`) then `init_gear_sets()` (`:175`). So `user_setup()` runs in the middle of this line, before INIT_SYSTEMS and before the job files. After `init_include()` returns, the rest of Mote-Include defines `handle_equipping_gear`, `cleanup_precast`, `cleanup_midcast` and the other default handlers, which is why no hook on them can be laid from `user_setup()`. |
-| 6 | `user_setup`, `:196-246` | `WARStates.configure()`, the Ampulla lock re-applied to the default stance, keybinds `bind_all()` (`EntryKit.keybind_error` if the file fails to load), `KeybindUI.smart_init`, `JobChangeManager.initialize()` (seeds the reference job), `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`, `pcall(require, 'shared/utils/dualbox/dualbox_manager')`. `select_default_macro_book` / `select_default_lockstyle` come from `EntryKit.load_job_files`, which has not run yet, so `macro_and_lockstyle` (`shared/utils/core/entry_kit.lua`) waits 0.2 s through `LoadGate.defer`, then calls the macro book (if `player` exists) and schedules the lockstyle after the delay. Until 2026-10-15 the entries called them at once and found them only because `show_intro()` had `require`d the wrappers, so a job without keys got neither. Every entry does the same (RUN also defers its keybinds by 0.5 s). |
-| 7 | `init_gear_sets`, `:149-152` | `include(CharPaths.relative('sets', 'war_sets.lua', 'WAR'))` (`war/sets/war_sets.lua` in the 2026-09-30 layout), then `sync_weapon_with_hand()` (WAR aligns `state.MainWeapon` with the weapon in hand now that the sets exist). |
-| 8 | Mote-Include `:193-201` | Mote defines a default `file_unload` only if the entry file has not defined one. Every entry defines its own, so Mote's default (and its `global_on_unload`) never runs. |
-| 9 | `get_sets`, `:89` | `include('../shared/utils/core/INIT_SYSTEMS.lua')`, detailed below. |
-| 10 | `get_sets`, `:95-125` | `data_loader`, the three `init_*_messages` hook files, config globals (`LockstyleConfig`, `UIConfig`, `RECAST_CONFIG`, `WARTPConfig`). |
-| 11 | `get_sets`, `:87` | `EntryKit.load_job('WAR', Profiler)` (`shared/utils/core/entry_kit.lua:134`), first step: `JobChangeManager.cancel_all()`. In a fresh sandbox this only bumps a brand-new counter and walks an empty registry (see Known issues). |
+| 1 | file level, `war.lua:31`, `:57`; `entry_kit.lua:279-280`, `:39-48` | `char_paths` (where the character's files are; WAR requires it itself, an entry with no step gets it from `EntryKit.job`), then `EntryKit.load_configs('WAR')`: `LOCKSTYLE_CONFIG` (fallback table if missing) and `REGION_CONFIG` -> `_G.RegionConfig`, both through `CharPaths.module('common', ...)`. `char_paths.lua` installs the module cache at its end (since 2026-10-17), so these two are already cached and checked for a broken file. |
+| 2 | `entry_kit.lua:49` | `config_loader`: its first statement is `ModuleCache.install()`, a no-op after `char_paths` (kept for an entry that would not start with it); next it calls `LoadGate.begin()`, which numbers the load. Then `load_ui_config(CharPaths.name(), 'WAR')`. |
+| 3 | `entry_kit.lua:282-283` | `job_change_manager`, `UI_MANAGER` (after `config_loader` on purpose: cached, and `UI_MANAGER` reads `_G.UIConfig` at load). Every job, at file level. |
+| 4 | `get_sets`, `entry_kit.lua:297`; `war.lua:60-62` | `before_mote()`: `_G.WARWSConfig = CharPaths.optional('job', 'WAR_WS_CONFIG', 'WAR')` set before Mote, because `user_setup()` needs it. With `early_configs` (BRD, BST) the common configs of step 10 come here too (`:298`). |
+| 5 | `get_sets`, `entry_kit.lua:300` | `include('Mote-Include.lua')`. Mote runs `init_include()` at the end of its own load (`Mote-Include.lua:188`): creates `state`, `classes`, `sets.*` skeletons, includes Mote-Utility / Mote-SelfCommands / Mote-Globals, calls `job_setup()` then `user_setup()` (`:165-172`) then `init_gear_sets()` (`:175`). So `user_setup()` runs in the middle of this line, before INIT_SYSTEMS and before the job files. After `init_include()` returns, the rest of Mote-Include defines `handle_equipping_gear`, `cleanup_precast`, `cleanup_midcast` and the other default handlers, which is why no hook on them can be laid from `user_setup()`. |
+| 6 | `user_setup`, `entry_kit.lua:331-356` | `WARStates.configure()`, `after_states()` (WAR: the Ampulla lock re-applied to the default stance, `war.lua:66-69`), keybinds `bind_all()` into `_G.WARKeybinds` (`EntryKit.keybind_error` if the file fails to load; `keybinds_delay` binds them later, RUN 0.5 s), `KeybindUI.smart_init` (or `[WAR] Failed to load UI_MANAGER`), `after_ui(KeybindUI)`, `JobChangeManager.initialize()` (seeds the reference job), `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`, `after_setup()`, `pcall(require, 'shared/utils/dualbox/dualbox_manager')`. `select_default_macro_book` / `select_default_lockstyle` come from `EntryKit.load_job_files`, which has not run yet, so `macro_and_lockstyle` (`entry_kit.lua:237`) waits 0.2 s through `LoadGate.defer`, then calls the macro book (if `player` exists) and schedules the lockstyle after the delay. Until 2026-10-15 the entries called them at once and found them only because `show_intro()` had `require`d the wrappers, so a job without keys got neither. |
+| 7 | `init_gear_sets`, `entry_kit.lua:314-317` | `include(CharPaths.relative('sets', 'war_sets.lua', 'WAR'))` (`war/sets/war_sets.lua` in the 2026-09-30 layout), then `after_sets()`: WAR's `sync_weapon_with_hand()` (a local of `war.lua:43`) aligns `state.MainWeapon` with the weapon in hand now that the sets exist. |
+| 8 | Mote-Include `:193-201` | Mote defines a default `file_unload` only if the entry file has not defined one. `EntryKit.job` defines it for every entry, so Mote's default (and its `global_on_unload`) never runs. |
+| 9 | `get_sets`, `entry_kit.lua:303`; `:56-67` | `EntryKit.after_mote(Profiler)`: `include('../shared/utils/core/INIT_SYSTEMS.lua')` (detailed below), `data_loader`, the three `init_*_messages` hook files. |
+| 10 | `get_sets`, `entry_kit.lua:304-305`; `:285-292` | The common config globals (`LockstyleConfig`, `UIConfig`, `RECAST_CONFIG`, `WARTPConfig`; no TP config with `tp_config = false`, SMN), then `configs()` (WAR has none). |
+| 11 | `get_sets`, `entry_kit.lua:308` | `EntryKit.load_job('WAR', Profiler)` (`entry_kit.lua:134`), first step: `JobChangeManager.cancel_all()`. In a fresh sandbox this only bumps a brand-new counter and walks an empty registry (see Known issues). |
 | 12 | `entry_kit.lua:116` | `EntryKit.load_job_files('WAR')`: `LockstyleManager.install` / `MacrobookManager.install` define `select_default_lockstyle` / `select_default_macro_book` / `cancel_war_lockstyle_operations` (lazy `LockstyleManager.create`); then `include` of every file `EntryKit.job_files('WAR')` lists (`message_buffs.lua`, the 8 hook modules, `WAR_MOVEMENT.lua`), each timed under `//gs c perf`; then `require` of `dualbox_manager` (cache hit). |
-| 13 | `entry_kit.lua:134` | `load_job`, last step: `register_lockstyle_cancel("WAR", cancel_war_lockstyle_operations)`. |
-| 14 | `file_unload`, `:264-274` | `AmpullaLock.release()` first (slot locks outlive the file), then `EntryKit.unload(WARKeybinds)`: `JobChangeManager.cancel_all()`, `WARKeybinds.unbind_all()` (keeps the keys for the next load). |
+| 13 | `entry_kit.lua:141-144`, `:309` | `load_job`, last step: `register_lockstyle_cancel("WAR", cancel_war_lockstyle_operations)`; then `after_load()` (WAR has none). |
+| 14 | `file_unload`, `entry_kit.lua:370-373`; `war.lua:72-75` | `unload(next_file)` first: WAR's `AmpullaLock.release()` (slot locks outlive the file), then `EntryKit.unload(WARKeybinds)`: `JobChangeManager.cancel_all()`, `WARKeybinds.unbind_all()` (keeps the keys for the next load). `job_update` (`:363-366`) is `update()` then `EntryKit.update_hud`; `job_sub_job_change` (`:358-360`) is `EntryKit.sub_job_change`. |
 
 ### INIT_SYSTEMS.lua, in execution order
 
@@ -361,7 +362,7 @@ Why `original`: Battlemod rebuilds 0x028 for the chat (`addons/battlemod/parse_a
 
 Inside the sandbox `require` is `include_user` (`refresh.lua:132`). It returns `package.loaded[str]` when that is a table (Windower's own libs) and otherwise loads and executes the file every time (`user_functions.lua:300-327`); it never writes `package.loaded`.
 
-`ModuleCache.install()`, called once per sandbox. The first call comes from the end of `shared/utils/core/char_paths.lua`, the first file every entry requires (since 2026-10-17; before, from the top of `config_loader.lua`, which left `LOCKSTYLE_CONFIG` and `REGION_CONFIG` uncached and loaded `char_paths` and `module_cache` twice). The calls in `config_loader` and INIT_SYSTEMS stay as fallbacks. `install()` records `module_cache` itself, and `char_paths` records itself with `ModuleCache.remember`, so neither is loaded a second time. A job load runs about 124 file loads with the cache installed this early (offline profile, 2026-09-27), against about 356 when it arrived after `user_setup()`.
+`ModuleCache.install()`, called once per sandbox. The first call comes from the end of `shared/utils/core/char_paths.lua`, the first file every entry requires, itself or through `EntryKit.job` (since 2026-10-17; before, from the top of `config_loader.lua`, which left `LOCKSTYLE_CONFIG` and `REGION_CONFIG` uncached and loaded `char_paths` and `module_cache` twice). The calls in `config_loader` and INIT_SYSTEMS stay as fallbacks. `install()` records `module_cache` itself, and `char_paths` records itself with `ModuleCache.remember`, so neither is loaded a second time. A job load runs about 124 file loads with the cache installed this early (offline profile, 2026-09-27), against about 356 when it arrived after `user_setup()`.
 
 - Guard: `rawget(_G, '__require_cache_installed')`, so a second call in the same sandbox returns false.
 - Wraps the original `require`. Calls with a second argument (include-into-table form) or a non-string path pass straight through.
@@ -443,7 +444,7 @@ Every public function (module field or `_G` export) of the modules owned by this
 | `on_job_change(main_job, sub_job)` | short job names | nil | Cleanup now, debounced `gs reload` | every entry `job_sub_job_change`, through `EntryKit.sub_job_change` (`shared/utils/core/entry_kit.lua`) |
 | `force_reload(main_job?, sub_job?)` | defaults to `player` | nil | Bumps counter, sends `gs reload` immediately; error message if no job data | `CommonCommands.handle_reload` (`//gs c reload`) |
 | `cancel_all()` | | nil | Bumps counter, calls every registered lockstyle cancel under `pcall` | every entry `get_sets`, and `file_unload` through `EntryKit.unload` |
-| `register_lockstyle_cancel(job, fn)` | job code, function | nil | Stores in `STATE.lockstyle_cancel_registry` | `EntryKit.load_job`, after the job files (COR, PLD, SAM: their `get_sets`) |
+| `register_lockstyle_cancel(job, fn)` | job code, function | nil | Stores in `STATE.lockstyle_cancel_registry` | `EntryKit.load_job`, after the job files (every entry's `get_sets`) |
 
 ### JobSyncWatchdog (`_G.JobSyncWatchdog`, returned)
 
@@ -688,11 +689,11 @@ Read only: `LagDebugger`, `AutoMove`, `state`, `player`, `get_state`, `handle_up
 | `equip()` from a coroutine is never sent | Send `gs c update` instead |
 | `player.tp`, `buffactive` are GearSwap copies refreshed at event time | In a raw event or a coroutine, read `windower.ffxi.get_player()` (`live_tp()`, `.buffs`) |
 | `loadfile`, `setfenv`, `collectgarbage` are nil in the sandbox; `dofile` exists | Wrap doubtful stdlib with `rawget(_G, name)` |
-| `require` in the sandbox is `include_user` | Relative paths resolve through the character folder, `data/`, `libs/`; `ModuleCache` only from `char_paths` on (the first file every entry requires) |
+| `require` in the sandbox is `include_user` | Relative paths resolve through the character folder, `data/`, `libs/`; `ModuleCache` only from `char_paths` on (the first file every entry requires, itself or through `EntryKit.job`) |
 
 **Invariants to keep**
 
-1. `char_paths` is the first shared module an entry file requires (it installs the cache at the end of its file). Anything required before it is loaded twice. `config_loader` comes next, at file level: it starts the load's number (`LoadGate.begin`).
+1. `char_paths` is the first shared module an entry file requires, itself or through `EntryKit.job` (it installs the cache at the end of its file). Anything required before it is loaded twice if required again (`entry_kit` itself, required first by the one-line entries, is required nowhere else). `config_loader` comes next, at file level: it starts the load's number (`LoadGate.begin`).
 2. INIT_SYSTEMS is included right after Mote-Include, before the job files.
 3. Every hook layer: guard with a `_G` flag, refuse to install when the function it wraps is missing, `pcall` its own work so a failure never blocks the inner call.
 4. Every `file_unload` releases the slot locks its job owns, first, before anything that can throw.
@@ -742,7 +743,7 @@ Watching a new job's spells: call `_G.MidcastWatchdog.on_midcast_start(spell)` i
 Open:
 
 - `StateDisplayOverride` does not silence cycle messages and turns `//gs c update user` into "State: Unknown" or nothing (Mote calls it with no arguments; its header says so).
-- `JobChangeManager.cancel_all()` in `get_sets()` is a no-op in a fresh sandbox (every entry, e.g. `shared/entry/war.lua` `get_sets`).
+- `JobChangeManager.cancel_all()` in `get_sets()` is a no-op in a fresh sandbox (every entry, `EntryKit.load_job` from `EntryKit.job`'s `get_sets`).
 - Fixed 2026-09-28: `watchdog test` labelled its default spell Teleport-Holla while using Warp II's id (262); the label is now Warp II. The first word of `//gs c watchdog ...` is read in any case (`Watchdog On` used to show the help).
 - `watchdog clear` during a test leaves test mode on; the next real cast is reported stuck (`MidcastWatchdog.clear_all`).
 - Fixed 2026-09-28: the dead `ModuleCache.stats()` and `MidcastWatchdog.is_enabled/get_buffer/get_fallback_timeout/is_debug_enabled` are removed; WAR, DRK and SMN use `LifecycleManager.status_change()`.

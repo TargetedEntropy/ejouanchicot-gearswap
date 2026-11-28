@@ -14,7 +14,7 @@
 ---   • UI + Keybind system
 ---
 --- Architecture:
----   Main File >> EntryKit.load_job_files >> Hooks + Logic Module
+---   EntryKit.job >> EntryKit.load_job_files >> Hooks + Logic Module
 ---
 --- Modules:
 ---   • Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
@@ -29,168 +29,33 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---============================================================================
 
----============================================================================
---- INITIALIZATION
----============================================================================
-
--- Load global configurations with fallbacks
--- Where the character's files are (_common/, <job>/, saved/; older config/ and sets/)
+-- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
+-- (shared/utils/core/entry_kit.lua), with WHM's Cure tier start and its melee lock release
 local CharPaths = require('shared/utils/core/char_paths')
--- The hooks every entry shares (job_update, subjob change, unload, keybind error)
-local EntryKit = require('shared/utils/core/entry_kit')
 
--- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
-local LockstyleConfig, UIConfig = EntryKit.load_configs('WHM')
-
---- GearSwap entry hook: loads Mote-Include, the shared systems and the WHM modules.
---- Called by GearSwap each time this job file is loaded.
---- @return void
-function get_sets()
-    -- PERFORMANCE PROFILING (enable with: //gs c perf start)
-    local Profiler = require('shared/utils/debug/performance_profiler')
-    Profiler.start('get_sets')
-
-    mote_include_version = 2
-    include('Mote-Include.lua')
-    Profiler.mark('After Mote-Include')
-    -- the shared systems, the data, the spell / ability / weaponskill messages
-    EntryKit.after_mote(Profiler)
-
-    _G.LockstyleConfig = LockstyleConfig
-    _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
-
-    -- WHM-specific configs
-    _G.WHMTPConfig = require(CharPaths.module('job', 'WHM_TP_CONFIG', 'WHM'))
-
-    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
-    -- cancel registered
-    EntryKit.load_job('WHM', Profiler)
-
-    -- Initial macrobook/lockstyle are triggered from user_setup();
-    -- subjob changes go through JobChangeManager (job_sub_job_change).
-
-    Profiler.finish()
-end
-
----============================================================================
---- JOB CHANGE HANDLING
----============================================================================
-
---- Handle subjob change events
---- Coordinates lockstyle, macros, keybinds, and UI reload via JobChangeManager.
----
---- @param newSubjob string New subjob code
---- @param oldSubjob string Old subjob code
---- @return void
-function job_sub_job_change(newSubjob, oldSubjob)
-    EntryKit.sub_job_change('WHM', newSubjob)
-end
-
----============================================================================
---- SETUP FUNCTIONS
----============================================================================
-
---- Configure states, keybinds, UI and the initial macrobook/lockstyle.
---- Called by Mote-Include from init_include() (inside include('Mote-Include.lua'),
---- before init_gear_sets) and again on every subjob change, before job_sub_job_change().
---- @return void
-function user_setup()
-    -- ==========================================================================
-    -- STATE DEFINITIONS (Loaded from WHM_STATES.lua)
-    -- ==========================================================================
-
-    local WHMStates = require(CharPaths.module('job', 'WHM_STATES', 'WHM'))
-    WHMStates.configure()
-
-    -- The Cure tier choice starts as WHM_CURE_CONFIG.lua says (auto_tier_enabled = false: the
-    -- Cure Auto-Tier mode starts Off). Its key turns it on and off afterwards, until the next load.
-    local cure_ok, cure_config = CharPaths.load('job', 'WHM_CURE_CONFIG', 'WHM')
-    if cure_ok and type(cure_config) == 'table' and cure_config.auto_tier_enabled == false and state.CureAutoTier then
-        state.CureAutoTier:set('Off')
-    end
-
-    -- ==========================================================================
-    -- KEYBINDS LOADING (Always executed after reload)
-    -- ==========================================================================
-    local success, keybinds = pcall(require, CharPaths.module('job', 'WHM_KEYBINDS', 'WHM'))
-    if success and keybinds then
-        WHMKeybinds = keybinds
-        WHMKeybinds.bind_all()
-    else
-        EntryKit.keybind_error('WHM', keybinds)
-    end
-
-    -- ==========================================================================
-    -- UI INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    local ui_success, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
-    if ui_success and KeybindUI then
-        local init_delay = (_G.UIConfig and _G.UIConfig.init_delay) or 5.0
-        KeybindUI.smart_init("WHM", init_delay)
-    end
-
-    -- ==========================================================================
-    -- JOB CHANGE MANAGER INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    if jcm_success and JobChangeManager then
-        -- Initialize with current job state
-        JobChangeManager.initialize()
-
-        EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)
-    end
-
-    -- ==========================================================================
-    -- DUALBOX IPC (covers main job change - job_sub_job_change is subjob-only)
-    -- The require() triggers dualbox_manager auto-init which schedules the
-    -- correct IPC call once per gs reload (request_alt_job for MAIN role,
-    -- send_job_update for ALT role). Do NOT call them explicitly here.
-    -- ==========================================================================
-    pcall(require, 'shared/utils/dualbox/dualbox_manager')
-end
-
----============================================================================
---- STATE UPDATE HOOK
----============================================================================
-
---- Called by Mote-Include after state changes
---- Updates the UI to reflect current state values
---- @param cmdParams table Parameters passed to Mote's handle_update
---- @param eventArgs table Mote event arguments (unused)
---- @return void
-function job_update(cmdParams, eventArgs)
-    EntryKit.update_hud('WHM')
-end
-
---- Load the WHM equipment sets.
---- Called by Mote-Include at the end of init_include(), after user_setup().
---- @return void
-function init_gear_sets()
-    include(CharPaths.relative('sets', 'whm_sets.lua', 'WHM'))
-end
-
---- Called by GearSwap when this job file is unloaded (job change, reload).
---- Releases the Melee ON weapon lock, cancels pending job-change operations
---- and unbinds the job keys.
---- @return void
-function file_unload()
-    -- disable() lives in GearSwap's own table, which survives the reload,
-    -- while OffenseMode comes back at its default: release its lock here.
-    -- Read from windower._whm_melee_lock (set by WHM_COMMANDS), not from the
-    -- mode: on a subjob change Mote's user_setup() has already reset
-    -- OffenseMode to None. Not during a craft session, whose lock
-    -- CraftManager owns. The Combat Mode lock is freed by the next job
-    -- (shared/utils/core/combat_mode.lua).
-    local craft_ok, crafting = pcall(function()
-        return require('shared/utils/craft/craft_manager').is_active()
-    end)
-    if not (craft_ok and crafting) then
-        if windower._whm_melee_lock or (state and state.OffenseMode and state.OffenseMode.value == 'Melee ON') then
-            enable('main', 'sub', 'range')
-            windower._whm_melee_lock = nil
-            pcall(function() require('shared/utils/core/combat_mode').release('whm_melee') end)
+require('shared/utils/core/entry_kit').job('WHM', {
+    -- The Cure tier choice starts as WHM_CURE_CONFIG.lua says (auto_tier_enabled = false: the Cure Auto-Tier mode
+    -- starts Off). Its key turns it on and off afterwards, until the next load.
+    after_states = function()
+        local ok, cure_config = CharPaths.load('job', 'WHM_CURE_CONFIG', 'WHM')
+        if ok and type(cure_config) == 'table' and cure_config.auto_tier_enabled == false and state.CureAutoTier then
+            state.CureAutoTier:set('Off')
         end
-    end
-
-    EntryKit.unload(WHMKeybinds)
-end
+    end,
+    -- disable() lives in GearSwap's own table, which survives the reload, while OffenseMode comes back at its
+    -- default: release its lock here. Read from windower._whm_melee_lock (set by WHM_COMMANDS), not from the mode:
+    -- on a subjob change Mote's user_setup() has already reset OffenseMode to None. Not during a craft session,
+    -- whose lock CraftManager owns. The Combat Mode lock is freed by the next job (shared/utils/core/combat_mode.lua).
+    unload = function()
+        local craft_ok, crafting = pcall(function()
+            return require('shared/utils/craft/craft_manager').is_active()
+        end)
+        if not (craft_ok and crafting) then
+            if windower._whm_melee_lock or (state and state.OffenseMode and state.OffenseMode.value == 'Melee ON') then
+                enable('main', 'sub', 'range')
+                windower._whm_melee_lock = nil
+                pcall(function() require('shared/utils/core/combat_mode').release('whm_melee') end)
+            end
+        end
+    end,
+})

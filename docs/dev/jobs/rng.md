@@ -32,7 +32,7 @@ What RNG adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/rng.lua` | 138 | Entry (the same for every character; `<Char>_RNG.lua` and its template `_master/entry/Tetsouo_RNG.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
+| `shared/entry/rng.lua` | 27 | Entry (the same for every character; `<Char>_RNG.lua` and its template `_master/entry/Tetsouo_RNG.lua` are one `include` of it): one line, `require('shared/utils/core/entry_kit').job('RNG')` (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`; RNG adds no step) |
 | `shared/jobs/rng/functions/RNG_PRECAST.lua` | 61 | `job_precast` (guard, cooldown, Flurry groups, WS handler) / `job_post_precast` (TP gear, Velocity Shot layer on the aim); starts `FlurryTracker` at load |
 | `shared/jobs/rng/functions/RNG_MIDCAST.lua` | 90 | `job_midcast` (empty) / `job_post_midcast` (ranged attack and subjob magic via MidcastManager, ranged buff layers) |
 | `shared/jobs/rng/functions/RNG_AFTERCAST.lua` | 37 | `LifecycleManager.aftercast` + `QuiverManager.after_ranged_attack(spell, nil, nil, 15)` |
@@ -61,29 +61,29 @@ What RNG adds on top of the shared pipeline:
 Same shape as BLU and PUP ([core lifecycle](../systems/core-lifecycle.md#how-a-job-file-boots)):
 Mote-Include calls `user_setup()` and `init_gear_sets()` from inside
 `include('Mote-Include.lua')`, before `INIT_SYSTEMS` and before the RNG hook
-files exist. The entry sets `_G.RegionConfig` first, then loads the UI config
-(`config_loader`).
+files exist. `EntryKit.job` (`EntryKit.load_configs`) sets `_G.RegionConfig` first, then
+loads the UI config (`config_loader`).
 
-`user_setup()`:
+`user_setup()` (`EntryKit.job`, `shared/utils/core/entry_kit.lua`):
 
 1. `RNGStates.configure()` creates the states (see [Mote states](#mote-states)).
 2. `RNG_KEYBINDS` into the global `RNGKeybinds`, `bind_all()`; a failed
    require prints `[RNG] Keybinds failed to load: <error>`.
-3. `KeybindUI.smart_init("RNG", init_delay)`. `ui_lifecycle.lua` waits for
+3. `KeybindUI.smart_init("RNG", UIConfig.init_delay)`. `ui_lifecycle.lua` waits for
    `state.RangeWeapon` before drawing the HUD of an RNG.
 4. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`: macro
    book 0.2 s later, once `EntryKit.load_job_files` has run, lockstyle after
    `LockstyleConfig.initial_load_delay`.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-`get_sets()` then sets `_G.LockstyleConfig`, `_G.RECAST_CONFIG`,
-`_G.RNGTPConfig`; then `EntryKit.load_job` cancels pending job-change work, loads the job files
+`get_sets()` then runs `EntryKit.after_mote`, sets `_G.LockstyleConfig`,
+`_G.UIConfig`, `_G.RECAST_CONFIG`, `_G.RNGTPConfig`; then `EntryKit.load_job` cancels pending job-change work, loads the job files
 and registers `cancel_rng_lockstyle_operations`.
 
-`job_update`: `KeybindUI.update()`. `file_unload`:
-`JobChangeManager.cancel_all()`, then `RNGKeybinds.unbind_all()`. These hooks,
-the keybind error and `job_sub_job_change` are the shared `EntryKit` calls
-(`shared/utils/core/entry_kit.lua`).
+`job_update`: `EntryKit.update_hud` (`KeybindUI.update()`). `file_unload`:
+`EntryKit.unload(RNGKeybinds)`: `JobChangeManager.cancel_all()`, then
+`RNGKeybinds.unbind_all()`. `job_sub_job_change` is `EntryKit.sub_job_change`.
+All six come from `EntryKit.job('RNG')`; RNG adds no step.
 
 ### Precast
 

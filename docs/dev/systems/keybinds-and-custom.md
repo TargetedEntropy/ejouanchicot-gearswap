@@ -45,15 +45,15 @@ PUP got its `_KEYBINDS` and `_CUSTOM` templates with its rewrite on 2026-09-29 (
 
 ### Loading a job's keys
 
-The entry file's `user_setup()` requires the keybind file after the states are configured, keeps it in a global named `<JOB>Keybinds` and calls `bind_all()`. From `shared/entry/war.lua` `user_setup`:
+The entry's `user_setup()` (defined by `EntryKit.job`) requires the keybind file after the states are configured (and the job's `after_states` step), keeps it in a global named `<JOB>Keybinds` and calls `bind_all()`; RUN does it 0.5 s later (`keybinds_delay`). From `shared/utils/core/entry_kit.lua` `EntryKit.job`:
 
 ```lua
-local kb_success, keybinds = pcall(require, CharPaths.module('job', 'WAR_KEYBINDS', 'WAR'))
-if kb_success and keybinds then
-    WARKeybinds = keybinds
-    WARKeybinds.bind_all()
+local ok, keybinds = pcall(require, CharPaths.module('job', job .. '_KEYBINDS', job))
+if ok and keybinds then
+    _G[job .. 'Keybinds'] = keybinds
+    keybinds.bind_all()
 else
-    EntryKit.keybind_error('WAR', keybinds)
+    EntryKit.keybind_error(job, keybinds)
 end
 ```
 

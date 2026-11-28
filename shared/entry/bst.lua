@@ -11,210 +11,10 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---============================================================================
 
----============================================================================
---- CONFIGURATION LOADING
----============================================================================
-
--- Load global configurations with fallbacks
--- Where the character's files are (_common/, <job>/, saved/; older config/ and sets/)
+-- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
+-- (shared/utils/core/entry_kit.lua), with BST's pet data (before Mote-Include, so user_setup has it), its ecosystems, the bst-hud
+-- addon and the pet monitor
 local CharPaths = require('shared/utils/core/char_paths')
--- The hooks every entry shares (job_update, subjob change, unload, keybind error)
-local EntryKit = require('shared/utils/core/entry_kit')
-
--- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
-local LockstyleConfig, UIConfig = EntryKit.load_configs('BST')
-
--- Core modules, after config_loader: UI_MANAGER reads _G.UIConfig when it loads.
--- The require cache is already in (char_paths.lua, required first, installs it).
-local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-local ui_success, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
-
----============================================================================
---- GEARSWAP ENTRY POINT
----============================================================================
-
---- GearSwap entry hook: loads the BST configs, Mote-Include, the shared systems
---- and the BST modules. Called by GearSwap each time this job file is loaded.
---- @return void
-function get_sets()
-    -- PERFORMANCE PROFILING (enable with: //gs c perf start)
-    local Profiler = require('shared/utils/debug/performance_profiler')
-    Profiler.start('get_sets')
-
-    mote_include_version = 2
-
-    -- AutoMove ENABLED for BST: movement-speed feet (sets.MoveSpeed) are applied
-    -- by SetBuilder.build_idle_set via state.Moving, which ONLY AutoMove maintains.
-    -- Disabling it left no replacement, so movement feet never equipped.
-
-    -- Load BST-specific configs BEFORE Mote-Include (needed by user_setup)
-    _G.LockstyleConfig = LockstyleConfig
-    _G.UIConfig = UIConfig
-    _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
-    _G.BSTBeastPetData = require(CharPaths.module('job', 'BST_PET_DATA', 'BST'))
-    -- the monster correlation, said in the chat on an ecosystem change and when a pet comes out
-    -- (logic/ecosystem_manager.lua); optional: a character without the file only loses those lines
-    local eco_ok, eco_data = CharPaths.load('job', 'BST_ECOSYSTEM_DATA', 'BST')
-    _G.BSTEcosystemData = eco_ok and eco_data or nil
-    _G.BSTTPConfig = require(CharPaths.module('job', 'BST_TP_CONFIG', 'BST'))
-
-    include('Mote-Include.lua')
-    Profiler.mark('After Mote-Include')
-    -- the shared systems, the data, the spell / ability / weaponskill messages
-    EntryKit.after_mote(Profiler)
-
-    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
-    -- cancel registered
-    EntryKit.load_job('BST', Profiler)
-
-    Profiler.finish()
-end
-
----============================================================================
---- USER SETUP (STATE DEFINITIONS + INITIALIZATION)
----============================================================================
-
---- Configure states, ecosystem, keybinds, UI, BST HUD and pet monitoring.
---- Called by Mote-Include from init_include() (inside include('Mote-Include.lua'),
---- before init_gear_sets) and again on every subjob change, before job_sub_job_change().
---- @return void
-function user_setup()
-    -- ==========================================================================
-    -- STATES CONFIGURATION
-    -- ==========================================================================
-    local BSTStates = require(CharPaths.module('job', 'BST_STATES', 'BST'))
-    BSTStates.configure()
-
-    -- ==========================================================================
-    -- DYNAMIC STATE INITIALIZATION (BST-SPECIFIC)
-    -- ==========================================================================
-    -- CRITICAL: Initialize ecosystem BEFORE UI so species state exists
-    local em_success, EcosystemManager = pcall(require, 'shared/jobs/bst/functions/logic/ecosystem_manager')
-    if em_success and EcosystemManager then
-        EcosystemManager.initialize()
-    else
-        local msg_success, MessageFormatter = pcall(require, 'shared/utils/messages/message_formatter')
-        if msg_success and MessageFormatter then
-            MessageFormatter.show_error('[BST] Failed to load EcosystemManager')
-        end
-    end
-
-    -- ==========================================================================
-    -- KEYBINDS LOADING
-    -- ==========================================================================
-    local kb_success, keybinds = pcall(require, CharPaths.module('job', 'BST_KEYBINDS', 'BST'))
-    if kb_success and keybinds then
-        BSTKeybinds = keybinds
-        BSTKeybinds.bind_all()
-    else
-        EntryKit.keybind_error('BST', keybinds)
-    end
-
-    -- ==========================================================================
-    -- UI INITIALIZATION
-    -- ==========================================================================
-    if ui_success and KeybindUI then
-        KeybindUI.smart_init("BST", UIConfig.init_delay)
-
-        -- Export to _G for ecosystem_manager access
-        _G.KeybindUI = KeybindUI
-    end
-
-    -- ==========================================================================
-    -- JOB CHANGE MANAGER INITIALIZATION
-    -- ==========================================================================
-    if jcm_success and JobChangeManager then
-        JobChangeManager.initialize()
-        EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)
-    end
-
-    -- ==========================================================================
-    -- LOAD BST HUD ADDON (triple-guarded: counter + job check + unload-first)
-    -- ==========================================================================
-    _G.bst_hud_load_id = (_G.bst_hud_load_id or 0) + 1
-    local my_hud_id = _G.bst_hud_load_id
-
-    coroutine.schedule(function()
-        -- Guard 1: Counter (invalidated by newer reload or file_unload)
-        if _G.bst_hud_load_id ~= my_hud_id then return end
-        -- Guard 2: Only load if still on BST (handles main job change)
-        if player and player.main_job ~= 'BST' then return end
-        -- Guard 3: bst-hud = false in _common/tools/ADDONS_CONFIG.lua
-        local JobAddons = require('shared/utils/core/job_addons')
-        if not JobAddons.allowed('bst-hud') then return end
-        -- Guard 4: Always unload first, then load after delay
-        windower.send_command('lua unload bst-hud')
-        coroutine.schedule(function()
-            if _G.bst_hud_load_id ~= my_hud_id then return end
-            if player and player.main_job ~= 'BST' then return end
-            windower.send_command('lua load bst-hud')
-        end, 1.5)
-    end, 2.0)
-
-    -- ==========================================================================
-    -- START PET MONITORING (pet engaged status + auto-engage)
-    -- ==========================================================================
-    -- Runs with or without a pet; the monitor skips the pet checks when none.
-    coroutine.schedule(function()
-        if player and player.main_job ~= 'BST' then return end
-        if not _G.start_pet_monitoring then return end
-        start_pet_monitoring()
-    end, 3.0)  -- Start after 3s delay (let UI/keybinds load first)
-
-    -- ==========================================================================
-    -- DUALBOX IPC (covers main job change - job_sub_job_change is subjob-only)
-    -- The require() triggers dualbox_manager auto-init which schedules the
-    -- correct IPC call once per gs reload (request_alt_job for MAIN role,
-    -- send_job_update for ALT role). Do NOT call them explicitly here.
-    -- ==========================================================================
-    pcall(require, 'shared/utils/dualbox/dualbox_manager')
-end
-
----============================================================================
---- STATE UPDATE HOOK
----============================================================================
-
---- Called by Mote-Include after state changes
---- Updates the UI to reflect current state values
---- @param cmdParams table Parameters passed to Mote's handle_update
---- @param eventArgs table Mote event arguments (unused)
---- @return void
-function job_update(cmdParams, eventArgs)
-    EntryKit.update_hud('BST')
-end
-
----============================================================================
---- EQUIPMENT SETS LOADING
----============================================================================
-
---- Load the BST equipment sets.
---- Called by Mote-Include at the end of init_include(), after user_setup().
---- @return void
-function init_gear_sets()
-    include(CharPaths.relative('sets', 'bst_sets.lua', 'BST'))
-end
-
----============================================================================
---- SUBJOB CHANGE HANDLER
----============================================================================
-
---- Handle sub job change events (called by Mote-Include after user_setup())
---- Hands the reload sequence to JobChangeManager.
---- @param newSubjob string New subjob
---- @param oldSubjob string Old subjob
---- @return void
-function job_sub_job_change(newSubjob, oldSubjob)
-    EntryKit.sub_job_change('BST', newSubjob)
-end
-
----============================================================================
---- PET MONITORING (prerender event - 1s throttle)
----============================================================================
---- Uses windower prerender event (fires every frame, throttled to 1s).
---- Tracks: pet engaged status + auto-engage only.
---- Movement gear handled by AutoMove (shared system, 0.12s polling).
---- Prerender events cannot die like coroutine.schedule chains.
----============================================================================
 
 local monitor_event_id = nil
 local last_check = 0
@@ -297,28 +97,63 @@ end
 _G.start_pet_monitoring = start_pet_monitoring
 _G.stop_pet_monitoring = stop_pet_monitoring
 
----============================================================================
---- CLEANUP ON UNLOAD
----============================================================================
-
---- Called by GearSwap when this job file is unloaded (job change, reload).
---- Stops pet monitoring, unloads the BST HUD, cancels pending job-change
---- operations, clears exported globals and unbinds the job keys.
---- @return void
-function file_unload()
-    -- Stop pet monitoring
-    stop_pet_monitoring()
-
-    -- Invalidate any pending BST-HUD load coroutines (prevents double-load)
-    _G.bst_hud_load_id = (_G.bst_hud_load_id or 0) + 1
-
-    -- Unload BST HUD addon (unless ADDONS_CONFIG.lua leaves it alone)
-    require('shared/utils/core/job_addons').run('unload', 'bst-hud')
-
-    -- Clear exported globals
-    _G.KeybindUI = nil
-    _G.start_pet_monitoring = nil
-    _G.stop_pet_monitoring = nil
-
-    EntryKit.unload(BSTKeybinds)
-end
+require('shared/utils/core/entry_kit').job('BST', {
+    early_configs = true,
+    before_mote = function()
+        _G.BSTBeastPetData = require(CharPaths.module('job', 'BST_PET_DATA', 'BST'))
+        local eco_ok, eco_data = CharPaths.load('job', 'BST_ECOSYSTEM_DATA', 'BST')
+        _G.BSTEcosystemData = eco_ok and eco_data or nil
+    end,
+    after_states = function()
+        local em_success, EcosystemManager = pcall(require, 'shared/jobs/bst/functions/logic/ecosystem_manager')
+        if em_success and EcosystemManager then
+            EcosystemManager.initialize()
+        else
+            local msg_success, MessageFormatter = pcall(require, 'shared/utils/messages/message_formatter')
+            if msg_success and MessageFormatter then
+                MessageFormatter.show_error('[BST] Failed to load EcosystemManager')
+            end
+        end
+    end,
+    after_ui = function(KeybindUI)
+        _G.KeybindUI = KeybindUI
+    end,
+    after_setup = function()
+        -- bst-hud reloaded 2 s later: a counter drops a load a newer reload or file_unload replaced
+        _G.bst_hud_load_id = (_G.bst_hud_load_id or 0) + 1
+        local my_hud_id = _G.bst_hud_load_id
+        coroutine.schedule(function()
+            -- Guard 1: Counter (invalidated by newer reload or file_unload)
+            if _G.bst_hud_load_id ~= my_hud_id then return end
+            -- Guard 2: Only load if still on BST (handles main job change)
+            if player and player.main_job ~= 'BST' then return end
+            -- Guard 3: bst-hud = false in _common/tools/ADDONS_CONFIG.lua
+            local JobAddons = require('shared/utils/core/job_addons')
+            if not JobAddons.allowed('bst-hud') then return end
+            -- Guard 4: Always unload first, then load after delay
+            windower.send_command('lua unload bst-hud')
+            coroutine.schedule(function()
+                if _G.bst_hud_load_id ~= my_hud_id then return end
+                if player and player.main_job ~= 'BST' then return end
+                windower.send_command('lua load bst-hud')
+            end, 1.5)
+        end, 2.0)
+        -- The pet monitor (pet engaged status + auto-engage), 3 s later (let UI/keybinds load first). Runs with or
+        -- without a pet; the monitor skips the pet checks when none.
+        coroutine.schedule(function()
+            if player and player.main_job ~= 'BST' then return end
+            if not _G.start_pet_monitoring then return end
+            start_pet_monitoring()
+        end, 3.0)
+    end,
+    unload = function()
+        stop_pet_monitoring()
+        _G.bst_hud_load_id = (_G.bst_hud_load_id or 0) + 1
+        -- Unload BST HUD addon (unless ADDONS_CONFIG.lua leaves it alone)
+        require('shared/utils/core/job_addons').run('unload', 'bst-hud')
+        -- Clear exported globals
+        _G.KeybindUI = nil
+        _G.start_pet_monitoring = nil
+        _G.stop_pet_monitoring = nil
+    end,
+})

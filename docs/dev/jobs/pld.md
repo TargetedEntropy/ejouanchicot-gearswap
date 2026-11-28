@@ -41,7 +41,7 @@ numbers are avoided because they drift.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/pld.lua` | 222 | Entry point (the same for every character; `<Char>_PLD.lua` and its template `_master/entry/Tetsouo_PLD.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/pld.lua` | 77 | Entry point (the same for every character; `<Char>_PLD.lua` and its template `_master/entry/Tetsouo_PLD.lua` are one `include` of it): one `EntryKit.job('PLD', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with PLD's steps: `before_mote` sets `_G.PLDWSConfig`, `configs` `_G.BluMagicConfig`, `after_load` and `after_states` the WS slot rebuild (`after_states` also `AmpullaLock.apply`), `unload` `AmpullaLock.release` |
 | `shared/jobs/pld/functions/PLD_PRECAST.lua` | 131 | `job_precast` (guard, cooldown, auto-abilities, WS) / `job_post_precast` (/SCH weaponskill variants, TP gear, CureSelf FC, enmity override) |
 | `shared/jobs/pld/functions/PLD_MIDCAST.lua` | 203 | `job_midcast` (Cure to Cure IV) / `job_post_midcast` (name-before-skill dispatch, enmity override) |
 | `shared/jobs/pld/functions/PLD_AFTERCAST.lua` | 36 | `LifecycleManager.aftercast()`, empty `job_post_aftercast` |
@@ -100,30 +100,33 @@ PLD hook files exist (same model as [BLM](blm.md#load-sequence) and
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as shared/entry/pld.lua
+    participant E as shared/entry/pld.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
-    GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG)
+    GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG, JCM, UI_MANAGER)
     GS->>E: get_sets()
+    E->>E: before_mote: _G.PLDWSConfig = CharPaths.optional PLD_WS_CONFIG
     E->>M: include Mote-Include
-    M->>E: user_setup() (PLDWSConfig, states, WS slots if modules exist, ammo lock, keybinds, UI, JCM, macrobook/lockstyle, dualbox)
+    M->>E: user_setup() (states, after_states: WS slots if modules exist + ammo lock, keybinds, UI, JCM, macrobook/lockstyle, dualbox)
     M->>E: init_gear_sets() -> include pld/sets/pld_sets.lua
-    E->>E: INIT_SYSTEMS, data_loader, message hooks
-    E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, PLD_TP_CONFIG (sets _G.PLDTPConfig), _G.BluMagicConfig
-    E->>E: JobChangeManager.cancel_all()
+    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, PLD_TP_CONFIG (sets _G.PLDTPConfig), configs: _G.BluMagicConfig
+    E->>E: EntryKit.load_job("PLD"): JobChangeManager.cancel_all()
     E->>F: load_job_files('PLD')
     F->>F: lockstyle + macro book install, message_buffs + 8 hook files, require dualbox_manager
-    E->>E: pld_rebuild_ws_slots(), register_lockstyle_cancel("PLD", ...)
+    E->>E: register_lockstyle_cancel("PLD", ...), after_load: pld_rebuild_ws_slots()
 ```
 
-`user_setup()` (`shared/entry/pld.lua`):
+`_G.PLDWSConfig = CharPaths.optional('job', 'PLD_WS_CONFIG', 'PLD')` is set by
+PLD's `before_mote` step, before Mote-Include: `configure()` builds `state.WS1`/`WS2` from it.
 
-1. `_G.PLDWSConfig = CharPaths.optional('job', 'PLD_WS_CONFIG', 'PLD')`, then
-   `require(CharPaths.module('job', 'PLD_STATES', 'PLD')).configure()` creates every state and
-   calls `apply_hybrid_profile(state.HybridMode.value)`.
+`user_setup()` (defined by `EntryKit.job`, `shared/utils/core/entry_kit.lua`; PLD's part of step 1 is its `after_states`):
+
+1. `require(CharPaths.module('job', 'PLD_STATES', 'PLD')).configure()` creates every state and
+   calls `apply_hybrid_profile(state.HybridMode.value)`. Then `after_states`:
    `_G.pld_rebuild_ws_slots()` runs only when the job modules already exist (a
    subjob change re-runs `user_setup` in the same sandbox); on a cold load
-   `get_sets` calls it after `EntryKit.load_job_files('PLD')`. Then
+   `get_sets` calls it after `EntryKit.load_job('PLD')` (`after_load`). Then
    `AmpullaLock.apply(state.HybridMode.value)` gives back an ammo lock left by a
    stance that is no longer selected.
 2. `require(CharPaths.module('job', 'PLD_KEYBINDS', 'PLD'))` (a `KeybindManager` module) into
@@ -131,7 +134,7 @@ sequenceDiagram
    longer wanted, binds the ones whose `subjob` / `exclude_subjob` / `visible`
    rules apply, then `show_intro()`. A failed require prints
    `[PLD] Keybinds failed to load: <error>` (`EntryKit.keybind_error`, `MessageFormatter.show_error`).
-3. `KeybindUI.smart_init("PLD", _G.UIConfig.init_delay or 5)`. The UI readiness
+3. `KeybindUI.smart_init("PLD", UIConfig.init_delay)`. The UI readiness
    anchor for PLD is `state.HybridMode` (`ui_lifecycle.lua` `are_states_ready`).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
@@ -141,16 +144,16 @@ sequenceDiagram
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
 `job_sub_job_change` only calls `JobChangeManager.on_job_change`
-(`EntryKit.sub_job_change`). `file_unload` releases the ammo lock **first**
+(`EntryKit.sub_job_change`). `file_unload` runs PLD's `unload` step first, which releases the ammo lock
 (GearSwap runs the whole of `file_unload` in one `pcall`, so an error further
 down would leak the lock), then `EntryKit.unload(PLDKeybinds)`:
 `JobChangeManager.cancel_all()`, then `PLDKeybinds.unbind_all()`. `job_update`
 is `EntryKit.update_hud('PLD')`; its `UPDATE_DEBUG` step 2 line, once PLD's
 own, now prints for every job.
 
-PLD calls `EntryKit.load_job_files('PLD')` itself (not `EntryKit.load_job`),
-between its own `JobChangeManager.cancel_all()` and `pld_rebuild_ws_slots()`. It
-installs the lockstyle and macro book, includes `message_buffs.lua`,
+`get_sets` ends with `EntryKit.load_job('PLD', Profiler)` (cancel what the previous job scheduled,
+load the files, register the lockstyle cancel), then PLD's `after_load` step runs
+`pld_rebuild_ws_slots()`. `EntryKit.load_job_files('PLD')` installs the lockstyle and macro book, includes `message_buffs.lua`,
 `PLD_PRECAST`, `PLD_MIDCAST`, `PLD_AFTERCAST`, `PLD_IDLE`, `PLD_ENGAGED`,
 `PLD_STATUS`, `PLD_BUFFS`, `PLD_COMMANDS`, then requires `dualbox_manager`. Logic modules are required lazily by
 the hooks (`ensure_modules_loaded`, `ensure_commands_loaded`, first idle/engage).
@@ -710,7 +713,7 @@ The player-facing list is [pld/sets.md](../../user/jobs/pld/sets.md).
 - `BurtgangKC` (the state, or Kraken Club actually in the sub slot while the chosen
   `sets[MainWeapon]` sets no `sub` of its own) wins over every HybridMode for the engaged base. The "no sub" condition (2026-09-28) keeps the club
   still in hand for one rebuild after leaving BurtgangKC from selecting the KC set.
-- `aoe_manager` captures `_G.BluMagicConfig` when first required; the entry must set
+- `aoe_manager` captures `_G.BluMagicConfig` when first required; the entry's `configs` step sets
   it before the first `//gs c` command.
 - Gear posted from `job_state_change` is lost: Mote calls it before `handle_update`.
 

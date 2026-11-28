@@ -12,146 +12,30 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---============================================================================
 
----============================================================================
---- INITIALIZATION & CONFIGURATION LOADING
----============================================================================
+-- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
+-- (shared/utils/core/entry_kit.lua), with SMN's Carbuncle at load and its skillup loop stopped at unload (no TP configuration)
+local LockstyleConfig
 
--- Where the character's files are (_common/, <job>/, saved/; older config/ and sets/)
-local CharPaths = require('shared/utils/core/char_paths')
--- The hooks every entry shares (job_update, subjob change, unload, keybind error)
-local EntryKit = require('shared/utils/core/entry_kit')
-
--- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
-local LockstyleConfig, UIConfig = EntryKit.load_configs('SMN')
-
--- Core modules, after config_loader: UI_MANAGER reads _G.UIConfig when it loads.
--- The require cache is already in (char_paths.lua, required first, installs it).
-local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-local ui_success, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
-
----============================================================================
---- GEARSWAP HOOKS - INITIALIZATION
----============================================================================
-
---- GearSwap entry hook: loads Mote-Include, the shared systems and the SMN modules.
---- Called by GearSwap each time this job file is loaded.
---- @return void
-function get_sets()
-    local Profiler = require('shared/utils/debug/performance_profiler')
-    Profiler.start('get_sets')
-
-    mote_include_version = 2
-    include('Mote-Include.lua')
-    Profiler.mark('After Mote-Include')
-
-    -- the shared systems, the data, the spell / ability / weaponskill messages
-    EntryKit.after_mote(Profiler)
-
-    _G.LockstyleConfig = LockstyleConfig
-    _G.UIConfig = UIConfig
-    _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
-    Profiler.mark('After configs')
-
-    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
-    -- cancel registered
-    EntryKit.load_job('SMN', Profiler)
-
-    Profiler.finish()
-end
-
---- Load SMN equipment sets from external file (modular: sets/smn/smn_sets.lua).
---- Called by Mote-Include at the end of init_include(), after user_setup().
---- @return void
-function init_gear_sets()
-    include(CharPaths.relative('sets', 'smn_sets.lua', 'SMN'))
-end
-
----============================================================================
---- GEARSWAP HOOKS - JOB CHANGE HANDLING
----============================================================================
-
---- Handle sub job change events (called by Mote-Include after user_setup())
---- Hands the reload to JobChangeManager.
---- @param newSubjob string New subjob
---- @param oldSubjob string Old subjob
---- @return void
-function job_sub_job_change(newSubjob, oldSubjob)
-    EntryKit.sub_job_change('SMN', newSubjob)
-end
-
----============================================================================
---- GEARSWAP HOOKS - USER SETUP
----============================================================================
-
---- Configure states, keybinds, UI, initial macrobook/lockstyle and Carbuncle auto-summon.
---- Called by Mote-Include from init_include() (inside include('Mote-Include.lua'),
---- before init_gear_sets) and again on every subjob change, before job_sub_job_change().
---- @return void
-function user_setup()
-    local SMNStates = require(CharPaths.module('job', 'SMN_STATES', 'SMN'))
-    SMNStates.configure()
-
-    local kb_success, keybinds = pcall(require, CharPaths.module('job', 'SMN_KEYBINDS', 'SMN'))
-    if kb_success and keybinds then
-        SMNKeybinds = keybinds
-        SMNKeybinds.bind_all()
-    else
-        EntryKit.keybind_error('SMN', keybinds)
-    end
-
-    if ui_success and KeybindUI then
-        KeybindUI.smart_init("SMN", UIConfig.init_delay)
-    end
-
-    if jcm_success and JobChangeManager then
-        JobChangeManager.initialize()
-
-        EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)
-    end
-
-    -- Auto-summon Carbuncle when no pet is out (runs on load and on every
-    -- subjob change, since both go through user_setup). Through LoadGate: on a
-    -- subjob change Mote runs user_setup in the old environment and again after
+LockstyleConfig = require('shared/utils/core/entry_kit').job('SMN', {
+    tp_config = false,
+    -- Auto-summon Carbuncle when no pet is out (runs on load and on every subjob change, since both go through
+    -- user_setup). Through LoadGate: on a subjob change Mote runs user_setup in the old environment and again after
     -- the reload, and only the reload's summon must go out
-    require('shared/utils/core/load_gate').defer(LockstyleConfig.initial_load_delay + 2.0, function()
-        if player and player.main_job == 'SMN' and player.status ~= 'Dead' then
-            local pet = windower.ffxi.get_mob_by_target('pet')
-            if not pet or not pet.id or pet.id == 0 then
-                send_command('input /ma "Carbuncle" <me>')
+    after_setup = function()
+        require('shared/utils/core/load_gate').defer(LockstyleConfig.initial_load_delay + 2.0, function()
+            if player and player.main_job == 'SMN' and player.status ~= 'Dead' then
+                local pet = windower.ffxi.get_mob_by_target('pet')
+                if not pet or not pet.id or pet.id == 0 then
+                    send_command('input /ma "Carbuncle" <me>')
+                end
             end
+        end, 'smn summon')
+    end,
+    -- Halt the Summoning Magic skillup loop before module unload so orphan coroutines can't keep spamming Siren on
+    -- the next job.
+    unload = function()
+        if _G.cancel_smn_skillup_loop then
+            pcall(_G.cancel_smn_skillup_loop)
         end
-    end, 'smn summon')
-
-    -- DUALBOX IPC: the require() triggers dualbox_manager auto-init, which
-    -- schedules the IPC call once per gs reload. Do NOT call it explicitly here.
-    pcall(require, 'shared/utils/dualbox/dualbox_manager')
-end
-
----============================================================================
---- GEARSWAP HOOKS - STATE UPDATE
----============================================================================
-
---- Called by Mote-Include after state changes; updates the UI.
---- @param cmdParams table Parameters passed to Mote's handle_update
---- @param eventArgs table Mote event arguments (unused)
---- @return void
-function job_update(cmdParams, eventArgs)
-    EntryKit.update_hud('SMN')
-end
-
----============================================================================
---- GEARSWAP HOOKS - CLEANUP
----============================================================================
-
---- Called by GearSwap when this job file is unloaded (job change, reload).
---- Stops the skillup loop, cancels pending job-change operations and unbinds keys.
---- @return void
-function file_unload()
-    -- Halt the Summoning Magic skillup loop before module unload so orphan
-    -- coroutines can't keep spamming Siren on the next job.
-    if _G.cancel_smn_skillup_loop then
-        pcall(_G.cancel_smn_skillup_loop)
-    end
-
-    EntryKit.unload(SMNKeybinds)
-end
+    end,
+})

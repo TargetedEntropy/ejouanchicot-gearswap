@@ -41,7 +41,7 @@ the sets files (structure and set names only).
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/blu.lua` | 153 | Entry (the same for every character; `<Char>_BLU.lua` and its template `_master/entry/Tetsouo_BLU.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ AzureSets load), `job_update` (HUD only), `init_gear_sets`, `file_unload` (+ AzureSets unload); shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/blu.lua` | 45 | Entry (the same for every character; `<Char>_BLU.lua` and its template `_master/entry/Tetsouo_BLU.lua` are one `include` of it): one `EntryKit.job('BLU', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with BLU's steps: `after_setup` AzureSets load, `unload` AzureSets unload |
 | `shared/jobs/blu/functions/BLU_PRECAST.lua` | 72 | `job_precast` (guard, cooldown, Unbridled Learning, Expiacion hold, WS handler) / `job_post_precast` (TP gear) |
 | `shared/jobs/blu/functions/BLU_MIDCAST.lua` | 163 | `job_midcast` (empty) / `job_post_midcast` (Blue Magic by category + overlays, other skills) / `job_get_spell_map` |
 | `shared/jobs/blu/functions/BLU_AFTERCAST.lua` | 21 | `job_aftercast = LifecycleManager.aftercast()` |
@@ -86,30 +86,30 @@ files exist.
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as <Character>_BLU.lua
+    participant E as shared/entry/blu.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
-    GS->>E: run chunk (LOCKSTYLE_CONFIG, UI config, REGION_CONFIG)
+    GS->>E: run chunk (LOCKSTYLE_CONFIG, UI config, REGION_CONFIG, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
-    M->>E: user_setup() (states, keybinds + intro, HUD, JCM, macrobook/lockstyle, AzureSets, dualbox)
+    M->>E: user_setup() (states, keybinds + intro, HUD, JCM, macrobook/lockstyle, after_setup: AzureSets, dualbox)
     M->>E: init_gear_sets() -> include blu/sets/blu_sets.lua
-    E->>E: INIT_SYSTEMS, data_loader, message hooks
-    E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, _G.BLUTPConfig
+    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.BLUTPConfig
     E->>E: EntryKit.load_job("BLU"): JobChangeManager.cancel_all()
     E->>F: load_job_files('BLU')
     F->>F: lockstyle + macro book install, message_buffs + 8 hook files, require dualbox_manager
     E->>E: register_lockstyle_cancel("BLU", ...)
 ```
 
-`user_setup()`:
+`user_setup()` (`EntryKit.job`; step 5 is BLU's `after_setup`):
 
 1. `BLUStates.configure()` creates the states (see [Mote states](#mote-states)).
 2. `pcall(require, '<Character>/blu/keys/BLU_KEYBINDS')` into the global
    `BLUKeybinds`, then `bind_all()`; a failed require prints
    `[BLU] Keybinds failed to load: <error>` (`EntryKit.keybind_error`).
    `bind_all` ends with `show_intro()`.
-3. `KeybindUI.smart_init("BLU", init_delay)`; the HUD waits for
+3. `KeybindUI.smart_init("BLU", UIConfig.init_delay)`; the HUD waits for
    `state.MainWeapon` (`ui_lifecycle.lua`).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
@@ -323,7 +323,7 @@ weaponskills only:
   is set, or if `JobAddons.allowed('AzureSets')` is false (`AzureSets = false` in
   `_common/tools/ADDONS_CONFIG.lua`, [JobAddons](../systems/factories-and-helpers.md#jobaddons-sharedutilscorejob_addonslua)); otherwise sets it, sends `lua load AzureSets`, and 3 s later shows
   `AzureSets: //aset setlist | //aset spellset <name>`.
-- `unload()`, first thing in `file_unload` (GearSwap runs `file_unload` under
+- `unload()`, first thing in `file_unload` (BLU's `unload` step; GearSwap runs `file_unload` under
   one `pcall`, so an error further down would skip it): 2 s later reads
   `windower.ffxi.get_player().main_job`; still BLU (subjob change,
   `gs reload`) -> nothing; otherwise clears the flag and sends

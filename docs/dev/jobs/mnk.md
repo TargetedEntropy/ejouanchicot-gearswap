@@ -34,7 +34,7 @@ from `H2H_WS_DATABASE.lua`.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/mnk.lua` | 138 | Entry (the same for every character; `<Char>_MNK.lua` and its template `_master/entry/Tetsouo_MNK.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
+| `shared/entry/mnk.lua` | 28 | Entry (the same for every character; `<Char>_MNK.lua` and its template `_master/entry/Tetsouo_MNK.lua` are one `include` of it): one line, `require('shared/utils/core/entry_kit').job('MNK')` (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`; MNK adds no step) |
 | `shared/jobs/mnk/functions/MNK_PRECAST.lua` | 66 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (WS buff layers, then TP gear) |
 | `shared/jobs/mnk/functions/MNK_MIDCAST.lua` | 75 | `job_midcast` (empty) / `job_post_midcast` (subjob magic via MidcastManager) |
 | `shared/jobs/mnk/functions/MNK_AFTERCAST.lua` | 21 | `job_aftercast = LifecycleManager.aftercast()` |
@@ -75,25 +75,27 @@ Mote-Include calls `user_setup()` and `init_gear_sets()` from inside
 `include('Mote-Include.lua')`, before `INIT_SYSTEMS` and before the MNK hook
 files exist.
 
-`user_setup()`:
+`user_setup()` (`EntryKit.job`, `shared/utils/core/entry_kit.lua`):
 
 1. `MNKStates.configure()` creates the states (see [Mote states](#mote-states)).
 2. `MNK_KEYBINDS` into the global `MNKKeybinds`, `bind_all()`; a failed require
    prints `[MNK] Keybinds failed to load: <error>`.
-3. `KeybindUI.smart_init("MNK", init_delay)`.
+3. `KeybindUI.smart_init("MNK", UIConfig.init_delay)` (`[MNK] Failed to load
+   UI_MANAGER` when it did not load).
 4. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`: macro
    book 0.2 s later, once `EntryKit.load_job_files` has run, lockstyle after
    `LockstyleConfig.initial_load_delay`.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-`get_sets()` then sets `_G.LockstyleConfig`, `_G.RECAST_CONFIG`,
+`get_sets()` then runs `EntryKit.after_mote` (`INIT_SYSTEMS`, data, message
+hooks), sets `_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`,
 `_G.MNKTPConfig`; then `EntryKit.load_job` cancels pending job-change work, loads the job files
 and registers `cancel_mnk_lockstyle_operations`.
 
-`job_update`: `KeybindUI.update()`. `file_unload`:
-`JobChangeManager.cancel_all()`, then `MNKKeybinds.unbind_all()`. These hooks,
-the keybind error and `job_sub_job_change` are the shared `EntryKit` calls
-(`shared/utils/core/entry_kit.lua`).
+`job_update`: `EntryKit.update_hud` (`KeybindUI.update()`). `file_unload`:
+`EntryKit.unload(MNKKeybinds)`: `JobChangeManager.cancel_all()`, then
+`MNKKeybinds.unbind_all()`. `job_sub_job_change` is `EntryKit.sub_job_change`.
+All six come from `EntryKit.job` (`shared/utils/core/entry_kit.lua`).
 
 ### Precast
 

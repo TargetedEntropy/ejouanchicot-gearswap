@@ -46,7 +46,7 @@ the sets files (structure and set names only).
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/rdm.lua` | 208 | Entry (the same for every character; `<Char>_RDM.lua` and its template `_master/entry/Tetsouo_RDM.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD only), `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/rdm.lua` | 53 | Entry (the same for every character; `<Char>_RDM.lua` and its template `_master/entry/Tetsouo_RDM.lua` are one `include` of it): one `EntryKit.job('RDM', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with RDM's steps: `configs` (`_G.RDMSaboteurConfig`), `after_states` (`CureManager.setup_state`, Cure Auto-Tier) |
 | `shared/jobs/rdm/functions/RDM_PRECAST.lua` | 394 | `job_precast` as stages (guard, cooldown/refine, Phalanx, Saboteur) + WS + `SpellGearLock.begin`; `job_post_precast` (TP gear, spell FC set, lock hold, `debugprecast` trace) |
 | `shared/jobs/rdm/functions/RDM_MIDCAST.lua` | 387 | `job_midcast` (empty), `job_post_midcast` -> `route_midcast` (`SKILL_HANDLERS` table) + `SpellGearLock.hold` |
 | `shared/jobs/rdm/functions/RDM_AFTERCAST.lua` | 27 | `job_aftercast = LifecycleManager.aftercast(...)` with `SpellGearLock.release` as the extra step |
@@ -92,16 +92,17 @@ before `INIT_SYSTEMS` and before the RDM hook files exist (see
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as <Character>_RDM.lua
+    participant E as shared/entry/rdm.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
-    GS->>E: run chunk (LOCKSTYLE_CONFIG, UI config, REGION_CONFIG)
+    GS->>E: run chunk (LOCKSTYLE_CONFIG, UI config, REGION_CONFIG; JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
     M->>E: user_setup() (states, keybinds, HUD, JCM, macrobook/lockstyle, dualbox)
     M->>E: init_gear_sets() -> include rdm/sets/rdm_sets.lua
-    E->>E: INIT_SYSTEMS, data_loader, message hooks
-    E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, RDM_TP_CONFIG, _G.RDMSaboteurConfig
+    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, RDM_TP_CONFIG
+    E->>E: configs: _G.RDMSaboteurConfig
     E->>E: EntryKit.load_job("RDM"): JobChangeManager.cancel_all()
     E->>F: load_job_files('RDM')
     F->>F: lockstyle + macro book install, 8 hook files (no message_buffs), require dualbox_manager
@@ -112,22 +113,25 @@ sequenceDiagram
 
 1. `RDMStates.configure()` creates every state (see [Mote states](#mote-states)),
    including `Storm` when the subjob is SCH.
-2. `pcall(require, '<Character>/rdm/keys/RDM_KEYBINDS')`, stored in the
+2. `after_states`: `CureManager.setup_state()` makes `state.CureAutoTier` when the
+   character has a `RDM_CURE_CONFIG.lua`, before the keybinds so the HUD shows it.
+3. `pcall(require, '<Character>/rdm/keys/RDM_KEYBINDS')`, stored in the
    global `RDMKeybinds`, then `bind_all()`: keys of the file that no longer
    apply are unbound, the entries `get_active_binds()` keeps are bound, then
    `show_intro()`. A failed require prints
    `[RDM] Keybinds failed to load: <error>` (`EntryKit.keybind_error`).
-3. `KeybindUI.smart_init("RDM", init_delay)`.
-4. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`
+4. `KeybindUI.smart_init("RDM", init_delay)` (`[RDM] Failed to load
+   UI_MANAGER` when it did not load).
+5. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`
    (`shared/utils/core/entry_kit.lua`) sets the macro book 0.2 s later, once
    `EntryKit.load_job_files` has defined `select_default_macro_book`, and schedules the
    lockstyle after `LockstyleConfig.initial_load_delay` (8 s).
-5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')` (its auto-init does
+6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')` (its auto-init does
    the job exchange once per load).
 
-`get_sets()` then sets `_G.RDMSaboteurConfig` (fallback
-`{auto_trigger_spells = {}, wait_time = 2}`) and requires `RDM_TP_CONFIG`
-(which writes `_G.RDMTPConfig`) **before** `EntryKit.load_job('RDM', Profiler)` includes the hook files:
+`get_sets()` then requires `RDM_TP_CONFIG` (common configs; the file also
+writes `_G.RDMTPConfig`) and sets `_G.RDMSaboteurConfig` (`configs`, fallback
+`{auto_trigger_spells = {}, wait_time = 2}`) **before** `EntryKit.load_job('RDM', Profiler)` includes the hook files:
 `RDM_PRECAST.lua` captures both into file locals when it is included.
 
 ### Precast
@@ -412,7 +416,7 @@ T = `_master/sets/rdm_sets.lua`. Player version: [sets.md](../../user/jobs/rdm/s
 
 | File / key | Default | Where the default lives | Read by |
 |------------|---------|-------------------------|---------|
-| `<char>/rdm/keys/RDM_STATES.lua` | see states | file | entry `user_setup`, `job_sub_job_change` (path from `CharPaths.module('job', 'RDM_STATES', 'RDM')`) |
+| `<char>/rdm/keys/RDM_STATES.lua` | see states | file | entry `user_setup` (path from `CharPaths.module('job', 'RDM_STATES', 'RDM')`) |
 | `<char>/rdm/keys/RDM_KEYBINDS.lua` | 16 entries (+ `COMMON_KEYBINDS.lua`) | file | entry `user_setup`, `file_unload` |
 | `<char>/rdm/keys/RDM_CUSTOM.lua` | examples only | file | custom states ([keybinds and custom states](../systems/keybinds-and-custom.md)) |
 | `<char>/rdm/display/RDM_HUD.lua` | empty lists | file | HUD layout |
@@ -449,8 +453,8 @@ T = `_master/sets/rdm_sets.lua`. Player version: [sets.md](../../user/jobs/rdm/s
   poll; `wait` chains from the refiner sit in the Windower queue and survive a
   reload.
 - Subjob change: Mote calls `user_setup()` (states reset, Storm created or
-  dropped), then `job_sub_job_change` (re-runs `configure_storm`, then
-  `EntryKit.sub_job_change`: `JobChangeManager.on_job_change`, which reloads 2.0 s later,
+  dropped), then `job_sub_job_change` (`EntryKit.sub_job_change`:
+  `JobChangeManager.on_job_change`, which reloads 2.0 s later,
   [job change lifecycle](../architecture/job-change-lifecycle.md)).
 
 ## Interactions

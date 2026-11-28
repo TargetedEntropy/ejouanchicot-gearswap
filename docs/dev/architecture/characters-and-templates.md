@@ -18,7 +18,7 @@ This page covers how a live folder is built, how it drifts from its templates, a
 | `scripts/check_syntax.py` | yes | `luac`-parses every Lua file, live folders included |
 | `.gitignore` | no (ignores itself, line 86) | Ignores the live folders and, through the same patterns, the overlays of the seven characters it names without a leading slash (lines 51-57); the four characters added on 2026-10-16 are ignored at the root only (lines 62-65) |
 | `_master/entry/Tetsouo_<JOB>.lua` | yes, 22 files | Generic entry templates, one per job (BLM BLU BRD BST COR DNC DRG DRK GEO MNK NIN PLD PUP RDM RNG RUN SAM SCH SMN THF WAR WHM). Each is 15 lines: a header and `include('../shared/entry/<job>.lua')` |
-| `shared/entry/<job>.lua` | yes, 22 files (168-376 lines) | The entry code (`get_sets`, `user_setup`, `init_gear_sets`, `job_sub_job_change`, `job_update`, `file_unload`), the same for every character; not copied by the clone |
+| `shared/entry/<job>.lua` | yes, 22 files (16-159 lines) | The entry code, the same for every character: one `EntryKit.job('<JOB>', spec)` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `user_setup`, `init_gear_sets`, `job_sub_job_change`, `job_update`, `file_unload`); not copied by the clone |
 | `_master/sets/<job>_sets.lua` | yes, 22 files | Generic flat set files, same 22 jobs |
 | `_master/sets/craft_sets.lua`, `fishing_sets.lua` | yes, 2 files | Generic craft (multi-variant) and fishing (single set, since 2026-09-30) set files, every slot `""` (skipped by `craft_commands.lua`). Copied to every clone as loose sets (step 3) |
 | `_master/config/<job>/` | yes, 22 dirs | Per-job configs, flat (KEYBINDS, STATES, LOCKSTYLE, MACROBOOK, TP_CONFIG, `<JOB>_CUSTOM.lua`, job extras; since 2026-10-10 `<JOB>_CONFIG.lua`, the job's own switches and thresholds, for blm, blu, cor, dnc, geo, pld, sam, smn, war, whm, every key written with its default); `_master/config/craft/` holds `CRAFT_REFILL.lua` |
@@ -353,7 +353,7 @@ Tests: `node scripts/atelier/update_test.js [--from <ref>] [--to <ref>]` (a play
 
 ## How to add a job to the templates
 
-1. `shared/entry/<job>.lua`: copy a similar shared entry. Reach the character's files only through `CharPaths` (`CharPaths.module('job', '<JOB>_STATES', '<JOB>')`, `CharPaths.relative('sets', '<job>_sets.lua', '<JOB>')`, `CharPaths.name()`), never a hard-coded name. Require `char_paths` first (it installs the require cache), then `config_loader`, before the other shared modules, and include INIT_SYSTEMS right after Mote-Include; see [core-lifecycle.md](../systems/core-lifecycle.md#how-a-job-file-boots).
+1. `shared/entry/<job>.lua`: one `EntryKit.job('<JOB>', spec)` call; copy a similar shared entry (`shared/entry/sam.lua` when the job adds no step). `EntryKit.job` finds the character's files through `CharPaths`, loads the configs and includes Mote-Include and INIT_SYSTEMS; a step of the job's own reaches files only through `CharPaths` (`CharPaths.module('job', '<JOB>_..._CONFIG', '<JOB>')`), never a hard-coded name; see [core-lifecycle.md](../systems/core-lifecycle.md#how-a-job-file-boots).
 2. `_master/entry/Tetsouo_<JOB>.lua`: a copy of another one-line entry with the job changed.
 3. `_master/sets/<job>_sets.lua` (flat) and `_master/config/<job>/`, with **every** file the shared entry `require`s without `pcall` (PUP did not load until 2026-09-29 because its entry required files `_master` did not ship).
 4. `shared/data/alt/<JOB>_ALT_COMMANDS.lua` if a dual-box alt on that job should answer commands.

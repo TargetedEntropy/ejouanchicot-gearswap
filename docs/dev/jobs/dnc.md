@@ -40,7 +40,7 @@ function; line numbers are given only where no function name fits.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/dnc.lua` | 209 | Entry point (the same for every character; `<Char>_DNC.lua` and its template `_master/entry/Tetsouo_DNC.lua` are one `include` of it): config preload, `get_sets` (with the `cancel_conflicting_buffs` override), `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/dnc.lua` | 69 | Entry point (the same for every character; `<Char>_DNC.lua` and its template `_master/entry/Tetsouo_DNC.lua` are one `include` of it): `require('shared/utils/core/entry_kit').job('DNC', {configs = ...})` (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`); DNC's one step, `configs`, sets `_G.DNCWSConfig` and the `cancel_conflicting_buffs` override |
 | `shared/jobs/dnc/functions/DNC_PRECAST.lua` | 145 | `refine_waltz` override, `job_precast` (guard, cooldown, `job_precast_samba`, Climactic timestamp, `job_precast_weaponskill`, WS handler), `job_post_precast` (WS variant, TP gear) |
 | `shared/jobs/dnc/functions/DNC_MIDCAST.lua` | 90 | `job_midcast` (empty) / `job_post_midcast` (MidcastManager for Ninjutsu, Healing, Enhancing) |
 | `shared/jobs/dnc/functions/DNC_AFTERCAST.lua` | 38 | `job_aftercast`: watchdog tick only (exported to `_G` only) |
@@ -86,25 +86,25 @@ before `INIT_SYSTEMS` and before the DNC hook files exist.
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as Char_DNC.lua
+    participant E as shared/entry/dnc.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
-    GS->>E: run chunk (LOCKSTYLE_CONFIG, config_loader + UIConfig, REGION_CONFIG)
+    GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, config_loader + UIConfig, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
     M->>E: user_setup() (states, keybinds + intro, UI, JCM, dualbox)
     M->>E: init_gear_sets() -> include sets file
     E->>E: INIT_SYSTEMS, data_loader, message hooks
-    E->>E: _G.LockstyleConfig, UIConfig, RECAST_CONFIG, DNCTPConfig, DNCWSConfig
-    E->>E: replace _G.cancel_conflicting_buffs
+    E->>E: _G.LockstyleConfig, UIConfig, RECAST_CONFIG, DNCTPConfig
+    E->>E: configs(): _G.DNCWSConfig, replace _G.cancel_conflicting_buffs
     E->>E: EntryKit.load_job("DNC"): JobChangeManager.cancel_all()
     E->>F: load_job_files('DNC') -> message_buffs + 8 hooks, refine_waltz override
     E->>E: register_lockstyle_cancel("DNC", ...)
 ```
 
-`user_setup()`: `DNCStates.configure()`; `DNCKeybinds.bind_all()` (the module
+`user_setup()` (`EntryKit.job`): `DNCStates.configure()`; `DNCKeybinds.bind_all()` (the module
 is `KeybindManager.create('DNC', ...)`);
-`KeybindUI.smart_init("DNC", ...)` (the UI waits for `state.MainStep`);
+`KeybindUI.smart_init("DNC", UIConfig.init_delay)` (the UI waits for `state.MainStep`);
 `JobChangeManager.initialize()` plus
 `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
 (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has defined
@@ -118,7 +118,7 @@ The two Mote overrides:
   (`Mote-Globals.lua`), so a waltz typed or macroed by hand is never re-tiered,
   never downgraded for TP and never blocked on full HP. On other jobs with
   /DNC, Mote's own `refine_waltz` stays (it re-tiers a waltz on self).
-- `_G.cancel_conflicting_buffs` (entry, `get_sets`) keeps Spectral Jig / Sneak
+- `_G.cancel_conflicting_buffs` (entry, `configs` step of `get_sets`) keeps Spectral Jig / Sneak
   / Stoneskin. It drops Mote's recast abort for Waltz / Samba, the Monomi and
   Utsusemi: Ichi cancels, and the Saber Dance (waltz, Trance) / Fan Dance
   (samba) cancels (`Mote-Utility.lua` `cancel_conflicting_buffs`). The

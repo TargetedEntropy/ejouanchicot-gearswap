@@ -41,7 +41,7 @@ function, not a line number.
 
 | Path | Role |
 |------|------|
-| `shared/entry/geo.lua` (252 lines) | Entry point (the same for every character; `<Char>_GEO.lua` and its template `_master/entry/Tetsouo_GEO.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (loads PetTP), `job_update` (HUD only), `init_gear_sets`, `file_unload` (unloads PetTP); shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/geo.lua` (68 lines) | Entry point (the same for every character; `<Char>_GEO.lua` and its template `_master/entry/Tetsouo_GEO.lua` are one `include` of it): one `EntryKit.job('GEO', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with GEO's steps: `after_states` (loads PetTP), `unload` (stops a `//gs c behind` run, unloads PetTP) |
 | `shared/jobs/geo/functions/GEO_PRECAST.lua` | `job_precast` (guard, tier refine or cooldown, auto abilities, Entrust flag, WS) / `job_post_precast` |
 | `shared/jobs/geo/functions/GEO_MIDCAST.lua` | `job_midcast` (empty) / `job_post_midcast` (`midcast_geomancy` with `geomancy_family`, Enhancing branch, `PLAIN_SKILLS`) |
 | `shared/jobs/geo/functions/GEO_AFTERCAST.lua` | `job_aftercast`: watchdog, Entrust flag, `geo_escort_on_aftercast` |
@@ -92,16 +92,16 @@ overlay has no GEO files.
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as shared/entry/geo.lua
+    participant E as shared/entry/geo.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
-    GS->>E: file chunk: LOCKSTYLE_CONFIG, UIConfig (ConfigLoader), REGION_CONFIG
+    GS->>E: file chunk: LOCKSTYLE_CONFIG, UIConfig (ConfigLoader), REGION_CONFIG; JCM, UI_MANAGER
     GS->>E: get_sets()
     E->>M: include('Mote-Include.lua')
-    M->>E: user_setup(): states, lua load pettp, keybinds (+ show_intro), HUD, JobChangeManager, EntryKit.macro_and_lockstyle, dualbox_manager
+    M->>E: user_setup(): states, after_states: lua load pettp, keybinds (+ show_intro), HUD, JobChangeManager, EntryKit.macro_and_lockstyle, dualbox_manager
     M->>E: init_gear_sets(): include('geo/sets/geo_sets.lua')
-    E->>E: INIT_SYSTEMS, data_loader, message hooks
-    E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, _G.GEOTPConfig
+    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.GEOTPConfig
     E->>E: EntryKit.load_job("GEO"): JobChangeManager.cancel_all()
     E->>F: load_job_files('GEO')
     E->>E: register_lockstyle_cancel("GEO", ...)
@@ -110,11 +110,12 @@ sequenceDiagram
 `user_setup()`:
 
 1. `GEOStates.configure()`.
-2. `JobAddons.run('load', 'pettp')` ([JobAddons](../systems/factories-and-helpers.md#jobaddons-sharedutilscorejob_addonslua)): the PetTP addon, unloaded again in
-   `file_unload`; `pettp = false` in `_common/tools/ADDONS_CONFIG.lua` skips both. The load is sent only when the flag `windower._geo_pettp_loaded` (it outlives the sandbox) is not set, so a subjob change or `//gs reload` of GEO sends neither the unload nor the load again. `file_unload(next_file)` unloads at once when GearSwap itself unloads (`next_file` nil); otherwise it asks the game 2 s later and unloads only when the main job is no longer GEO (`shared/entry/geo.lua`, since `edbcfb96`).
+2. `after_states`: `JobAddons.run('load', 'pettp')` ([JobAddons](../systems/factories-and-helpers.md#jobaddons-sharedutilscorejob_addonslua)): the PetTP addon, unloaded again in
+   `file_unload` (`unload`, which first stops a `//gs c behind` run: `stand_behind.unload()`); `pettp = false` in `_common/tools/ADDONS_CONFIG.lua` skips both. The load is sent only when the flag `windower._geo_pettp_loaded` (it outlives the sandbox) is not set, so a subjob change or `//gs reload` of GEO sends neither the unload nor the load again. `file_unload(next_file)` unloads at once when GearSwap itself unloads (`next_file` nil); otherwise it asks the game 2 s later and unloads only when the main job is no longer GEO (`shared/entry/geo.lua`, since `edbcfb96`).
 3. `GEO_KEYBINDS` (which returns `KeybindManager.create('GEO', ...)`) ->
    global `GEOKeybinds`, `bind_all()`. A failed require prints the Lua error (`EntryKit.keybind_error`).
-4. `KeybindUI.smart_init("GEO", UIConfig.init_delay)`.
+4. `KeybindUI.smart_init("GEO", UIConfig.init_delay)` (`[GEO] Failed to load
+   UI_MANAGER` when it did not load).
 5. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
    (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has

@@ -137,9 +137,9 @@ compiles `"{red}Error: {message}"` (colour tag -> `ChatPalette.tag('red')`, i.e.
 All 22 shared entries (`shared/entry/<job>.lua`, which every character's one-line
 `<Name>_<JOB>.lua` includes) include, inside `get_sets()` and in this order: `Mote-Include.lua`,
 `INIT_SYSTEMS.lua`, `data_loader`, then `init_spell_messages.lua`, `init_ability_messages.lua`,
-`init_ws_messages.lua` (for example `shared/entry/war.lua` `get_sets`). Each sets
-`_G.RegionConfig` at file level, some before `config_loader` and some after; the order no longer
-matters, since `message_colors.lua` reads it at each use.
+`init_ws_messages.lua` (`EntryKit.job`'s `get_sets`, through `EntryKit.after_mote` in
+`shared/utils/core/entry_kit.lua`). `EntryKit.load_configs` sets `_G.RegionConfig` at file level,
+before `config_loader`; the order no longer matters, since `message_colors.lua` reads it at each use.
 
 ### The facade (`message_formatter.lua`)
 

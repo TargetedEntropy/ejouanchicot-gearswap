@@ -18,7 +18,7 @@
 ---   • Clean separation of concerns
 ---
 --- Architecture Overview:
----   Main File (this) >> EntryKit.load_job_files >> Specialized Modules
+---   EntryKit.job >> EntryKit.load_job_files >> Specialized Modules
 ---
 --- Module Organization:
 ---   ├── <Character>/war/sets/war_sets.lua [Equipment Sets]
@@ -26,77 +26,13 @@
 ---   └── <Character>/war/<theme>/*.lua  [Configuration Files]
 ---============================================================================
 
----============================================================================
---- INITIALIZATION & CONFIGURATION LOADING
----============================================================================
-
--- Load global configurations with fallbacks
--- Where the character's files are (_common/, <job>/, saved/; older config/ and sets/)
+-- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
+-- (shared/utils/core/entry_kit.lua), with WAR's weaponskill slots and Ampulla lock
 local CharPaths = require('shared/utils/core/char_paths')
--- The hooks every entry shares (job_update, subjob change, unload, keybind error)
-local EntryKit = require('shared/utils/core/entry_kit')
 
--- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
-local LockstyleConfig, UIConfig = EntryKit.load_configs('WAR')
-
--- Core modules, after config_loader: UI_MANAGER reads _G.UIConfig when it loads.
--- The require cache is already in (char_paths.lua, required first, installs it).
-local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-local ui_success, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
-
----============================================================================
---- GEARSWAP HOOKS - INITIALIZATION
----============================================================================
-
---- Initialize GearSwap and load all WAR modules
---- Called by GearSwap each time this job file is loaded
---- @return void
-function get_sets()
-    -- ═══════════════════════════════════════════════════════════════════
-    -- PERFORMANCE PROFILING (enable with: //gs c perf start)
-    -- ═══════════════════════════════════════════════════════════════════
-    local Profiler = require('shared/utils/debug/performance_profiler')
-    Profiler.start('get_sets')
-    -- ═══════════════════════════════════════════════════════════════════
-
-    -- WS slot config must land BEFORE Mote-Include: including it runs
-    -- init_include() -> user_setup() -> WARStates.configure(), which builds
-    -- state.WS1..WS5 from this table. Loaded later it would still be nil.
-    _G.WARWSConfig = CharPaths.optional('job', 'WAR_WS_CONFIG', 'WAR')
-
-    mote_include_version = 2
-    include('Mote-Include.lua')
-    Profiler.mark('After Mote-Include')
-
-    -- the shared systems, the data, the spell / ability / weaponskill messages
-    EntryKit.after_mote(Profiler)
-
-    -- ============================================
-    -- LOAD CONFIGS INTO GLOBAL NAMESPACE
-    -- ============================================
-    _G.LockstyleConfig = LockstyleConfig
-    _G.UIConfig = UIConfig
-    _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
-
-    -- WAR-specific configs
-    _G.WARTPConfig = require(CharPaths.module('job', 'WAR_TP_CONFIG', 'WAR'))
-    Profiler.mark('After configs')
-
-    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
-    -- cancel registered
-    EntryKit.load_job('WAR', Profiler)
-
-    -- ═══════════════════════════════════════════════════════════════════
-    Profiler.finish()
-    -- ═══════════════════════════════════════════════════════════════════
-end
-
---- Load WAR equipment sets from external file
---- Called by Mote-Include at the end of init_include(), after user_setup()
---- @return void
-function init_gear_sets()
-    include(CharPaths.relative('sets', 'war_sets.lua', 'WAR'))
-    sync_weapon_with_hand()
+local function ampulla_lock()
+    local ok, AmpullaLock = pcall(require, 'shared/utils/equipment/ampulla_lock')
+    return ok and AmpullaLock or nil
 end
 
 --- Align state.MainWeapon (and the WS slots) with the weapon in hand.
@@ -104,119 +40,37 @@ end
 --- init_gear_sets() (Mote-Include.lua:170,175): the weapon sets do not exist
 --- yet, so its sync cannot recognise the weapon and MainWeapon stays on its
 --- first option. Called again here, once the sets are loaded.
---- @return void
-function sync_weapon_with_hand()
+local function sync_weapon_with_hand()
     local ok, WSSlots = pcall(require, 'shared/utils/weaponskill/ws_slots')
     if not (ok and WSSlots and _G.WARWSConfig and state.MainWeapon) then
         return
     end
-
     local before = state.MainWeapon.value
     WSSlots.sync(state.MainWeapon, _G.WARWSConfig)
-
     -- The keybind HUD was drawn in user_setup() with the old value
-    if state.MainWeapon.value ~= before and ui_success and KeybindUI then
+    local ui_ok, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
+    if state.MainWeapon.value ~= before and ui_ok and KeybindUI then
         KeybindUI.update()
     end
 end
 
----============================================================================
---- GEARSWAP HOOKS - JOB CHANGE HANDLING
----============================================================================
-
---- Handle sub job change events (called by Mote-Include)
---- Coordinates lockstyle, macros, keybinds, and UI reload
---- @param newSubjob string New subjob (e.g., "SAM", "NIN")
---- @param oldSubjob string Old subjob
---- @return void
-function job_sub_job_change(newSubjob, oldSubjob)
-    EntryKit.sub_job_change('WAR', newSubjob)
-end
-
----============================================================================
---- GEARSWAP HOOKS - USER SETUP
----============================================================================
-
---- Configure job-specific states, keybinds, UI, and initial setup
---- Called by Mote-Include from init_include() (inside include('Mote-Include.lua'),
---- before init_gear_sets) and again on every subjob change, before job_sub_job_change().
---- @return void
-function user_setup()
-    -- ==========================================================================
-    -- STATES CONFIGURATION
-    -- ==========================================================================
-    local WARStates = require(CharPaths.module('job', 'WAR_STATES', 'WAR'))
-    WARStates.configure()
-
-    -- configure() has just put HybridMode back to its default, so any ammo
-    -- lock still held by the sandbox belongs to a stance that is no longer
-    -- selected. GearSwap slot locks outlive the job file.
-    local al_ok, AmpullaLock = pcall(require, 'shared/utils/equipment/ampulla_lock')
-    if al_ok and AmpullaLock then
-        AmpullaLock.apply(state.HybridMode and state.HybridMode.value)
-    end
-
-    -- ==========================================================================
-    -- KEYBINDS LOADING (Always executed after reload)
-    -- ==========================================================================
-    local kb_success, keybinds = pcall(require, CharPaths.module('job', 'WAR_KEYBINDS', 'WAR'))
-    if kb_success and keybinds then
-        WARKeybinds = keybinds
-        WARKeybinds.bind_all()
-    else
-        EntryKit.keybind_error('WAR', keybinds)
-    end
-
-    -- ==========================================================================
-    -- UI INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    if ui_success and KeybindUI then
-        KeybindUI.smart_init("WAR", UIConfig.init_delay)
-    end
-
-    -- ==========================================================================
-    -- JOB CHANGE MANAGER INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    if jcm_success and JobChangeManager then
-        -- Initialize with current job state
-        JobChangeManager.initialize()
-
-        EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)
-    end
-
-    -- ==========================================================================
-    -- DUALBOX IPC (covers main job change - job_sub_job_change is subjob-only)
-    -- The require() triggers dualbox_manager auto-init which schedules the
-    -- correct IPC call once per gs reload (request_alt_job for MAIN role,
-    -- send_job_update for ALT role). Do NOT call them explicitly here.
-    -- ==========================================================================
-    pcall(require, 'shared/utils/dualbox/dualbox_manager')
-end
-
----============================================================================
---- GEARSWAP HOOKS - STATE UPDATE & CLEANUP
----============================================================================
-
---- Called by Mote-Include after state changes
---- Updates the UI to reflect current state values
---- @param cmdParams table Parameters passed to Mote's handle_update
---- @param eventArgs table Mote event arguments (unused)
---- @return void
-function job_update(cmdParams, eventArgs)
-    EntryKit.update_hud('WAR')
-end
-
---- Cleanup function called when GearSwap unloads this job file
---- Releases the ammo lock, cancels pending operations and unbinds the job keys
---- @return void
-function file_unload()
-    -- Give the ammo slot back first: a GearSwap slot lock survives a job
-    -- change, and GearSwap runs file_unload in a single pcall, so an error
-    -- further down would otherwise leak the lock into the next job.
-    local al_ok, AmpullaLock = pcall(require, 'shared/utils/equipment/ampulla_lock')
-    if al_ok and AmpullaLock then
-        AmpullaLock.release()
-    end
-
-    EntryKit.unload(WARKeybinds)
-end
+require('shared/utils/core/entry_kit').job('WAR', {
+    -- WS slot config must land BEFORE Mote-Include: including it runs init_include() -> user_setup() ->
+    -- WARStates.configure(), which builds state.WS1..WS5 from this table. Loaded later it would still be nil.
+    before_mote = function()
+        _G.WARWSConfig = CharPaths.optional('job', 'WAR_WS_CONFIG', 'WAR')
+    end,
+    after_sets = sync_weapon_with_hand,
+    -- configure() has just put HybridMode back to its default, so any ammo lock still held by the sandbox belongs to
+    -- a stance that is no longer selected. GearSwap slot locks outlive the job file.
+    after_states = function()
+        local AmpullaLock = ampulla_lock()
+        if AmpullaLock then AmpullaLock.apply(state.HybridMode and state.HybridMode.value) end
+    end,
+    -- Give the ammo slot back first: a GearSwap slot lock survives a job change, and GearSwap runs file_unload in a
+    -- single pcall, so an error further down would otherwise leak the lock into the next job.
+    unload = function()
+        local AmpullaLock = ampulla_lock()
+        if AmpullaLock then AmpullaLock.release() end
+    end,
+})

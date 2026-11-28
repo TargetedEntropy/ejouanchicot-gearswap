@@ -42,7 +42,7 @@ function; line numbers are given only where no function name fits.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/cor.lua` | 315 | Entry point (the same for every character; `<Char>_COR.lua` and its template `_master/entry/Tetsouo_COR.lua` are one `include` of it): `LOCKSTYLE_CONFIG`, `REGION_CONFIG` and `UIConfig` at file level, `init_party_tracking`, `get_sets`, `job_sub_job_change`, `user_setup` (ends with `EntryKit.macro_and_lockstyle`), `job_update`, `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/cor.lua` | 126 | Entry point (the same for every character; `<Char>_COR.lua` and its template `_master/entry/Tetsouo_COR.lua` are one `include` of it): one `EntryKit.job('COR', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with COR's steps: `before_mote` clears the roll state (`RollTracker.cleanup`), `configs` unloads the rolltracker addon, `after_load` = local `init_party_tracking`, `unload` removes the roll listener and the trackers' state and reloads rolltracker (local `release_rolltracker`) |
 | `shared/jobs/cor/functions/COR_PRECAST.lua` | 169 | `job_precast` (guard, `DoubleUp.redirect`, cooldown, `apply_cor_precast`, WS) / `job_post_precast` (TP gear, `apply_luzaf`, `hold_fold_gear`, `RollDebug.note_precast`, `RollHold.start`); starts `flurry_tracker` at load |
 | `shared/jobs/cor/functions/COR_MIDCAST.lua` | 103 | `job_midcast` (empty) / `job_post_midcast` (RA with `RangedMode` + Triple Shot, Enhancing, `PASSTHROUGH_SKILLS`) |
 | `shared/jobs/cor/functions/COR_AFTERCAST.lua` | 62 | `job_aftercast` (`RollHold.stop`, watchdog, bullet pouch), empty `job_post_aftercast` |
@@ -98,49 +98,49 @@ character.
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as Char_COR.lua
+    participant E as shared/entry/cor.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
     participant P as PartyTracker
-    GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, config_loader + UIConfig)
+    GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, config_loader + UIConfig, JCM, UI_MANAGER)
     GS->>E: get_sets()
-    E->>E: clear _G.cor_party_event_id, RollTracker.cleanup()
+    E->>E: before_mote: _G.cor_pending_roll_value = nil, RollTracker.cleanup()
     E->>M: include Mote-Include
-    M->>E: user_setup() (states, keybinds + show_intro, UI, JCM, dualbox, EntryKit.macro_and_lockstyle)
+    M->>E: user_setup() (states, keybinds + show_intro, UI, JCM + EntryKit.macro_and_lockstyle, dualbox)
     M->>E: init_gear_sets() -> include sets file
-    E->>E: INIT_SYSTEMS, data_loader, message hooks
-    E->>E: _G.LockstyleConfig, RECAST_CONFIG, CORTPConfig
-    E->>E: JobChangeManager.cancel_all(), lua unload rolltracker
+    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: _G.LockstyleConfig, _G.UIConfig, RECAST_CONFIG, CORTPConfig
+    E->>E: configs: lua unload rolltracker
+    E->>E: EntryKit.load_job("COR"): JobChangeManager.cancel_all()
     E->>F: load_job_files('COR')
     E->>E: register_lockstyle_cancel("COR", ...)
-    E->>P: init_party_tracking() -> PartyTracker.init()
+    E->>P: after_load: init_party_tracking() -> PartyTracker.init()
 ```
 
-- COR calls `EntryKit.load_job_files('COR')` itself (not `EntryKit.load_job`),
-  between its rolltracker unload and its own lockstyle cancel registration.
-  `load_job_files` installs the lockstyle and macro book, includes
+- `EntryKit.load_job('COR')` cancels what the previous job scheduled, loads the
+  files and registers the lockstyle cancel; COR's `configs` step (the rolltracker
+  unload) runs just before it. `load_job_files` installs the lockstyle and macro book, includes
   `message_buffs.lua`, the 8 hook files and `COR_MOVEMENT.lua` after
   `COR_COMMANDS` (COR's `JOB_FILES` entry, `movement`), and requires
   `dualbox_manager`.
-- `init_party_tracking()` runs from `get_sets()` after the job files. Its comment
+- `init_party_tracking()` runs from `get_sets()` after the job files (COR's `after_load`). Its comment
   records why it left `user_setup()`: Mote runs `user_setup()` inside the Mote
   include, before the COR modules exist, and an earlier throw there silently
   removed roll detection. If `init()` throws, it re-arms only the roll listener.
-- The cleanup at the top of `get_sets()` runs in a fresh sandbox, so
-  `_G.cor_party_event_id` is always nil there, and
+- The cleanup at the top of `get_sets()` (`before_mote`) runs in a fresh sandbox, so
+  `_G.cor_pending_roll_value` is always nil there, and
   `RollTracker.cleanup()` runs on a module instance loaded before any state
   exists. GearSwap itself unregisters every event registered from a user file
   on each file load, and the old sandbox's `file_unload` already removed
   both handlers. Harmless, kept.
-- `user_setup()`: `CORStates.configure()`; `COR_KEYBINDS` (which returns
+- `user_setup()` (`EntryKit.job`; COR adds no step): `CORStates.configure()`; `COR_KEYBINDS` (which returns
   `KeybindManager.create('COR', ...)`) -> global `CORKeybinds`, `bind_all()`
   (`EntryKit.keybind_error` if the file fails to load);
-  `KeybindUI.smart_init("COR", ...)`; `JobChangeManager.initialize()`;
-  `dualbox_manager` require; then, last and outside the JobChangeManager
-  block, `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
+  `KeybindUI.smart_init("COR", UIConfig.init_delay)`; `JobChangeManager.initialize()`
+  and `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has
   defined `select_default_macro_book` / `select_default_lockstyle`, the macro
-  book, then the lockstyle after 8 s. Until 2026-10-15 COR ran a second,
+  book, then the lockstyle after 8 s; then the `dualbox_manager` require. Until 2026-10-15 COR ran a second,
   guarded macrobook + lockstyle block of its own.
 - `_G.RegionConfig` is set at file level, before `config_loader` is required,
   so `message_colors` reads the right region orange (see
@@ -475,7 +475,7 @@ Full player-facing list: [sets.md](../../user/jobs/cor/sets.md).
 - Coroutines: the 0.2 s macro book step (dropped by a newer load, LoadGate),
   the 8 s lockstyle and the 1 s pouch check after `/ra`; the last two are not
   cancelled by a reload.
-- Outside GearSwap: `rolltracker` unloaded by `get_sets` once, and loaded again once the game is off COR, unless `_common/tools/ADDONS_CONFIG.lua` sets it `false`. The flag `windower._cor_rolltracker_off` (it outlives the sandbox) is set when `get_sets` sends the unload, so a subjob change or `//gs reload` of COR sends nothing. `file_unload` -> local `release_rolltracker(next_file)`: when GearSwap itself unloads (`next_file` nil) it reloads the addon at once; otherwise it asks the game 2 s later and reloads it only when the main job is no longer COR (`shared/entry/cor.lua`, since `edbcfb96`).
+- Outside GearSwap: `rolltracker` unloaded by `get_sets` (`configs` step) once, and loaded again once the game is off COR, unless `_common/tools/ADDONS_CONFIG.lua` sets it `false`. The flag `windower._cor_rolltracker_off` (it outlives the sandbox) is set when `get_sets` sends the unload, so a subjob change or `//gs reload` of COR sends nothing. `file_unload` (`unload` step) -> local `release_rolltracker(next_file)`: when GearSwap itself unloads (`next_file` nil) it reloads the addon at once; otherwise it asks the game 2 s later and reloads it only when the main job is no longer COR (`shared/entry/cor.lua`, since `edbcfb96`).
 - Subjob change: `job_sub_job_change` hands over to `JobChangeManager`, which
   reloads. The reload wipes `cor_active_rolls` and `cor_last_roll`.
 
