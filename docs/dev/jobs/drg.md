@@ -38,7 +38,7 @@ What DRG adds on top of the shared pipeline:
 | `shared/jobs/drg/functions/DRG_ENGAGED.lua` | 30 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/drg/functions/DRG_STATUS.lua` | 23 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/drg/functions/DRG_BUFFS.lua` | 23 | `LifecycleManager.buff_change` + `refresh_after_buff` (Spirit Surge) |
-| `shared/jobs/drg/functions/DRG_COMMANDS.lua` | 55 | `job_self_command` router (+ `jump`), `job_state_change = LifecycleManager.state_change()` |
+| `shared/jobs/drg/functions/DRG_COMMANDS.lua` | 54 | `job_self_command` router (+ `jump`), `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/drg/functions/logic/set_builder.lua` | 154 | Idle and engaged: base, town / HybridMode, wyvern layer, Spirit Surge, Mote layers, weapons, movement |
 | `shared/jobs/drg/functions/logic/wyvern.lua` | 71 | `TRIGGER_HPP` by subjob, `trigger_line`, `spell_triggers_breath`, `breath_set` |
 | `shared/jobs/drg/functions/logic/jumps.lua` | 81 | `order`, `pick`, `execute` (`//gs c jump`) |
