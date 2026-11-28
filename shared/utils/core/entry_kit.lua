@@ -60,14 +60,15 @@ local function after_mote(Profiler)
 end
 
 --- The job's hook files (shared/jobs/<job>/functions/<JOB>_<HOOK>.lua), in load
---- order. Every job has the eight in HOOKS; JOB_FILES says what a job has besides
---- (or without):
----   buff_messages = false  no buff gain / loss messages (message_buffs.lua)
----   pet_midcast            <JOB>_PET_MIDCAST.lua, after MIDCAST
----   movement               <JOB>_MOVEMENT.lua, after COMMANDS
----   own                    <job>_functions.lua: what the job defines besides its hooks
----                          (BLM's checkArts / CastStorm..., THF's Treasure Hunter start)
-local HOOKS = {'PRECAST', 'MIDCAST', 'AFTERCAST', 'IDLE', 'ENGAGED', 'STATUS', 'BUFFS', 'COMMANDS'}
+--- order. A plain name is a hook every job has; {name, flag} is one a job has
+--- only when its JOB_FILES entry sets that flag. JOB_FILES also says:
+---   buff_messages = false  no buff gain / loss messages (message_buffs.lua, before the hooks)
+---   own                    <job>_functions.lua, after the hooks: what the job defines besides
+---                          them (BLM's checkArts / CastStorm..., THF's Treasure Hunter start)
+local HOOKS = {
+    'PRECAST', 'MIDCAST', {'PET_MIDCAST', 'pet_midcast'}, 'AFTERCAST', 'IDLE', 'ENGAGED', 'STATUS', 'BUFFS',
+    'COMMANDS', {'MOVEMENT', 'movement'},
+}
 local JOB_FILES = {
     BLM = {own = true},
     BRD = {buff_messages = false, movement = true},
@@ -94,9 +95,11 @@ function EntryKit.job_files(job)
         files[#files + 1] = '../shared/utils/messages/formatters/magic/message_buffs.lua'
     end
     for _, hook in ipairs(HOOKS) do
-        files[#files + 1] = dir .. job .. '_' .. hook .. '.lua'
-        if hook == 'MIDCAST' and spec.pet_midcast then files[#files + 1] = dir .. job .. '_PET_MIDCAST.lua' end
-        if hook == 'COMMANDS' and spec.movement then files[#files + 1] = dir .. job .. '_MOVEMENT.lua' end
+        local name, flag = hook, nil
+        if type(hook) == 'table' then name, flag = hook[1], hook[2] end
+        if not flag or spec[flag] then
+            files[#files + 1] = dir .. job .. '_' .. name .. '.lua'
+        end
     end
     if spec.own then files[#files + 1] = dir .. jl .. '_functions.lua' end
     return files

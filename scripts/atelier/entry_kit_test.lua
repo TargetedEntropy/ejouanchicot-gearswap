@@ -122,6 +122,10 @@ local war = EntryKit.job_files('WAR')
 check('WAR: the buff messages first', war[1], '../shared/utils/messages/formatters/magic/message_buffs.lua')
 check('WAR: MOVEMENT after COMMANDS', war[#war], '../shared/jobs/war/functions/WAR_MOVEMENT.lua')
 check('BRD: no buff messages', EntryKit.job_files('BRD')[1], '../shared/jobs/brd/functions/BRD_PRECAST.lua')
+local bst = EntryKit.job_files('BST')
+check('BST: PET_MIDCAST right after MIDCAST', bst[4], '../shared/jobs/bst/functions/BST_PET_MIDCAST.lua')
+check('MNK: no optional hook', #EntryKit.job_files('MNK'), 9)
+check('THF: its own functions last', EntryKit.job_files('THF')[10], '../shared/jobs/thf/functions/thf_functions.lua')
 
 -- EntryKit.job: the six hooks in their order, with a job's steps at their places
 local trace = {}
