@@ -61,7 +61,7 @@ TIMER('GEO_BUFFS')
 ---   SECTION 5: UTILITY HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
--- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('GEO')
 require('shared/utils/macrobook/macrobook_manager').install('GEO')
 include('../shared/jobs/geo/functions/GEO_COMMANDS.lua')
@@ -92,7 +92,7 @@ require('shared/utils/dualbox/dualbox_manager')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 local MessageFormatter = require('shared/utils/messages/message_formatter')
-MessageFormatter.show_debug('GEO', 'All functions loaded (11 hooks + 2 logic modules)')
+MessageFormatter.show_debug('GEO', 'All functions loaded')
 
 -- ═══════════════════════════════════════════════════════════════════
 TIMER('TOTAL GEO_functions', true)

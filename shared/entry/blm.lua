@@ -31,8 +31,7 @@
 ---
 --- Specialized Modules:
 ---   BLM_PRECAST | BLM_MIDCAST | BLM_AFTERCAST | BLM_STATUS | BLM_BUFFS
----   BLM_IDLE | BLM_ENGAGED | BLM_MACROBOOK | BLM_COMMANDS | BLM_LOCKSTYLE
----   BLM_MOVEMENT
+---   BLM_IDLE | BLM_ENGAGED | BLM_COMMANDS
 ---============================================================================
 
 ---============================================================================

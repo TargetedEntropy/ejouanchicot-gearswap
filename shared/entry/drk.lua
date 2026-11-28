@@ -5,7 +5,7 @@
 --- Delegates all specialized logic to dedicated modules for maximum maintainability.
 ---
 --- Features:
----   • Modular architecture (11 hook modules + 2 logic modules)
+---   • Modular architecture (hook modules + 2 logic modules)
 ---   • DPS-focused gear automation (PDT/Normal modes)
 ---   • Job ability gear (Last Resort, Weapon Bash, Souleater)
 ---   • Dark Seal / Nether Void anticipation (drk_buff_anticipation)
@@ -14,11 +14,11 @@
 ---   • UI + Keybind system
 ---
 --- Architecture:
----   Main File >> drk_functions.lua (facade) >> 11 Hooks + Logic Modules
+---   Main File >> drk_functions.lua (facade) >> Hooks + Logic Modules
 ---
 --- Modules:
----   • 11 Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
----               COMMANDS, MOVEMENT, LOCKSTYLE, MACROBOOK
+---   • Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
+---               COMMANDS
 ---   • Logic: drk_buff_anticipation, set_builder
 ---
 --- @file    shared/entry/drk.lua

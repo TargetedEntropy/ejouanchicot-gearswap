@@ -24,7 +24,8 @@ local real_require = require
 require = function(name)
     if name == 'shared/utils/core/job_config' then return {get = function(_, _, d) return d end} end
     local ok, mod = pcall(real_require, name)
-    if ok and name:find('GEO_COMMANDS') then return mod end
+    -- the command file and its router are the real ones (the router's shared words are stubs: none matches)
+    if ok and (name:find('GEO_COMMANDS') or name == 'shared/utils/core/job_commands') then return mod end
     return any
 end
 

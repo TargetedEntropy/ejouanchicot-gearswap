@@ -3,24 +3,16 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   Handles custom commands for Geomancer job (indi, geo, escort, entrust,
 ---   nukes with tier fallback, dispel).
----   Integrates with CommonCommands for shared functionality (reload, checksets).
----   Integrates with UICommands for UI management.
 ---
 ---   @file    shared/jobs/geo/functions/GEO_COMMANDS.lua
 ---   @author  ejouanchicot
----   @version 1.1 - Added UICommands integration
+---   @version 1.1
 ---   @date    Created: 2025-10-09 | Updated: 2025-10-10
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
--- Command handlers loaded on first command
-local UICommands = nil
-local CommonCommands = nil
-local WatchdogCommands = nil
-local CycleHandler = nil
-local MessageCommands = nil
 local GeoSpellRefiner = nil
 
 --- Seconds //gs c indiensure leaves the bot to cast the Indi- itself before casting it.
@@ -72,14 +64,8 @@ end
 _G.indi_change = indi_change
 
 local function ensure_commands_loaded()
-    if not UICommands then
-        UICommands = require('shared/utils/ui/UI_COMMANDS')
-        CommonCommands = require('shared/utils/core/COMMON_COMMANDS')
-        WatchdogCommands = require('shared/utils/core/WATCHDOG_COMMANDS')
-        CycleHandler = require('shared/utils/core/CYCLE_HANDLER')
-        MessageCommands = require('shared/utils/messages/formatters/ui/message_commands')
-
-        -- Load GEO spell refiner for intelligent tier fallback
+    if not GeoSpellRefiner then
+        -- tier fallback for the elemental words
         GeoSpellRefiner = require('shared/jobs/geo/functions/logic/geo_spell_refiner')
     end
 end
@@ -124,227 +110,193 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---   COMMAND HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Handle //gs c commands (command router)
----   @param cmdParams table Command words; cmdParams[1] is the command name
----   @param eventArgs table Event arguments (handled = true stops Mote's handling)
-function job_self_command(cmdParams, eventArgs)
-    if not cmdParams or #cmdParams == 0 then
-        return
+--- //gs c fightopen <leader> <target> <bolster,bog,ea> | off, and //gs c fightend: sent by //gs c sortie.
+--- The opening abilities chosen from this character's recasts and buffs, then `sortie <target> opened` back;
+--- the recasts given back by a COR used until the fight is over
+--- (shared/jobs/geo/functions/logic/fight_opening.lua).
+local function fightopen_command(cmdParams, eventArgs, command)
+    local FightOpening = require('shared/jobs/geo/functions/logic/fight_opening')
+    if command == 'fightend' or cmdParams[2] == 'off' then
+        FightOpening.fight_end()
+    elseif cmdParams[2] and cmdParams[3] then
+        FightOpening.open_fight(cmdParams[2], cmdParams[3], cmdParams[4])
     end
-
-    -- Lazy load command handlers on first command
-    ensure_commands_loaded()
-
-    local command = cmdParams[1]:lower()
-
-    if JobCommands.shared(command, cmdParams, eventArgs, 'GEO') then return end
-
-    -- GEO-SPECIFIC COMMANDS
-
-    -- Cast primary Indi spell
-    if command == 'indi' then
-        if state.MainIndi and state.MainIndi.current then
-            send_command('input /ma "' .. state.MainIndi.current .. '" <me>')
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- Cast primary Geo spell with intelligent targeting
-    -- Buffs (party support) >> <stpc> (sub-target party)
-    -- Debuffs (enemy) >> <stnpc> (sub-target NPC)
-    if command == 'geo' then
-        if state.MainGeo and state.MainGeo.current then
-            local spell_name = state.MainGeo.current
-            local target = is_geo_buff(spell_name) and '<stpc>' or '<stnpc>'
-
-            send_command('input /ma "' .. spell_name .. '" ' .. target)
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- Escort: //gs c escort [Indi-X] [leader] [profile]
-    -- Dismiss the luopan if there is one, put up an Indi- on self, and only
-    -- once the cast is over start following the leader: moving cancels the
-    -- cast. Without a luopan the Indi- goes out at once, since waiting after
-    -- a Full Circle that has nothing to dismiss only delays it.
-    -- With a Silmaril profile folder (the path `sm load` takes) that profile
-    -- is loaded but Silmaril stays off: the Indi- is still cast here. The load
-    -- is only so Silmaril sees the next fight profile's Indi- as new and casts
-    -- it (it compares the names of two profiles loaded one after the other).
-    -- Stand behind the locked monster, nobody engaged: //gs c behind [off]
-    -- (shared/jobs/geo/functions/logic/stand_behind.lua; sent by //gs c sortie)
-    if command == 'behind' then
-        require('shared/jobs/geo/functions/logic/stand_behind').command({select(2, unpack(cmdParams))})
-        eventArgs.handled = true
-        return
-    end
-
-    -- //gs c fightopen <leader> <target> <bolster,bog,ea> | off, and //gs c fightend: sent by //gs c sortie.
-    -- The opening abilities chosen from this character's recasts and buffs, then `sortie <target> opened` back;
-    -- the recasts given back by a COR used until the fight is over
-    -- (shared/jobs/geo/functions/logic/fight_opening.lua).
-    if command == 'fightopen' or command == 'fightend' then
-        local FightOpening = require('shared/jobs/geo/functions/logic/fight_opening')
-        if command == 'fightend' or cmdParams[2] == 'off' then
-            FightOpening.fight_end()
-        elseif cmdParams[2] and cmdParams[3] then
-            FightOpening.open_fight(cmdParams[2], cmdParams[3], cmdParams[4])
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    -- //gs c indiensure <Indi-X> [seconds]: sent by //gs c sortie with a profile load. Silmaril casts a new
-    -- profile's Indi- itself; this casts it only if, after the wait, the last Indi- put up is still another one.
-    if command == 'indiensure' then
-        local indi = cmdParams[2]
-        if indi then
-            coroutine.schedule(function()
-                if windower._geo_last_indi ~= indi then
-                    -- ours: not held back after an ability (shared/utils/precast/ability_queue.lua)
-                    -- (under pcall: the Indi- goes even when the queue errs)
-                    pcall(function() require('shared/utils/precast/ability_queue').allow_next(indi) end)
-                    send_command('input /ma "' .. indi .. '" <me>')
-                end
-            end, tonumber(cmdParams[3]) or INDI_ENSURE_WAIT)
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'escort' then
-        -- following the leader now: no more walking behind a monster
-        pcall(function() require('shared/jobs/geo/functions/logic/stand_behind').stop('escort') end)
-        local indi = cmdParams[2] or require('shared/utils/core/job_config').get('GEO', 'escort_indi', 'Indi-Regen')
-        local leader = cmdParams[3]
-        local profile = cmdParams[4]
-        local cast = 'input /ma "' .. indi .. '" <me>'
-        if profile then send_command('sm off; sm load ' .. profile .. '; sm follow off') end
-        local cast_start = 0
-        if pet and pet.isvalid then
-            send_command('input /ja "Full Circle" <me>')
-            -- A spell right after a job ability is refused until the ability
-            -- delay has passed.
-            cast_start = ESCORT_JA_DELAY
-            coroutine.schedule(function() send_command(cast) end, cast_start)
-        else
-            send_command(cast)
-        end
-        if leader then
-            -- Follow as soon as the Indi- is done: job_aftercast calls
-            -- geo_escort_on_aftercast. The timer is only a safety net in case
-            -- no aftercast comes (cast refused before it started).
-            -- `res` is not a global in every job sandbox (it crashed here on GEO).
-            local resources = rawget(_G, 'res') or windower.res or require('resources')
-            local spell = resources.spells:with('en', indi)
-            local cast_time = spell and spell.cast_time or ESCORT_DEFAULT_CAST
-            escort_seq = escort_seq + 1
-            local my_seq = escort_seq
-            escort_pending = {spell = indi, element = spell and spell.element, leader = leader, seq = my_seq,
-                reloaded = profile ~= nil}
-            coroutine.schedule(function()
-                if escort_pending and escort_pending.seq == my_seq then escort_follow() end
-            end, cast_start + cast_time + ESCORT_FOLLOW_MARGIN)
-        end
-        local ok, MessageSortie = pcall(require, 'shared/utils/messages/formatters/system/message_sortie')
-        if ok and MessageSortie then
-            MessageSortie.show_alt_escort(indi, cast_start > 0, leader)
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    -- Cast Indi with Entrust
-    if command == 'entrust' then
-        send_command('input /ja "Entrust" <me>')
-        -- Wait for the buff, not for a fixed delay. Entrust has a five minute
-        -- recast, so pressing this while it is down used to put the Indi- on an
-        -- ally anyway a second and a half later - a targeting cursor followed by
-        -- a refusal. Nothing was cancelled here, so giving up is the right
-        -- answer: an Indi- aimed at an ally does nothing without Entrust.
-        if state.MainIndi and state.MainIndi.current then
-            local AbilityHelper = require('shared/utils/precast/ability_helper')
-            AbilityHelper.follow_up_or_abort('Entrust',
-                'input /ma "' .. state.MainIndi.current .. '" <stal>', 1.5)
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    -- Cast Light Elemental spell (Fire/Aero/Thunder) with intelligent tier fallback
-    if command == 'lightspell' then
-        if state.MainLightSpell and state.MainLightSpell.current and state.SpellTier and state.SpellTier.current then
-            local base_spell = state.MainLightSpell.current
-            local desired_tier = state.SpellTier.current
-
-            -- Use spell refiner for automatic tier fallback
-            GeoSpellRefiner.refine_and_cast(base_spell, desired_tier, false, '<t>')
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- Cast Dark Elemental spell (Blizzard/Stone/Water) with intelligent tier fallback
-    if command == 'darkspell' then
-        if state.MainDarkSpell and state.MainDarkSpell.current and state.SpellTier and state.SpellTier.current then
-            local base_spell = state.MainDarkSpell.current
-            local desired_tier = state.SpellTier.current
-
-            -- Use spell refiner for automatic tier fallback
-            GeoSpellRefiner.refine_and_cast(base_spell, desired_tier, false, '<t>')
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- Cast Light AOE spell (Fira/Aera/Thundara) with intelligent tier fallback
-    if command == 'lightaoe' then
-        if state.MainLightAOE and state.MainLightAOE.current and state.AOETier and state.AOETier.current then
-            local base_spell = state.MainLightAOE.current
-            local desired_tier = state.AOETier.current
-
-            -- Use spell refiner for automatic tier fallback (is_aoe = true)
-            GeoSpellRefiner.refine_and_cast(base_spell, desired_tier, true, '<t>')
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- Cast Dark AOE spell (Blizzara/Stonera/Watera) with intelligent tier fallback
-    if command == 'darkaoe' then
-        if state.MainDarkAOE and state.MainDarkAOE.current and state.AOETier and state.AOETier.current then
-            local base_spell = state.MainDarkAOE.current
-            local desired_tier = state.AOETier.current
-
-            -- Use spell refiner for automatic tier fallback (is_aoe = true)
-            GeoSpellRefiner.refine_and_cast(base_spell, desired_tier, true, '<t>')
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- Dispel: GEO needs /SCH (Addendum: Black) or /RDM for native Dispel.
-    --   /RDM                          -> direct cast
-    --   /SCH + Addendum: Black active -> cast directly
-    --   /SCH + Dark Arts only         -> Addendum: Black, then Dispel
-    --   /SCH neither active           -> Dark Arts, Addendum: Black, then Dispel
-    if command == 'dispel' then
-        local sub = (player and player.sub_job) or 'NON'
-        if sub == 'RDM' then
-            send_command('input /ma "Dispel" <stnpc>')
-        elseif sub == 'SCH' then
-            local ScholarActions = require('shared/utils/scholar/scholar_actions')
-            ScholarActions.cast_under_black_addendum('Dispel', '<stnpc>')
-        else
-            local MC = require('shared/utils/messages/message_core')
-            MC.warning(('Dispel unavailable on GEO/%s. Need /RDM or /SCH.'):format(sub))
-        end
-        eventArgs.handled = true
-        return
-    end
+    eventArgs.handled = true
 end
+
+job_self_command = JobCommands.router('GEO', {
+    load = ensure_commands_loaded,
+    words = {
+        -- Cast primary Indi spell
+        indi = function(cmdParams, eventArgs, command)
+            if state.MainIndi and state.MainIndi.current then
+                send_command('input /ma "' .. state.MainIndi.current .. '" <me>')
+                eventArgs.handled = true
+            end
+        end,
+        -- Cast primary Geo spell with intelligent targeting
+        -- Buffs (party support) >> <stpc> (sub-target party)
+        -- Debuffs (enemy) >> <stnpc> (sub-target NPC)
+        geo = function(cmdParams, eventArgs, command)
+            if state.MainGeo and state.MainGeo.current then
+                local spell_name = state.MainGeo.current
+                local target = is_geo_buff(spell_name) and '<stpc>' or '<stnpc>'
+
+                send_command('input /ma "' .. spell_name .. '" ' .. target)
+                eventArgs.handled = true
+            end
+        end,
+        -- Stand behind the locked monster, nobody engaged: //gs c behind [off]
+        -- (shared/jobs/geo/functions/logic/stand_behind.lua; sent by //gs c sortie)
+        behind = function(cmdParams, eventArgs, command)
+            require('shared/jobs/geo/functions/logic/stand_behind').command({select(2, unpack(cmdParams))})
+            eventArgs.handled = true
+        end,
+        fightopen = fightopen_command, fightend = fightopen_command,
+        -- //gs c indiensure <Indi-X> [seconds]: sent by //gs c sortie with a profile load. Silmaril casts a new
+        -- profile's Indi- itself; this casts it only if, after the wait, the last Indi- put up is still another one.
+        indiensure = function(cmdParams, eventArgs, command)
+            local indi = cmdParams[2]
+            if indi then
+                coroutine.schedule(function()
+                    if windower._geo_last_indi ~= indi then
+                        -- ours: not held back after an ability (shared/utils/precast/ability_queue.lua)
+                        -- (under pcall: the Indi- goes even when the queue errs)
+                        pcall(function() require('shared/utils/precast/ability_queue').allow_next(indi) end)
+                        send_command('input /ma "' .. indi .. '" <me>')
+                    end
+                end, tonumber(cmdParams[3]) or INDI_ENSURE_WAIT)
+            end
+            eventArgs.handled = true
+        end,
+        -- Escort: //gs c escort [Indi-X] [leader] [profile]
+        -- Dismiss the luopan if there is one, put up an Indi- on self, and only
+        -- once the cast is over start following the leader: moving cancels the
+        -- cast. Without a luopan the Indi- goes out at once, since waiting after
+        -- a Full Circle that has nothing to dismiss only delays it.
+        -- With a Silmaril profile folder (the path `sm load` takes) that profile
+        -- is loaded but Silmaril stays off: the Indi- is still cast here. The load
+        -- is only so Silmaril sees the next fight profile's Indi- as new and casts
+        -- it (it compares the names of two profiles loaded one after the other).
+        escort = function(cmdParams, eventArgs, command)
+            -- following the leader now: no more walking behind a monster
+            pcall(function() require('shared/jobs/geo/functions/logic/stand_behind').stop('escort') end)
+            local indi = cmdParams[2] or require('shared/utils/core/job_config').get('GEO', 'escort_indi', 'Indi-Regen')
+            local leader = cmdParams[3]
+            local profile = cmdParams[4]
+            local cast = 'input /ma "' .. indi .. '" <me>'
+            if profile then send_command('sm off; sm load ' .. profile .. '; sm follow off') end
+            local cast_start = 0
+            if pet and pet.isvalid then
+                send_command('input /ja "Full Circle" <me>')
+                -- A spell right after a job ability is refused until the ability
+                -- delay has passed.
+                cast_start = ESCORT_JA_DELAY
+                coroutine.schedule(function() send_command(cast) end, cast_start)
+            else
+                send_command(cast)
+            end
+            if leader then
+                -- Follow as soon as the Indi- is done: job_aftercast calls
+                -- geo_escort_on_aftercast. The timer is only a safety net in case
+                -- no aftercast comes (cast refused before it started).
+                -- `res` is not a global in every job sandbox (it crashed here on GEO).
+                local resources = rawget(_G, 'res') or windower.res or require('resources')
+                local spell = resources.spells:with('en', indi)
+                local cast_time = spell and spell.cast_time or ESCORT_DEFAULT_CAST
+                escort_seq = escort_seq + 1
+                local my_seq = escort_seq
+                escort_pending = {spell = indi, element = spell and spell.element, leader = leader, seq = my_seq,
+                    reloaded = profile ~= nil}
+                coroutine.schedule(function()
+                    if escort_pending and escort_pending.seq == my_seq then escort_follow() end
+                end, cast_start + cast_time + ESCORT_FOLLOW_MARGIN)
+            end
+            local ok, MessageSortie = pcall(require, 'shared/utils/messages/formatters/system/message_sortie')
+            if ok and MessageSortie then
+                MessageSortie.show_alt_escort(indi, cast_start > 0, leader)
+            end
+            eventArgs.handled = true
+        end,
+        -- Cast Indi with Entrust
+        entrust = function(cmdParams, eventArgs, command)
+            send_command('input /ja "Entrust" <me>')
+            -- Wait for the buff, not for a fixed delay. Entrust has a five minute
+            -- recast, so pressing this while it is down used to put the Indi- on an
+            -- ally anyway a second and a half later - a targeting cursor followed by
+            -- a refusal. Nothing was cancelled here, so giving up is the right
+            -- answer: an Indi- aimed at an ally does nothing without Entrust.
+            if state.MainIndi and state.MainIndi.current then
+                local AbilityHelper = require('shared/utils/precast/ability_helper')
+                AbilityHelper.follow_up_or_abort('Entrust',
+                    'input /ma "' .. state.MainIndi.current .. '" <stal>', 1.5)
+            end
+            eventArgs.handled = true
+        end,
+        -- Cast Light Elemental spell (Fire/Aero/Thunder) with intelligent tier fallback
+        lightspell = function(cmdParams, eventArgs, command)
+            if state.MainLightSpell and state.MainLightSpell.current and state.SpellTier and state.SpellTier.current then
+                local base_spell = state.MainLightSpell.current
+                local desired_tier = state.SpellTier.current
+
+                -- Use spell refiner for automatic tier fallback
+                GeoSpellRefiner.refine_and_cast(base_spell, desired_tier, false, '<t>')
+                eventArgs.handled = true
+            end
+        end,
+        -- Cast Dark Elemental spell (Blizzard/Stone/Water) with intelligent tier fallback
+        darkspell = function(cmdParams, eventArgs, command)
+            if state.MainDarkSpell and state.MainDarkSpell.current and state.SpellTier and state.SpellTier.current then
+                local base_spell = state.MainDarkSpell.current
+                local desired_tier = state.SpellTier.current
+
+                -- Use spell refiner for automatic tier fallback
+                GeoSpellRefiner.refine_and_cast(base_spell, desired_tier, false, '<t>')
+                eventArgs.handled = true
+            end
+        end,
+        -- Cast Light AOE spell (Fira/Aera/Thundara) with intelligent tier fallback
+        lightaoe = function(cmdParams, eventArgs, command)
+            if state.MainLightAOE and state.MainLightAOE.current and state.AOETier and state.AOETier.current then
+                local base_spell = state.MainLightAOE.current
+                local desired_tier = state.AOETier.current
+
+                -- Use spell refiner for automatic tier fallback (is_aoe = true)
+                GeoSpellRefiner.refine_and_cast(base_spell, desired_tier, true, '<t>')
+                eventArgs.handled = true
+            end
+        end,
+        -- Cast Dark AOE spell (Blizzara/Stonera/Watera) with intelligent tier fallback
+        darkaoe = function(cmdParams, eventArgs, command)
+            if state.MainDarkAOE and state.MainDarkAOE.current and state.AOETier and state.AOETier.current then
+                local base_spell = state.MainDarkAOE.current
+                local desired_tier = state.AOETier.current
+
+                -- Use spell refiner for automatic tier fallback (is_aoe = true)
+                GeoSpellRefiner.refine_and_cast(base_spell, desired_tier, true, '<t>')
+                eventArgs.handled = true
+            end
+        end,
+        -- Dispel: GEO needs /SCH (Addendum: Black) or /RDM for native Dispel.
+        --   /RDM                          -> direct cast
+        --   /SCH + Addendum: Black active -> cast directly
+        --   /SCH + Dark Arts only         -> Addendum: Black, then Dispel
+        --   /SCH neither active           -> Dark Arts, Addendum: Black, then Dispel
+        dispel = function(cmdParams, eventArgs, command)
+            local sub = (player and player.sub_job) or 'NON'
+            if sub == 'RDM' then
+                send_command('input /ma "Dispel" <stnpc>')
+            elseif sub == 'SCH' then
+                local ScholarActions = require('shared/utils/scholar/scholar_actions')
+                ScholarActions.cast_under_black_addendum('Dispel', '<stnpc>')
+            else
+                local MC = require('shared/utils/messages/message_core')
+                MC.warning(('Dispel unavailable on GEO/%s. Need /RDM or /SCH.'):format(sub))
+            end
+            eventArgs.handled = true
+        end,
+    },
+})
 
 --- GEO adds nothing of its own: the shared handler is the whole
 --- behaviour. Pass a function to state_change() to extend it.

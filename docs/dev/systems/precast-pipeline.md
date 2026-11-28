@@ -179,7 +179,8 @@ Every job but RDM gets its `job_precast` and `job_post_precast` from
 `PrecastPipeline.hooks(job, steps)` (`shared/utils/precast/precast_pipeline.lua`):
 the order below is written once there, and a job hands in only its own steps
 (`before_cooldown`, `cooldown`, `after_cooldown`, `after_ws`, `before_tp_gear`,
-`after_tp_gear`, and `load` for its own modules). WAR, DRG, NIN and PUP have none.
+`after_tp_gear`, and `load` for its own modules), each called with Mote's four
+arguments `(spell, action, spellMap, eventArgs)`. WAR, DRG, NIN and PUP have none.
 RDM keeps its own staged `job_precast` (debug stages, `combat_mode.apply()` first).
 
 ```mermaid

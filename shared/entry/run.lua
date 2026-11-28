@@ -5,7 +5,7 @@
 --- Delegates all specialized logic to dedicated modules for maximum maintainability.
 ---
 --- Features:
----   • Modular architecture (11 hook modules + 4 logic modules)
+---   • Modular architecture (hook modules + 4 logic modules)
 ---   • Tank gear automation (HybridMode PDT/MDT)
 ---   • Rune selection from state.RuneMode (rune_manager)
 ---   • Blue Magic AOE spell rotation (RUN/BLU, aoe_manager)
@@ -14,11 +14,11 @@
 ---   • UI + Keybind system
 ---
 --- Architecture:
----   Main File >> run_functions.lua (facade) >> 11 Hooks + 4 Logic Modules
+---   Main File >> run_functions.lua (facade) >> Hooks + 4 Logic Modules
 ---
 --- Modules:
----   • 11 Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
----               COMMANDS, MOVEMENT, LOCKSTYLE, MACROBOOK
+---   • Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
+---               COMMANDS
 ---   • 4 Logic: aoe_manager, cure_set_builder, rune_manager, set_builder
 ---
 --- @file    shared/entry/run.lua

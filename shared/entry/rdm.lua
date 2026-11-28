@@ -31,8 +31,7 @@
 ---
 --- Specialized Modules:
 ---   RDM_PRECAST | RDM_MIDCAST | RDM_AFTERCAST | RDM_STATUS | RDM_BUFFS
----   RDM_IDLE | RDM_ENGAGED | RDM_MACROBOOK | RDM_COMMANDS | RDM_LOCKSTYLE
----   RDM_MOVEMENT
+---   RDM_IDLE | RDM_ENGAGED | RDM_COMMANDS
 ---============================================================================
 
 ---============================================================================

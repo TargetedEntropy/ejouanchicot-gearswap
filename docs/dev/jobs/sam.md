@@ -49,7 +49,7 @@ function; line numbers are deliberately not used.
 | `shared/jobs/sam/functions/SAM_ENGAGED.lua` | 42 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/sam/functions/SAM_STATUS.lua` | 35 | `job_status_change = LifecycleManager.status_change(auto_hasso)` |
 | `shared/jobs/sam/functions/SAM_BUFFS.lua` | 22 | `job_buff_change = LifecycleManager.buff_change(extra)`, `extra` calling `LifecycleManager.refresh_after_buff` (Aftermath Lv.3) |
-| `shared/jobs/sam/functions/SAM_COMMANDS.lua` | 85 | `job_self_command` router (shared commands, `hasso`, `seigan`), `job_state_change = LifecycleManager.state_change()` |
+| `shared/jobs/sam/functions/SAM_COMMANDS.lua` | 48 | `job_self_command` router (shared commands, `hasso`, `seigan`), `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/sam/functions/logic/set_builder.lua` | 189 | `build_idle_set` (town, PDT, HP, weapon, `BaseSetBuilder.apply_movement`), `apply_main_weapon`, `build_engaged_set` (base from `select_engaged_base`; Seigan, weapon, bow) |
 | `_master/config/sam/SAM_STATES.lua` | 118 | `SAMStates.configure()` (HybridMode, OffenseMode, WeaponskillMode, MainWeapon, Stance, FastCast, AutoMedicine) |
 | `_master/config/sam/SAM_KEYBINDS.lua` | 53 | Data only: 4 binds handed to `KeybindManager.create('SAM', ...)` |

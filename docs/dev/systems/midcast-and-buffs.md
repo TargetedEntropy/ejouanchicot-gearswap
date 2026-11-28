@@ -13,7 +13,7 @@ References are to the code as of 2026-09-28. Functions are named (`file` `functi
 | Path | Lines | Role |
 |---|---|---|
 | `shared/utils/midcast/midcast_manager.lua` | 764 | `select_set()` with the standard chain (P0-P9, plus P8b) and the Singing chain, persistent debug toggle, Composure target helper, song helpers |
-| `shared/utils/midcast/midcast_fallback.lua` | 57 | Routes a spell no job midcast handed to `select_set` (a subjob's magic), on Mote's `cleanup_midcast` |
+| `shared/utils/midcast/midcast_fallback.lua` | 56 | Routes a spell no job midcast handed to `select_set` (a subjob's magic), on Mote's `cleanup_midcast` |
 | `shared/utils/midcast/midcast_trace.lua` | 81 | `MIDCAST` lines in `<Character>/logs/trace/trace.log` (chosen path and pieces, or "no set"); slot-name aliasing |
 | `shared/utils/midcast/utsusemi_shadows.lua` | 52 | Cancels Copy Image buffs during Utsusemi: Ichi's cast, before its end (Cancel addon) |
 | `shared/utils/midcast/midcast_deps.lua` | 44 | Loads `MidcastManager` and `ENHANCING_MAGIC_DATABASE` once per instance, for the 14 jobs that call it (see [MidcastDeps](#midcastdeps)) |

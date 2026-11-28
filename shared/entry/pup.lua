@@ -15,8 +15,7 @@
 ---
 --- Hooks Modules:
 ---   PUP_PRECAST | PUP_MIDCAST | PUP_PET_MIDCAST | PUP_AFTERCAST | PUP_STATUS
----   PUP_BUFFS | PUP_IDLE | PUP_ENGAGED | PUP_MACROBOOK | PUP_COMMANDS
----   PUP_MOVEMENT | PUP_LOCKSTYLE
+---   PUP_BUFFS | PUP_IDLE | PUP_ENGAGED | PUP_COMMANDS
 ---
 --- Logic Modules:
 ---   logic/automaton.lua    - Head / frame -> PetMode, pet out / fighting / TP

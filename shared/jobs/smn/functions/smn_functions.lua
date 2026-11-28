@@ -73,6 +73,6 @@ require('shared/utils/dualbox/dualbox_manager')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 local MessageFormatter = require('shared/utils/messages/message_formatter')
-MessageFormatter.show_debug('SMN', 'All functions loaded (12 hooks + 1 logic module)')
+MessageFormatter.show_debug('SMN', 'All functions loaded')
 
 TIMER('TOTAL SMN_functions', true)

@@ -12,7 +12,7 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---
 --- Features:
----   • Modular architecture (11 hook modules + 5 logic modules)
+---   • Modular architecture (hook modules + 5 logic modules)
 ---   • DPS-focused gear automation with survival modes (PDT/Normal)
 ---   • Step management system (Quickstep, Box Step rotation)
 ---   • Climactic Flourish auto-trigger for weaponskills
@@ -26,18 +26,17 @@
 ---   • Smart lockstyle/macrobook per subjob
 ---
 --- Architecture Overview:
----   Main File (this) >> dnc_functions.lua >> 11 Hooks + 5 Logic Modules
+---   Main File (this) >> dnc_functions.lua >> Hooks + 5 Logic Modules
 ---
 --- Module Organization:
 ---   ├── functions/dnc_functions.lua        [Facade Loader]
 ---   ├── <Character>/dnc/sets/dnc_sets.lua [Equipment Sets]
----   ├── functions/DNC_*.lua                [11 Hook Modules]
+---   ├── functions/DNC_*.lua                [Hook Modules]
 ---   └── functions/logic/*.lua              [5 Logic Modules]
 ---
 --- Hook Modules (11):
 ---   DNC_PRECAST | DNC_MIDCAST | DNC_AFTERCAST | DNC_IDLE | DNC_ENGAGED
----   DNC_STATUS | DNC_BUFFS | DNC_COMMANDS | DNC_MOVEMENT
----   DNC_LOCKSTYLE | DNC_MACROBOOK
+---   DNC_STATUS | DNC_BUFFS | DNC_COMMANDS
 ---
 --- Logic Modules (5):
 ---   climactic_manager | set_builder | smartbuff_manager

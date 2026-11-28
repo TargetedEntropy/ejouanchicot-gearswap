@@ -2,7 +2,7 @@
 ---   BST Functions Facade - Module Loader
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   Loads all BST-specific function modules in correct order.
----   CRITICAL: All 11 hook modules must be loaded via include() for _G availability.
+---   CRITICAL: All hook modules must be loaded via include() for _G availability.
 ---
 ---   @file    shared/jobs/bst/functions/bst_functions.lua
 ---   @author  ejouanchicot
@@ -59,7 +59,7 @@ TIMER('BST_BUFFS')
 ---   SECTION 5: UTILITY HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
--- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('BST')
 require('shared/utils/macrobook/macrobook_manager').install('BST')
 include('../shared/jobs/bst/functions/BST_COMMANDS.lua')
@@ -102,6 +102,6 @@ local DualBoxManager = require('shared/utils/dualbox/dualbox_manager')
 
 -- All module functions are now available in global scope
 local MessageFormatter = require('shared/utils/messages/message_formatter')
-MessageFormatter.show_debug('BST', 'All functions loaded (12 hooks + 4 logic modules)')
+MessageFormatter.show_debug('BST', 'All functions loaded')
 
 TIMER('TOTAL BST_functions', true)

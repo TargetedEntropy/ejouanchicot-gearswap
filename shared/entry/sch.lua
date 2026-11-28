@@ -15,8 +15,7 @@
 ---
 --- Hooks Modules:
 ---   SCH_PRECAST | SCH_MIDCAST | SCH_AFTERCAST | SCH_STATUS | SCH_BUFFS
----   SCH_IDLE | SCH_ENGAGED | SCH_MACROBOOK | SCH_COMMANDS | SCH_MOVEMENT
----   SCH_LOCKSTYLE
+---   SCH_IDLE | SCH_ENGAGED | SCH_COMMANDS
 ---
 --- Logic Modules:
 ---   logic/grimoire.lua        - Arts in force, grimoire / stratagem layers

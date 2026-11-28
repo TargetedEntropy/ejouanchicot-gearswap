@@ -7,7 +7,6 @@
 ---   Architecture:
 ---   • Hook modules (12): PRECAST, MIDCAST, PET_MIDCAST, AFTERCAST, IDLE,
 ---     ENGAGED, STATUS (+ pet change / pet status), BUFFS, COMMANDS,
----     MOVEMENT, LOCKSTYLE, MACROBOOK
 ---   • Logic modules (3, required by the hooks):
 ---       logic/automaton.lua    what the automaton is (head / frame ->
 ---                              PetMode) and does (out, fighting, TP)
@@ -50,7 +49,7 @@ TIMER('PUP_STATUS')
 include('../shared/jobs/pup/functions/PUP_BUFFS.lua')        -- Doom, Overdrive
 TIMER('PUP_BUFFS')
 
--- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('PUP')
 require('shared/utils/macrobook/macrobook_manager').install('PUP')
 include('../shared/jobs/pup/functions/PUP_COMMANDS.lua')     -- Commands (petmode), state change hook

@@ -2,8 +2,6 @@
 ---   BLM Commands - Custom Command Handling
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   Handles job-specific custom commands for Black Mage job:
----   • Common commands (reload, checksets, waltz, jump, etc.)
----   • UI commands (ui toggle, reload UI)
 ---   • BLM element cycling (MainLight, MainDark, SubLight, SubDark)
 ---   • BLM spell cycling (Storm)
 ---   • BLM-specific commands (buff, storm, klima, dispel, light/dark/aoe nukes);
@@ -11,25 +9,18 @@
 ---   • CombatMode weapon lock (job_state_change)
 ---   • State change UI synchronization with colored element messages
 ---
----   Uses centralized command handlers for consistency across all jobs.
+---   The words every job shares go through JobCommands.router (shared/utils/core/job_commands.lua).
 ---   Movement gear handled passively via customize_idle_set() like other jobs.
 ---
 ---   @file    shared/jobs/blm/functions/BLM_COMMANDS.lua
 ---   @author  ejouanchicot
 ---   @version 2.3.0 - Added party Sneak/Invi commands (Accession automation)
 ---   @date    Created: 2025-10-15 | Updated: 2025-10-17
----   @requires shared/utils/ui/UI_COMMANDS, shared/utils/core/COMMON_COMMANDS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
--- Command handlers loaded on first command
-local UICommands = nil
-local CommonCommands = nil
-local WatchdogCommands = nil
-local CycleHandler = nil
-local MessageCommands = nil
 local BLMMessages = nil
 local MessageFormatter = nil
 local StratagemCharges = nil
@@ -39,12 +30,7 @@ local ScholarActions = nil
 local DARK_ARTS_RECAST_ID = 232
 
 local function ensure_commands_loaded()
-    if not UICommands then
-        UICommands = require('shared/utils/ui/UI_COMMANDS')
-        CommonCommands = require('shared/utils/core/COMMON_COMMANDS')
-        WatchdogCommands = require('shared/utils/core/WATCHDOG_COMMANDS')
-        CycleHandler = require('shared/utils/core/CYCLE_HANDLER')
-        MessageCommands = require('shared/utils/messages/formatters/ui/message_commands')
+    if not MessageFormatter then
         MessageFormatter = require('shared/utils/messages/message_formatter')
 
         -- BLM message formatter (handles all colored messages)
@@ -110,83 +96,84 @@ end
 ---   BLM CYCLE COMMAND HANDLERS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Handle custom BLM cycle commands with colored element messages
----   @param command string The cycle command to execute
----   @param eventArgs table Event arguments with handled flag
----   @return boolean true if command was handled
-local function handle_blm_cycle_commands(command, eventArgs)
-    -- Lazy load on first cycle command
-    ensure_commands_loaded()
-    -- MainLight: Fire/Thunder/Aero
-    if command == 'cyclemainlight' then
-        if state and state.MainLightSpell then
-            state.MainLightSpell:cycle()
-            BLMMessages.show_element_cycle('MainLight', state.MainLightSpell.value)
-            update_ui()
-            eventArgs.handled = true
-            return true
-        end
-    end
+--- cyclemainlight / cyclemaindark / cyclesublight / cyclesubdark: the element state, its label in the message.
+local ELEMENT_CYCLES = {
+    cyclemainlight = {'MainLightSpell', 'MainLight'},   -- Fire/Thunder/Aero
+    cyclemaindark = {'MainDarkSpell', 'MainDark'},      -- Stone/Blizzard/Water
+    cyclesublight = {'SubLightSpell', 'SubLight'},      -- Thunder/Fire/Aero
+    cyclesubdark = {'SubDarkSpell', 'SubDark'},         -- Blizzard/Stone/Water
+}
 
-    -- MainDark: Stone/Blizzard/Water
-    if command == 'cyclemaindark' then
-        if state and state.MainDarkSpell then
-            state.MainDarkSpell:cycle()
-            BLMMessages.show_element_cycle('MainDark', state.MainDarkSpell.value)
-            update_ui()
-            eventArgs.handled = true
-            return true
-        end
+--- Cycle an element state, with its coloured message.
+local function cycle_element(cmdParams, eventArgs, command)
+    local name, label = unpack(ELEMENT_CYCLES[command])
+    local element = state and state[name]
+    if element then
+        element:cycle()
+        BLMMessages.show_element_cycle(label, element.value)
+        update_ui()
+        eventArgs.handled = true
     end
-
-    -- SubLight: Thunder/Fire/Aero
-    if command == 'cyclesublight' then
-        if state and state.SubLightSpell then
-            state.SubLightSpell:cycle()
-            BLMMessages.show_element_cycle('SubLight', state.SubLightSpell.value)
-            update_ui()
-            eventArgs.handled = true
-            return true
-        end
-    end
-
-    -- SubDark: Blizzard/Stone/Water
-    if command == 'cyclesubdark' then
-        if state and state.SubDarkSpell then
-            state.SubDarkSpell:cycle()
-            BLMMessages.show_element_cycle('SubDark', state.SubDarkSpell.value)
-            update_ui()
-            eventArgs.handled = true
-            return true
-        end
-    end
-
-    return false
 end
 
----   Handle standard cycle commands with colored messages (Storm)
----   @param cmdParams table Command parameters array
----   @param eventArgs table Event arguments with handled flag
----   @return boolean true if command was handled
-local function handle_blm_standard_cycles(cmdParams, eventArgs)
-    if cmdParams[1] ~= 'cycle' or not cmdParams[2] then
-        return false
+--- //gs c cycle Storm, with its coloured message (any other cycle is left to Mote).
+local function cycle_storm(cmdParams, eventArgs)
+    if cmdParams[1] == 'cycle' and cmdParams[2] == 'Storm' and state and state.Storm then
+        state.Storm:cycle()
+        BLMMessages.show_storm_cycle(state.Storm.value)
+        update_ui()
+        eventArgs.handled = true
+    end
+end
+
+--- light / dark / sublight / subdark: a single-target nuke (element state + SpellTier); aoelight / aoedark /
+--- subaoelight / subaoedark: an AOE nuke (-ga element state + AOETier: Aja >> III >> II >> I).
+local NUKES = {
+    light = {'MainLightSpell', 'SpellTier', build_nuke_name},
+    dark = {'MainDarkSpell', 'SpellTier', build_nuke_name},
+    sublight = {'SubLightSpell', 'SpellTier', build_nuke_name},
+    subdark = {'SubDarkSpell', 'SpellTier', build_nuke_name},
+    aoelight = {'MainLightAOE', 'AOETier', build_aoe_name},
+    aoedark = {'MainDarkAOE', 'AOETier', build_aoe_name},
+    subaoelight = {'SubLightAOE', 'AOETier', build_aoe_name},
+    subaoedark = {'SubDarkAOE', 'AOETier', build_aoe_name},
+}
+
+local function nuke(cmdParams, eventArgs, command)
+    local element, tier, builder = unpack(NUKES[command])
+    eventArgs.handled = cast_from_states(state[element], state[tier], builder)
+end
+
+--- Klima: Dark Arts + Manifestation + Klimaform, each step only when usable.
+--- Klimaform itself always fires; the two stratagem steps are opportunistic.
+local function klima(cmdParams, eventArgs)
+    local steps = {}
+
+    local dark_active = buffactive and (buffactive['Dark Arts'] or buffactive['Addendum: Black'])
+    local dark_recast = windower.ffxi.get_ability_recasts()[DARK_ARTS_RECAST_ID] or 0
+
+    if not dark_active and is_recast_ready(dark_recast) then
+        table.insert(steps, {command = 'input /ja "Dark Arts" <me>', buff = 'Dark Arts'})
     end
 
-    local stateName = cmdParams[2]
-
-    -- Storm: FireStorm/Sandstorm/Thunderstorm/HailStorm/Rainstorm/Windstorm/Voidstorm/Aurorastorm
-    if stateName == 'Storm' then
-        if state and state.Storm then
-            state.Storm:cycle()
-            BLMMessages.show_storm_cycle(state.Storm.value)
-            update_ui()
-            eventArgs.handled = true
-            return true
+    if ScholarActions.is_on(state.KlimaformAOE) then
+        if StratagemCharges.has_charge() then
+            table.insert(steps, {command = 'input /ja "Manifestation" <me>', buff = 'Manifestation'})
+        else
+            ScholarActions.warn_no_charge('Manifestation')
         end
     end
 
-    return false
+    -- Each step waits on its own buff instead of a fixed `wait 2`: an
+    -- ability sent while the previous one still holds the action lock is
+    -- refused, and the old chain never noticed. finish_anyway because
+    -- Klimaform is worth casting even when Manifestation did not land -
+    -- it is simply single-target then.
+    ScholarActions.run_chain(steps, function()
+        send_command('input /ma "Klimaform" <me>')
+    end, true)
+
+    eventArgs.handled = true
 end
 
 local JobCommands = require('shared/utils/core/job_commands')
@@ -195,104 +182,17 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---   COMMAND HANDLER HOOK
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Handle job-specific self commands
----   Processes commands in order: Common >> UI >> BLM cycles >> BLM-specific
----
----   Common commands:
----   • reload         - Reload GearSwap
----   • checksets      - Validate equipment sets
----   • waltz <target> - Perform waltz on target
----   • jump           - Use DRG subjob Jump
----
----   UI commands:
----   • ui             - Toggle UI visibility
----
----   BLM cycle commands:
----   • cyclemainlight  - Cycle MainLight (Fire/Thunder/Aero)
----   • cyclemaindark   - Cycle MainDark (Stone/Blizzard/Water)
----   • cyclesublight   - Cycle SubLight
----   • cyclesubdark    - Cycle SubDark
----   • cycle Storm     - Cycle Storm spells
----
----   BLM-specific commands:
----   • buff           - Automated self-buffing (Stoneskin, Blink, Aquaveil, Ice Spikes)
----   • klima          - Dark Arts + Manifestation + Klimaform (charge-aware)
----   • dispel         - Dispel via /RDM, or via Addendum: Black on /SCH
----   • storm          - Current Storm state, with Klimaform (CastStorm)
----   • light/dark     - Main single-target nuke (element state + SpellTier)
----   • sublight/subdark   - Sub single-target nuke
----   • aoelight/aoedark   - Main AOE nuke (-ga state + AOETier)
----   • subaoelight/subaoedark - Sub AOE nuke
----
----   @param cmdParams table Command parameters array (e.g., {"buff"})
----   @param eventArgs table Event arguments with handled flag
----   @return void
-function job_self_command(cmdParams, eventArgs)
-    if not cmdParams[1] then
-        return
-    end
-
-    -- Lazy load command handlers on first command
-    ensure_commands_loaded()
-
-    local command = cmdParams[1]:lower()
-
-    if JobCommands.shared(command, cmdParams, eventArgs, 'BLM') then return end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- BLM CUSTOM CYCLE COMMANDS (cyclemainlight, cyclemaindark, etc.)
-    -- ══════════════════════════════════════════════════════════════════════════
-    if handle_blm_cycle_commands(command, eventArgs) then
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- BLM STANDARD CYCLE COMMANDS (cycle Storm)
-    -- ══════════════════════════════════════════════════════════════════════════
-    if handle_blm_standard_cycles(cmdParams, eventArgs) then
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- BLM-SPECIFIC COMMANDS
-    -- ══════════════════════════════════════════════════════════════════════════
-
-    -- buff / buffs / buffself / selfbuff: the common command
-    -- (shared/utils/buffs/buff_command.lua; BLM's list in BUFF_CONFIG.lua `job`)
-
-    -- Klima: Dark Arts + Manifestation + Klimaform, each step only when usable.
-    -- Klimaform itself always fires; the two stratagem steps are opportunistic.
-    if command == 'klima' or command == 'klimaform' then
-        local steps = {}
-
-        local dark_active = buffactive and (buffactive['Dark Arts'] or buffactive['Addendum: Black'])
-        local dark_recast = windower.ffxi.get_ability_recasts()[DARK_ARTS_RECAST_ID] or 0
-
-        if not dark_active and is_recast_ready(dark_recast) then
-            table.insert(steps, {command = 'input /ja "Dark Arts" <me>', buff = 'Dark Arts'})
-        end
-
-        if ScholarActions.is_on(state.KlimaformAOE) then
-            if StratagemCharges.has_charge() then
-                table.insert(steps, {command = 'input /ja "Manifestation" <me>', buff = 'Manifestation'})
-            else
-                ScholarActions.warn_no_charge('Manifestation')
-            end
-        end
-
-        -- Each step waits on its own buff instead of a fixed `wait 2`: an
-        -- ability sent while the previous one still holds the action lock is
-        -- refused, and the old chain never noticed. finish_anyway because
-        -- Klimaform is worth casting even when Manifestation did not land -
-        -- it is simply single-target then.
-        ScholarActions.run_chain(steps, function()
-            send_command('input /ma "Klimaform" <me>')
-        end, true)
-
-        eventArgs.handled = true
-        return
-    end
-
+--- BLM's words (buff / buffs / buffself / selfbuff are the common command: shared/utils/buffs/buff_command.lua,
+--- BLM's list in BUFF_CONFIG.lua `job`):
+---   cyclemainlight / cyclemaindark / cyclesublight / cyclesubdark, cycle Storm   the states, with coloured messages
+---   klima            Dark Arts + Manifestation + Klimaform (charge-aware)
+---   dispel           Dispel via /RDM, or via Addendum: Black on /SCH
+---   storm            Current Storm state, with Klimaform (CastStorm)
+---   light / dark / sublight / subdark, aoelight / aoedark / subaoelight / subaoedark   the nukes (NUKES)
+local words = {
+    cycle = cycle_storm,
+    klima = klima,
+    klimaform = klima,
     -- Dispel: BLM only has access via /RDM, or via /SCH with Addendum: Black.
     -- /RDM      : direct cast on <stnpc>
     -- /SCH path : Addendum: Black is REQUIRED (Dark Arts alone doesn't grant Dispel)
@@ -300,7 +200,7 @@ function job_self_command(cmdParams, eventArgs)
     --   Dark Arts active, no Addendum: Black     -> Addendum: Black, then Dispel
     --   Nothing active                            -> Dark Arts, Addendum: Black, then Dispel
     -- FFXI rejects intermediate JAs if no stratagem charge is available.
-    if command == 'dispel' then
+    dispel = function(cmdParams, eventArgs)
         local sub = (player and player.sub_job) or 'NON'
         if sub == 'RDM' then
             send_command('input /ma "Dispel" <stnpc>')
@@ -311,57 +211,9 @@ function job_self_command(cmdParams, eventArgs)
             MessageCore.warning(('Dispel unavailable on BLM/%s. Need /RDM or /SCH.'):format(sub))
         end
         eventArgs.handled = true
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- BLM INTELLIGENT NUKE COMMANDS (with validation + refinement)
-    -- ══════════════════════════════════════════════════════════════════════════
-
-    -- Single-target nukes: element state + SpellTier
-    if command == 'light' then
-        eventArgs.handled = cast_from_states(state.MainLightSpell, state.SpellTier, build_nuke_name)
-        return
-    end
-
-    if command == 'dark' then
-        eventArgs.handled = cast_from_states(state.MainDarkSpell, state.SpellTier, build_nuke_name)
-        return
-    end
-
-    if command == 'sublight' then
-        eventArgs.handled = cast_from_states(state.SubLightSpell, state.SpellTier, build_nuke_name)
-        return
-    end
-
-    if command == 'subdark' then
-        eventArgs.handled = cast_from_states(state.SubDarkSpell, state.SpellTier, build_nuke_name)
-        return
-    end
-
-    -- AOE nukes: -ga element state + AOETier (Aja >> III >> II >> I)
-    if command == 'aoelight' then
-        eventArgs.handled = cast_from_states(state.MainLightAOE, state.AOETier, build_aoe_name)
-        return
-    end
-
-    if command == 'aoedark' then
-        eventArgs.handled = cast_from_states(state.MainDarkAOE, state.AOETier, build_aoe_name)
-        return
-    end
-
-    if command == 'subaoelight' then
-        eventArgs.handled = cast_from_states(state.SubLightAOE, state.AOETier, build_aoe_name)
-        return
-    end
-
-    if command == 'subaoedark' then
-        eventArgs.handled = cast_from_states(state.SubDarkAOE, state.AOETier, build_aoe_name)
-        return
-    end
-
+    end,
     -- Storm: Cast current storm spell with automatic Klimaform (for SCH subjob)
-    if command == 'storm' then
+    storm = function(cmdParams, eventArgs)
         if state and state.Storm then
             local storm_name = state.Storm.current
             -- Function loaded globally via blm_functions.lua
@@ -374,9 +226,12 @@ function job_self_command(cmdParams, eventArgs)
                 eventArgs.handled = true
             end
         end
-        return
-    end
-end
+    end,
+}
+for word in pairs(ELEMENT_CYCLES) do words[word] = cycle_element end
+for word in pairs(NUKES) do words[word] = nuke end
+
+job_self_command = JobCommands.router('BLM', {load = ensure_commands_loaded, words = words})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   STATE CHANGE HOOK

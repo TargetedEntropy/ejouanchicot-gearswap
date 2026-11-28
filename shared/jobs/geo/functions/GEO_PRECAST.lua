@@ -57,7 +57,7 @@ job_precast, job_post_precast = PrecastPipeline.hooks('GEO', {
     load = ensure_modules_loaded,
     -- Tiered nukes go through the refiner instead of the cooldown check:
     -- the checker would cancel the cast before any downgrade could happen.
-    cooldown = function(spell, eventArgs)
+    cooldown = function(spell, action, spellMap, eventArgs)
         local tiers = spell.action_type == 'Magic' and TierRefiner and NukeTiers
             and NukeTiers.get(spell.name and spell.name:match('^(%a+)'))
         if tiers then
@@ -66,7 +66,7 @@ job_precast, job_post_precast = PrecastPipeline.hooks('GEO', {
             PrecastPipeline.cooldown(spell, eventArgs)
         end
     end,
-    after_cooldown = function(spell, eventArgs)
+    after_cooldown = function(spell, action, spellMap, eventArgs)
         -- One of our queued abilities just went: the bot's spell is held back 1.5 s so it does not cut it, never Stun
         -- (shared/utils/precast/ability_queue.lua). Under pcall: an error in the queue lets the spell go, never blocks it
         local ok_q, held = pcall(function() return require('shared/utils/precast/ability_queue').hold_check(spell, eventArgs) end)

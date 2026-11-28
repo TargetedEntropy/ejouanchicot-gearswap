@@ -62,7 +62,7 @@ TIMER('RUN_BUFFS')
 ---   SECTION 5: UTILITY HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
--- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('RUN')
 require('shared/utils/macrobook/macrobook_manager').install('RUN')
 include('../shared/jobs/run/functions/RUN_COMMANDS.lua')

@@ -4,8 +4,8 @@
 ---============================================================================
 --- 1. No common word is also a diagnostic word (DEBUG_COMMANDS.lua), a warp alias or ja<n>: the router looks them up
 ---    one list after the other, so a word in two lists would answer only the first.
---- 2. A word a job tests after JobCommands.shared is never a common word: the shared call would answer it first and
----    the job's branch would never run (COR's colors and WAR's perf were such branches).
+--- 2. A word in a job's `words` is never a common word: the shared call would answer it first and the job's
+---    handler would never run (COR's colors and WAR's perf were such words).
 --- 3. The shared commands answer in the job's place: handled set, the common router given the job and the words.
 --- @file scripts/atelier/job_commands_test.lua
 ---============================================================================
@@ -37,22 +37,34 @@ for _, w in ipairs(words) do
     T.ok('common word not ja<n>: ' .. w, not w:match('^ja%d*$'))
 end
 
--- 2. every job's words after the shared call
+-- 2. every job's own words: never a common word (the shared call would answer it first and the job's handler would
+--    never run: COR's colors and WAR's perf were such words), except the ones a job puts in `first`
+local permissive = function() return setmetatable({}, {__index = function() return function() end end, __call = function() end}) end
+local JobCommandsReal = dofile('shared/utils/core/job_commands.lua')
 local jobs = 0
 for _, f in ipairs(T.files('shared/jobs', '_COMMANDS.lua')) do
-    local text = io.open(f):read('*a')
-    local fn = text:match('function job_self_command.-\nend\n') or ''
-    local after = fn:match('JobCommands%.shared%(.-\n(.*)$')
-    if text:find('JobCommands.router(', 1, true) then
+    local job = f:match('([%u]+)_COMMANDS%.lua$')
+    local env = setmetatable({}, {__index = function(_, k) return _G[k] ~= nil and _G[k] or permissive() end})
+    env._G = env
+    env.require = function(name)
+        if name == 'shared/utils/core/job_commands' then return JobCommandsReal end
+        return package.loaded[name] or permissive()
+    end
+    local chunk = assert(loadfile(f))
+    setfenv(chunk, env)
+    local ok, err = pcall(chunk)
+    T.ok(job .. '_COMMANDS loads', ok, err)
+    local spec = JobCommandsReal.specs[job]
+    if T.ok(job .. ' goes through JobCommands.router', spec ~= nil and env.job_self_command ~= nil) then
         jobs = jobs + 1
-    elseif after then
-        jobs = jobs + 1
-        for word in after:gmatch("command == '([%w_]+)'") do
-            T.ok(f:match('[^/]+$') .. ': ' .. word .. ' is not a common word (it would never reach the job)',
+        for word in pairs(spec.words or {}) do
+            T.ok(job .. ': ' .. word .. ' is not a common word (it would never reach the job)',
                 not CC.is_common_command(word))
+            T.ok(job .. ': ' .. word .. ' is lower case (the router looks the word up in lower case)', word == word:lower())
         end
-    else
-        T.ok(f .. ' goes through JobCommands', false)
+        for word in pairs(spec.first or {}) do
+            T.ok(job .. ': first ' .. word .. ' is lower case', word == word:lower())
+        end
     end
 end
 check('every job goes through JobCommands', jobs, 22)
@@ -80,5 +92,31 @@ check('cyclestate: what the cycle handler says', (JC.shared('cyclestate', {'cycl
 ea = {}
 check('a job word: not answered', JC.shared('indi', {'indi'}, ea, 'GEO'), false)
 check('  not handled', ea.handled, nil)
+
+-- 4. the router: first, then the shared words, then words, then other
+local seen = {}
+local function mark(name, ret) return function(cmdParams, eventArgs, command) seen[#seen + 1] = name .. ':' .. command
+    eventArgs.handled = true return ret end end
+local loads = 0
+local router = JC.router('TST', {
+    load = function() loads = loads + 1 end,
+    first = {reload = mark('first'), aoe = function(cmdParams) if cmdParams[2] then return false end seen[#seen + 1] = 'aoe' end},
+    words = {rune = mark('word')},
+    other = function(command) seen[#seen + 1] = 'other:' .. command end,
+})
+router({'Reload'}, {})
+check('a first word wins over the shared one', seen[1], 'first:reload')
+check('  the shared router not asked', routed[3], 'now')
+router({'rune'}, {})
+check('a job word', seen[2], 'word:rune')
+router({'ws3'}, {})
+check('any other word goes to other', seen[3], 'other:ws3')
+router({'aoe'}, {})
+check('first: bare aoe is the job\'s', seen[4], 'aoe')
+ea = {}
+router({'aoe', 'sneak'}, ea)
+check('first returning false lets the word through (aoe is no shared word here: on to other)', seen[5], 'other:aoe')
+router({}, {})
+check('no word: nothing, not even the load', loads, 5)
 
 T.done()

@@ -15,8 +15,7 @@
 ---
 --- Hooks Modules:
 ---   RNG_PRECAST | RNG_MIDCAST | RNG_AFTERCAST | RNG_STATUS | RNG_BUFFS
----   RNG_IDLE | RNG_ENGAGED | RNG_MACROBOOK | RNG_COMMANDS | RNG_MOVEMENT
----   RNG_LOCKSTYLE
+---   RNG_IDLE | RNG_ENGAGED | RNG_COMMANDS
 ---
 --- Logic Modules:
 ---   logic/ranged.lua       - Flurry precast groups, ranged buff layers

@@ -579,8 +579,8 @@ The files to create or touch:
       shared code instead of a file of the job's own: `<JOB>_PRECAST.lua` is
       `PrecastPipeline.hooks('<JOB>', {its own steps})`
       ([precast-pipeline.md](systems/precast-pipeline.md#the-job_precast-contract)),
-      `<JOB>_COMMANDS.lua` calls `JobCommands.shared` before its own words (or
-      is `JobCommands.router('<JOB>')` when it has none), and the facade calls
+      `<JOB>_COMMANDS.lua` is `JobCommands.router('<JOB>', {its own words})`
+      ([commands-and-debug.md](systems/commands-and-debug.md#2-the-job-file-contract)), and the facade calls
       `LockstyleManager.install('<JOB>')` / `MacrobookManager.install('<JOB>')`
       with the job's defaults in `shared/data/job_defaults.lua`. A job with no
       movement hook has no `<JOB>_MOVEMENT.lua`.
@@ -620,12 +620,12 @@ See also [characters-and-templates.md, How to add a job to the templates](archit
       for a module's handler; an alias in the alias table under it).
       `is_common_command` reads the same table, so the word is reachable from
       every job at once.
-- [ ] Job command: in the job's `<JOB>_COMMANDS.lua`, after its
-      `JobCommands.shared` call; set `eventArgs.handled = true` on every path,
-      including errors. A job word that is also a common word must be tested
-      before the call (PLD / RUN `aoe`, DRG `jump`, BST `debugprecast`):
-      `scripts/atelier/job_commands_test.lua` fails on one tested after it.
-- [ ] Check the name against job commands (`grep -rn "command == '<name>'" shared/jobs`),
+- [ ] Job command: an entry of `words` in the job's `JobCommands.router` call
+      (`<JOB>_COMMANDS.lua`); set `eventArgs.handled = true` on every path,
+      including errors. A job word that is also a common word goes in `first`
+      (PLD / RUN `aoe`, DRG `jump`, BST `debugprecast`):
+      `scripts/atelier/job_commands_test.lua` fails on one in `words`.
+- [ ] Check the name against job commands (`grep -rn "<name> = " shared/jobs/*/functions/*_COMMANDS.lua`),
       warp aliases and their `<alias>all` form (`shared/utils/warp/warp_command_registry.lua`),
       alt command files (`shared/data/alt/*.lua`, `_master/config/alt/*_ALT_CUSTOM.lua`) and Mote's `selfCommandMaps`.
 - [ ] Lower-case what you compare; on an unknown sub-command, print usage

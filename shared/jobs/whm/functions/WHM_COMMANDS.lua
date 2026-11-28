@@ -2,8 +2,6 @@
 ---   WHM Commands Module - Command Handling & State Change Monitoring
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   Handles user commands for White Mage:
----   • UI commands (ui, ui h, ui show, ui hide, ui toggle, ui update, ui reload)
----   • Common commands (reload, checksets, waltz, aoewaltz)
 ---   • WHM-specific commands (afflatus)
 ---   • State cycling commands (automatically handled by Mote-Include)
 ---   • State change monitoring (updates UI when states change)
@@ -17,28 +15,13 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
--- Command handlers loaded on first command
-local UICommands = nil
-local CommonCommands = nil
-local WatchdogCommands = nil
-local CycleHandler = nil
-local MessageCommands = nil
+-- WHM message formatter, loaded on first command
 local WHMMessageFormatter = nil
 
 local function ensure_commands_loaded()
-    if not UICommands then
-        UICommands = require('shared/utils/ui/UI_COMMANDS')
-        CommonCommands = require('shared/utils/core/COMMON_COMMANDS')
-        WatchdogCommands = require('shared/utils/core/WATCHDOG_COMMANDS')
-        CycleHandler = require('shared/utils/core/CYCLE_HANDLER')
-        MessageCommands = require('shared/utils/messages/formatters/ui/message_commands')
-
-        -- WHM message formatter
-        local formatter_success
-        formatter_success, WHMMessageFormatter = pcall(require, 'shared/utils/whm/whm_message_formatter')
-        if not formatter_success then
-            WHMMessageFormatter = nil
-        end
+    if WHMMessageFormatter == nil then
+        local ok, formatter = pcall(require, 'shared/utils/whm/whm_message_formatter')
+        WHMMessageFormatter = ok and formatter or false
     end
 end
 
@@ -48,46 +31,22 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---   COMMAND HANDLER
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Handle user commands via //gs c <command>
----
----   @param cmdParams table Command parameters (cmdParams[1] = command name)
----   @param eventArgs table Event arguments (contains .handled flag)
----   @return void
-function job_self_command(cmdParams, eventArgs)
-    if not cmdParams or #cmdParams == 0 then
-        return
-    end
-
-    -- Lazy load command handlers on first command
-    ensure_commands_loaded()
-
-    local command = cmdParams[1]:lower()
-
-    if JobCommands.shared(command, cmdParams, eventArgs, 'WHM') then return end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- WHM-SPECIFIC COMMANDS
-    -- ══════════════════════════════════════════════════════════════════════════
-
-    -- Afflatus: Auto-cast current Afflatus stance
-    if command == 'afflatus' then
-        local stance = state.AfflatusMode.value
-
-        if stance == 'Solace' then
-            send_command('input /ja "Afflatus Solace" <me>')
-            if WHMMessageFormatter then
-                WHMMessageFormatter.show_afflatus_change('Solace')
+--- afflatus: use the Afflatus stance state.AfflatusMode selects.
+job_self_command = JobCommands.router('WHM', {
+    load = ensure_commands_loaded,
+    words = {
+        afflatus = function(cmdParams, eventArgs)
+            local stance = state.AfflatusMode.value
+            if stance == 'Solace' or stance == 'Misery' then
+                send_command('input /ja "Afflatus ' .. stance .. '" <me>')
+                if WHMMessageFormatter then
+                    WHMMessageFormatter.show_afflatus_change(stance)
+                end
             end
-        elseif stance == 'Misery' then
-            send_command('input /ja "Afflatus Misery" <me>')
-            if WHMMessageFormatter then
-                WHMMessageFormatter.show_afflatus_change('Misery')
-            end
-        end
-        eventArgs.handled = true
-        return
-    end
-end
+            eventArgs.handled = true
+        end,
+    },
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   STATE CHANGE HOOK

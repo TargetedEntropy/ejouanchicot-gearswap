@@ -6,7 +6,7 @@
 ---
 ---   Architecture:
 ---   • Hook modules (11): PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS,
----     BUFFS, COMMANDS, MOVEMENT, LOCKSTYLE, MACROBOOK
+---     BUFFS, COMMANDS
 ---   • Logic modules (2, required by the hooks):
 ---       logic/ninjutsu.lua     Ninjutsu spell -> family (Utsusemi,
 ---                              Elemental...), Magic Burst mode, Futae layer
@@ -47,7 +47,7 @@ TIMER('NIN_STATUS')
 include('../shared/jobs/nin/functions/NIN_BUFFS.lua')     -- Doom, Yonin / Innin / Sange / Issekigan
 TIMER('NIN_BUFFS')
 
--- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('NIN')
 require('shared/utils/macrobook/macrobook_manager').install('NIN')
 include('../shared/jobs/nin/functions/NIN_COMMANDS.lua')  -- Commands, state change hook

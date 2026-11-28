@@ -15,8 +15,7 @@
 ---
 --- Hooks Modules:
 ---   DRG_PRECAST | DRG_MIDCAST | DRG_PET_MIDCAST | DRG_AFTERCAST | DRG_STATUS
----   DRG_BUFFS | DRG_IDLE | DRG_ENGAGED | DRG_MACROBOOK | DRG_COMMANDS
----   DRG_MOVEMENT | DRG_LOCKSTYLE
+---   DRG_BUFFS | DRG_IDLE | DRG_ENGAGED | DRG_COMMANDS
 ---
 --- Logic Modules:
 ---   logic/set_builder.lua  - Idle / engaged sets, wyvern layer, Spirit Surge

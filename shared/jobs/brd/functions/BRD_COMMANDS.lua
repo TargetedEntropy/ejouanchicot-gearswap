@@ -50,23 +50,13 @@
 ---   @date    Created: 2025-10-13
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local CommonCommands = nil
-local UICommands = nil
-local WatchdogCommands = nil
-local CycleHandler = nil
-local MessageCommands = nil
 local MessageFormatter = nil
 local SongRotationManager = nil
 local BRDSongConfig = nil
 local BRDTimingConfig = nil
 
 local function ensure_commands_loaded()
-    if not UICommands then
-        CommonCommands = require('shared/utils/core/COMMON_COMMANDS')
-        UICommands = require('shared/utils/ui/UI_COMMANDS')
-        WatchdogCommands = require('shared/utils/core/WATCHDOG_COMMANDS')
-        CycleHandler = require('shared/utils/core/CYCLE_HANDLER')
-        MessageCommands = require('shared/utils/messages/formatters/ui/message_commands')
+    if not MessageFormatter then
         MessageFormatter = require('shared/utils/messages/message_formatter')
         SongRotationManager = require('shared/jobs/brd/functions/logic/song_rotation_manager')
         BRDSongConfig = _G.BRDSongConfig or {}  -- Loaded from character main file
@@ -147,29 +137,86 @@ local function get_current_etude()
     return BRDSongConfig.ETUDES[state.EtudeType.current]
 end
 
+--- The spell of each debuff song command: brd/combat/BRD_SONG_CONFIG.lua DEBUFF_SONGS
+local function debuff_songs()
+    return require('shared/utils/core/job_config').get('BRD', 'DEBUFF_SONGS', {lullaby = 'Horde Lullaby',
+        lullaby2 = 'Foe Lullaby II', elegy = 'Carnage Elegy', requiem = 'Foe Requiem VII'})
+end
+
 local JobCommands = require('shared/utils/core/job_commands')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HANDLERS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Handle custom BRD commands
----   @param cmdParams table Command parameters
----   @param eventArgs table Event arguments
-function job_self_command(cmdParams, eventArgs)
-    -- Lazy load command handlers on first command
-    ensure_commands_loaded()
+--- JOB ABILITIES
+local function soul_voice_command(cmdParams, eventArgs, command)
+    use_ability('Soul Voice')
+    MessageFormatter.show_ability_command('Soul Voice (1hr)')
+    eventArgs.handled = true
+end
 
-    if not cmdParams or #cmdParams == 0 then
-        return
+local function nightingale_command(cmdParams, eventArgs, command)
+    use_ability('Nightingale')
+    MessageFormatter.show_ability_command('Nightingale')
+    eventArgs.handled = true
+end
+
+local function troubadour_command(cmdParams, eventArgs, command)
+    use_ability('Troubadour')
+    MessageFormatter.show_ability_command('Troubadour')
+    eventArgs.handled = true
+end
+
+local function marcato_command(cmdParams, eventArgs, command)
+    use_ability('Marcato')
+    MessageFormatter.show_marcato_used()
+    eventArgs.handled = true
+end
+
+local function pianissimo_command(cmdParams, eventArgs, command)
+    use_ability('Pianissimo')
+    MessageFormatter.show_pianissimo_used()
+    eventArgs.handled = true
+end
+
+local function lullaby2_command(cmdParams, eventArgs, command)
+    send_command('input /ma "' .. debuff_songs().lullaby2 .. '" <stnpc>')
+    MessageFormatter.show_lullaby_cast(debuff_songs().lullaby2)
+    eventArgs.handled = true
+end
+
+--- SONG CASTING (PACK ROTATIONS)
+local function songs_command(cmdParams, eventArgs, command)
+    -- Cast current song pack using 3-phase rotation
+    -- 'full': every dummy, whatever songs are up (another bard around)
+    -- 'force': sing even when every song has time left (song_opening.lua)
+    SongRotationManager.cast_songs_with_phases(false, '<me>', cmdParams[2] == 'full', cmdParams[2] == 'force')
+    eventArgs.handled = true
+end
+
+local function dummy_command(cmdParams, eventArgs, command)
+    -- Cast dummy songs (4 or 5 depending on Clarion Call)
+    SongRotationManager.cast_dummy_songs()
+    eventArgs.handled = true
+end
+
+--- song1..song5: the song in that slot of the pack. No Clarion Call check: 5 songs can be refreshed even after
+--- Clarion Call wears off.
+local function song_slot(cmdParams, eventArgs, command)
+    local slot = tonumber(command:match('^song(%d)$'))
+    local songs = SongRotationManager.get_songs_with_replacement()
+    if songs and songs[slot] then
+        cast_song(songs[slot])
+    else
+        MessageFormatter.show_no_song_in_slot(slot)
     end
+    eventArgs.handled = true
+end
 
-    local command = cmdParams[1]:lower()
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- WARP RING FIX COMMAND
-    -- ══════════════════════════════════════════════════════════════════════════
-    if command == 'forceidle' then
+local words = {
+    -- Warp ring fix
+    forceidle = function(cmdParams, eventArgs, command)
         -- Re-equip the idle left_ring in ring1 after a warp interruption.
         -- No code in the project sends this command any more (manual use only).
 
@@ -212,47 +259,17 @@ function job_self_command(cmdParams, eventArgs)
         end, 1.0)
 
         eventArgs.handled = true
-        return
-    end
-
+    end,
     -- Instrument skill-up loop: //gs c skillup horn | harp | off | status
     -- (logic/skillup.lua)
-    if command == 'skillup' then
+    skillup = function(cmdParams, eventArgs, command)
         require('shared/jobs/brd/functions/logic/skillup').handle(cmdParams[2])
         eventArgs.handled = true
-        return
-    end
-
-    if JobCommands.shared(command, cmdParams, eventArgs, 'BRD') then return end
-
-    -- BRD-SPECIFIC COMMANDS
-
-    ---══════════════════════════════════════════════════════════════════════════
-    --- JOB ABILITIES
-    ---══════════════════════════════════════════════════════════════════════════
-
-    if command == 'soul_voice' or command == 'sv' then
-        use_ability('Soul Voice')
-        MessageFormatter.show_ability_command('Soul Voice (1hr)')
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'nightingale' or command == 'ni' then
-        use_ability('Nightingale')
-        MessageFormatter.show_ability_command('Nightingale')
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'troubadour' or command == 'tr' then
-        use_ability('Troubadour')
-        MessageFormatter.show_ability_command('Troubadour')
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'nt' then
+    end,
+    soul_voice = soul_voice_command, sv = soul_voice_command,
+    nightingale = nightingale_command, ni = nightingale_command,
+    troubadour = troubadour_command, tr = troubadour_command,
+    nt = function(cmdParams, eventArgs, command)
         -- Nightingale + Troubadour combo
         use_ability('Nightingale')
         local delays = BRDTimingConfig.ABILITY_DELAYS or {}
@@ -265,73 +282,28 @@ function job_self_command(cmdParams, eventArgs)
         )
         -- Message handled by ability_message_handler (shows individual JA descriptions)
         eventArgs.handled = true
-        return
-    end
-
-    if command == 'marcato' or command == 'ma' then
-        use_ability('Marcato')
-        MessageFormatter.show_marcato_used()
+    end,
+    marcato = marcato_command, ma = marcato_command,
+    pianissimo = pianissimo_command, pi = pianissimo_command,
+    -- Debuff songs
+    lullaby = function(cmdParams, eventArgs, command)
+        send_command('input /ma "' .. debuff_songs().lullaby .. '" <stnpc>')
+        MessageFormatter.show_lullaby_cast(debuff_songs().lullaby)
         eventArgs.handled = true
-        return
-    end
-
-    if command == 'pianissimo' or command == 'pi' then
-        use_ability('Pianissimo')
-        MessageFormatter.show_pianissimo_used()
+    end,
+    lullaby2 = lullaby2_command, foe = lullaby2_command,
+    elegy = function(cmdParams, eventArgs, command)
+        send_command('input /ma "' .. debuff_songs().elegy .. '" <stnpc>')
+        MessageFormatter.show_elegy_cast(debuff_songs().elegy)
         eventArgs.handled = true
-        return
-    end
-
-    ---══════════════════════════════════════════════════════════════════════════
-    --- DEBUFF SONGS
-    ---══════════════════════════════════════════════════════════════════════════
-
-    -- The spell of each command: brd/combat/BRD_SONG_CONFIG.lua DEBUFF_SONGS
-    local debuff_songs = require('shared/utils/core/job_config').get('BRD', 'DEBUFF_SONGS', {lullaby = 'Horde Lullaby',
-        lullaby2 = 'Foe Lullaby II', elegy = 'Carnage Elegy', requiem = 'Foe Requiem VII'})
-
-    if command == 'lullaby' then
-        send_command('input /ma "' .. debuff_songs.lullaby .. '" <stnpc>')
-        MessageFormatter.show_lullaby_cast(debuff_songs.lullaby)
+    end,
+    requiem = function(cmdParams, eventArgs, command)
+        send_command('input /ma "' .. debuff_songs().requiem .. '" <stnpc>')
+        MessageFormatter.show_requiem_cast(debuff_songs().requiem)
         eventArgs.handled = true
-        return
-    end
-
-    if command == 'lullaby2' or command == 'foe' then
-        send_command('input /ma "' .. debuff_songs.lullaby2 .. '" <stnpc>')
-        MessageFormatter.show_lullaby_cast(debuff_songs.lullaby2)
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'elegy' then
-        send_command('input /ma "' .. debuff_songs.elegy .. '" <stnpc>')
-        MessageFormatter.show_elegy_cast(debuff_songs.elegy)
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'requiem' then
-        send_command('input /ma "' .. debuff_songs.requiem .. '" <stnpc>')
-        MessageFormatter.show_requiem_cast(debuff_songs.requiem)
-        eventArgs.handled = true
-        return
-    end
-
-    ---══════════════════════════════════════════════════════════════════════════
-    --- SONG CASTING (PACK ROTATIONS)
-    ---══════════════════════════════════════════════════════════════════════════
-
-    if command == 'songs' or command == 'meleesong' or command == 'melee' or command == 'allsongs' then
-        -- Cast current song pack using 3-phase rotation
-        -- 'full': every dummy, whatever songs are up (another bard around)
-        -- 'force': sing even when every song has time left (song_opening.lua)
-        SongRotationManager.cast_songs_with_phases(false, '<me>', cmdParams[2] == 'full', cmdParams[2] == 'force')
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'songplan' then
+    end,
+    songs = songs_command, meleesong = songs_command, melee = songs_command, allsongs = songs_command,
+    songplan = function(cmdParams, eventArgs, command)
         -- What //gs c songs would do now, and why (song_slots.lua)
         local SongSlots = require('shared/jobs/brd/functions/logic/song_slots')
         local songs = SongRotationManager.get_songs_with_replacement()
@@ -348,27 +320,17 @@ function job_self_command(cmdParams, eventArgs)
             },
         })
         eventArgs.handled = true
-        return
-    end
-
-    if command == 'songstop' then
+    end,
+    songstop = function(cmdParams, eventArgs, command)
         -- Drop a running rotation (song_queue.lua)
         local stopped = require('shared/jobs/brd/functions/logic/song_queue').stop()
         stopped = require('shared/jobs/brd/functions/logic/song_opening').stop() or stopped
         require('shared/utils/messages/message_formatter').show_info(
             stopped and 'Songs: rotation stopped.' or 'Songs: no rotation running.')
         eventArgs.handled = true
-        return
-    end
-
-    if command == 'dummy' or command == 'dummysongs' then
-        -- Cast dummy songs (4 or 5 depending on Clarion Call)
-        SongRotationManager.cast_dummy_songs()
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'dummy1' then
+    end,
+    dummy = dummy_command, dummysongs = dummy_command,
+    dummy1 = function(cmdParams, eventArgs, command)
         local dummy_songs = SongRotationManager.get_dummy_songs()
         if dummy_songs and dummy_songs[1] then
             cast_song(dummy_songs[1])
@@ -376,10 +338,8 @@ function job_self_command(cmdParams, eventArgs)
             -- MessageFormatter.show_dummy_cast(dummy_songs[1])
         end
         eventArgs.handled = true
-        return
-    end
-
-    if command == 'dummy2' then
+    end,
+    dummy2 = function(cmdParams, eventArgs, command)
         local dummy_songs = SongRotationManager.get_dummy_songs()
         if dummy_songs and dummy_songs[2] then
             cast_song(dummy_songs[2])
@@ -387,10 +347,8 @@ function job_self_command(cmdParams, eventArgs)
             -- MessageFormatter.show_dummy_cast(dummy_songs[2])
         end
         eventArgs.handled = true
-        return
-    end
-
-    if command == 'threnody' then
+    end,
+    threnody = function(cmdParams, eventArgs, command)
         local threnody = get_current_threnody()
         if not threnody then
             MessageFormatter.show_no_element_selected()
@@ -402,10 +360,8 @@ function job_self_command(cmdParams, eventArgs)
         send_command('input /ma "' .. threnody .. '" <stnpc>')
         MessageFormatter.show_threnody_cast(element)
         eventArgs.handled = true
-        return
-    end
-
-    if command == 'carol' then
+    end,
+    carol = function(cmdParams, eventArgs, command)
         local carol = get_current_carol()
         if not carol then
             MessageFormatter.show_no_carol_element()
@@ -417,10 +373,8 @@ function job_self_command(cmdParams, eventArgs)
         cast_song(carol)
         MessageFormatter.show_carol_cast(element)
         eventArgs.handled = true
-        return
-    end
-
-    if command == 'etude' then
+    end,
+    etude = function(cmdParams, eventArgs, command)
         local etude = get_current_etude()
         if not etude then
             MessageFormatter.show_no_etude_type()
@@ -432,69 +386,11 @@ function job_self_command(cmdParams, eventArgs)
         cast_song(etude)
         MessageFormatter.show_etude_cast(stat)
         eventArgs.handled = true
-        return
-    end
+    end,
+}
+for slot = 1, 5 do words['song' .. slot] = song_slot end
 
-    ---══════════════════════════════════════════════════════════════════════════
-    --- INDIVIDUAL SONG SLOTS (SIMPLE - JUST CAST FROM PACK)
-    ---══════════════════════════════════════════════════════════════════════════
-
-    if command == 'song1' then
-        local songs = SongRotationManager.get_songs_with_replacement()
-        if songs and songs[1] then
-            cast_song(songs[1])
-        else
-            MessageFormatter.show_no_song_in_slot(1)
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'song2' then
-        local songs = SongRotationManager.get_songs_with_replacement()
-        if songs and songs[2] then
-            cast_song(songs[2])
-        else
-            MessageFormatter.show_no_song_in_slot(2)
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'song3' then
-        local songs = SongRotationManager.get_songs_with_replacement()
-        if songs and songs[3] then
-            cast_song(songs[3])
-        else
-            MessageFormatter.show_no_song_in_slot(3)
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'song4' then
-        local songs = SongRotationManager.get_songs_with_replacement()
-        if songs and songs[4] then
-            cast_song(songs[4])
-        else
-            MessageFormatter.show_no_song_in_slot(4)
-        end
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'song5' then
-        -- No Clarion Call check: player can refresh 5 songs even after Clarion wears off
-        local songs = SongRotationManager.get_songs_with_replacement()
-        if songs and songs[5] then
-            cast_song(songs[5])
-        else
-            MessageFormatter.show_no_song_in_slot(5)
-        end
-        eventArgs.handled = true
-        return
-    end
-end
+job_self_command = JobCommands.router('BRD', {load = ensure_commands_loaded, words = words})
 
 --- BRD adds nothing of its own: the shared handler is the whole
 --- behaviour. Pass a function to state_change() to extend it.

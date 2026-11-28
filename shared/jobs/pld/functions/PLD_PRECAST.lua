@@ -91,7 +91,7 @@ end
 job_precast, job_post_precast = PrecastPipeline.hooks('PLD', {
     load = ensure_modules_loaded,
     -- Auto-abilities (Majesty, Divine Emblem), each one an option of PLD_CONFIG.lua (on unless set false)
-    after_cooldown = function(spell, eventArgs)
+    after_cooldown = function(spell, action, spellMap, eventArgs)
         local option = spell.name == 'Flash' and 'pld_divine_emblem' or 'pld_majesty'
         if spell.action_type == 'Magic' and auto_abilities[spell.name] and AbilityHelper
             and require('shared/utils/core/auto_options').enabled(option, true) then

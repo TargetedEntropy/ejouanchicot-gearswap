@@ -15,8 +15,7 @@
 ---
 --- Hooks Modules:
 ---   MNK_PRECAST | MNK_MIDCAST | MNK_AFTERCAST | MNK_STATUS | MNK_BUFFS
----   MNK_IDLE | MNK_ENGAGED | MNK_MACROBOOK | MNK_COMMANDS | MNK_MOVEMENT
----   MNK_LOCKSTYLE
+---   MNK_IDLE | MNK_ENGAGED | MNK_COMMANDS
 ---
 --- Logic Modules:
 ---   logic/buff_layers.lua  - Impetus / Footwork / Hundred Fists /

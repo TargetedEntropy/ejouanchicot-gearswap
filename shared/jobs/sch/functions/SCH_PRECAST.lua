@@ -53,7 +53,7 @@ end
 --- The checker would cancel a tiered spell before any downgrade could happen.
 --- @param spell table Spell/ability data
 --- @param eventArgs table Event arguments (cancel set when refused)
-local function check_recast_or_refine(spell, eventArgs)
+local function check_recast_or_refine(spell, action, spellMap, eventArgs)
     local tiers = TierRefiner and SpellTiers and SpellTiers.get(spell)
     if tiers then
         TierRefiner.refine(spell, eventArgs, tiers)
@@ -88,7 +88,7 @@ job_precast, job_post_precast = PrecastPipeline.hooks('SCH', {
     load = ensure_modules_loaded,
     -- a spell with lower tiers is re-tiered instead of checked for recast
     cooldown = check_recast_or_refine,
-    after_cooldown = function(spell, eventArgs)
+    after_cooldown = function(spell, action, spellMap, eventArgs)
         check_stratagem_charge(spell, eventArgs)
         return eventArgs.cancel
     end,

@@ -24,7 +24,7 @@
 --- at its first action.
 ---
 ---   job_precast, job_post_precast = PrecastPipeline.hooks('SAM', {
----       after_cooldown = function(spell, eventArgs) ... end,
+---       after_cooldown = function(spell, action, spellMap, eventArgs) ... end,
 ---   })
 ---
 --- @file    shared/utils/precast/precast_pipeline.lua
@@ -61,36 +61,38 @@ function PrecastPipeline.spell_cooldown(spell, eventArgs)
     CooldownChecker.check_spell_cooldown(spell, eventArgs)
 end
 
---- job_precast and job_post_precast for a job.
+--- job_precast and job_post_precast for a job. Every step gets Mote's four arguments,
+--- (spell, action, spellMap, eventArgs).
 --- @param job string The job's code ('WAR'): its TP configuration is _G.<job>TPConfig
 --- @param steps table|nil Its own steps: before_cooldown, cooldown, after_cooldown, after_ws, before_tp_gear,
----        after_tp_gear (see the header); cooldown(spell, eventArgs) replaces PrecastPipeline.cooldown;
----        load() runs first in both hooks (the job's own modules, loaded at its first action)
+---        after_tp_gear (see the header); cooldown replaces PrecastPipeline.cooldown; load() runs first in both
+---        hooks (the job's own modules, loaded at its first action)
 --- @return function job_precast, function job_post_precast
 function PrecastPipeline.hooks(job, steps)
     steps = steps or {}
-    local cooldown = steps.cooldown or PrecastPipeline.cooldown
+    local cooldown = steps.cooldown or function(spell, _, _, eventArgs) PrecastPipeline.cooldown(spell, eventArgs) end
     local tp_config
 
-    local function job_precast(spell, action, spellMap, eventArgs)
+    -- the shared modules, the job's own, its TP configuration
+    local function prepare()
         load()
         if steps.load then steps.load() end
         tp_config = tp_config or _G[job .. 'TPConfig'] or {}
+    end
 
+    local function job_precast(spell, action, spellMap, eventArgs)
+        prepare()
         if PrecastGuard.guard_precast(spell, eventArgs) then return end
-        if steps.before_cooldown and steps.before_cooldown(spell, eventArgs) then return end
-        cooldown(spell, eventArgs)
+        if steps.before_cooldown and steps.before_cooldown(spell, action, spellMap, eventArgs) then return end
+        cooldown(spell, action, spellMap, eventArgs)
         if eventArgs.cancel then return end
-        if steps.after_cooldown and steps.after_cooldown(spell, eventArgs) then return end
+        if steps.after_cooldown and steps.after_cooldown(spell, action, spellMap, eventArgs) then return end
         if not WSPrecastHandler.handle(spell, eventArgs, tp_config) then return end
-        if steps.after_ws then steps.after_ws(spell, eventArgs) end
+        if steps.after_ws then steps.after_ws(spell, action, spellMap, eventArgs) end
     end
 
     local function job_post_precast(spell, action, spellMap, eventArgs)
-        load()
-        if steps.load then steps.load() end
-        tp_config = tp_config or _G[job .. 'TPConfig'] or {}
-
+        prepare()
         if steps.before_tp_gear and steps.before_tp_gear(spell, action, spellMap, eventArgs) then return end
         WSPrecastHandler.apply_tp_gear(spell)
         if steps.after_tp_gear then steps.after_tp_gear(spell, action, spellMap, eventArgs) end

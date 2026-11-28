@@ -6,7 +6,7 @@
 ---
 ---   Architecture:
 ---   • Hook modules (11): PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS,
----     BUFFS, COMMANDS, MOVEMENT, LOCKSTYLE, MACROBOOK
+---     BUFFS, COMMANDS
 ---   • Logic modules (2, required by the hooks):
 ---       logic/buff_layers.lua  Impetus / Footwork / Hundred Fists /
 ---                              Counterstance sets on engaged, Impetus /
@@ -46,7 +46,7 @@ TIMER('MNK_STATUS')
 include('../shared/jobs/mnk/functions/MNK_BUFFS.lua')     -- Doom, buff layers rebuilt on gain / loss
 TIMER('MNK_BUFFS')
 
--- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('MNK')
 require('shared/utils/macrobook/macrobook_manager').install('MNK')
 include('../shared/jobs/mnk/functions/MNK_COMMANDS.lua')  -- Commands, state change hook

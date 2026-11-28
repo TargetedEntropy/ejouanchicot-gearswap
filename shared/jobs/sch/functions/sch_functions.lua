@@ -6,7 +6,7 @@
 ---
 ---   Architecture:
 ---   • Hook modules (12): PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED,
----     STATUS, BUFFS, COMMANDS, MOVEMENT, LOCKSTYLE, MACROBOOK (+ facade)
+---     STATUS, BUFFS, COMMANDS (+ facade)
 ---   • Logic modules (4, required by the hooks):
 ---       logic/grimoire.lua        Arts in force, grimoire / stratagem layers
 ---       logic/spell_tiers.lua     tier families for the shared TierRefiner
@@ -45,7 +45,7 @@ TIMER('SCH_STATUS')
 include('../shared/jobs/sch/functions/SCH_BUFFS.lua')        -- Doom, Sublimation refresh
 TIMER('SCH_BUFFS')
 
--- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('SCH')
 require('shared/utils/macrobook/macrobook_manager').install('SCH')
 include('../shared/jobs/sch/functions/SCH_COMMANDS.lua')     -- Commands (arts, nuke, strat), state change hook

@@ -99,13 +99,13 @@ end
 job_precast, job_post_precast = PrecastPipeline.hooks('DNC', {
     load = ensure_modules_loaded,
     -- Cooldown check, Utsusemi excluded
-    cooldown = function(spell, eventArgs)
+    cooldown = function(spell, action, spellMap, eventArgs)
         if spell.action_type == 'Magic' and (spell.english == 'Utsusemi: Ni' or spell.english == 'Utsusemi: Ichi') then
             return
         end
         PrecastPipeline.cooldown(spell, eventArgs)
     end,
-    after_cooldown = function(spell, eventArgs)
+    after_cooldown = function(spell, action, spellMap, eventArgs)
         if spell.type == 'Samba' and MessageFormatter then
             job_precast_samba(spell, eventArgs)
         end
@@ -113,7 +113,7 @@ job_precast, job_post_precast = PrecastPipeline.hooks('DNC', {
             _G.dnc_climactic_timestamp = os.time()
         end
     end,
-    after_ws = function(spell, eventArgs)
+    after_ws = function(spell, action, spellMap, eventArgs)
         if spell.type == 'WeaponSkill' and ClimaticManager then
             ClimaticManager.auto_trigger(spell, eventArgs)
         end

@@ -134,7 +134,7 @@ end
 job_precast, job_post_precast = PrecastPipeline.hooks('COR', {
     -- Before the cooldown check: a roll already up becomes a Double-Up,
     -- which the Phantom Roll recast must not cancel first
-    before_cooldown = function(spell, eventArgs)
+    before_cooldown = function(spell, action, spellMap, eventArgs)
         return require('shared/jobs/cor/functions/logic/double_up').redirect(spell, eventArgs)
     end,
     after_cooldown = function(spell)

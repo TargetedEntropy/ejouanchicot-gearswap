@@ -201,10 +201,10 @@ job_precast, job_post_precast = PrecastPipeline.hooks('BRD', {
     -- only if it is still alive to downgrade; checking the cooldown first
     -- cancels it outright and the downgrade never happens. BLM, RDM and WHM
     -- depart from the standard order for the same reason.
-    before_cooldown = function(spell, eventArgs)
+    before_cooldown = function(spell, action, spellMap, eventArgs)
         return spell.type == 'BardSong' and SongRefinement.refine_song(spell, eventArgs)
     end,
-    after_cooldown = function(spell, eventArgs)
+    after_cooldown = function(spell, action, spellMap, eventArgs)
         if spell.type == 'BardSong' then
             job_precast_bardsong(spell, eventArgs)
             return eventArgs.cancel or try_marcato(spell, eventArgs)

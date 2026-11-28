@@ -47,16 +47,16 @@ Related files read to establish behaviour (owned by other pages): `shared/utils/
 
 ### 2. The job-file contract
 
-Every `[JOB]_COMMANDS.lua` defines `job_self_command(cmdParams, eventArgs)` and exports it as `_G.job_self_command`. Each one:
+Every `[JOB]_COMMANDS.lua` sets `job_self_command = JobCommands.router('<JOB>', spec)` (`shared/utils/core/job_commands.lua`) and exports it as `_G.job_self_command`. `spec` is the job's words as tables, each handler `fn(cmdParams, eventArgs, command)` setting `eventArgs.handled` itself:
 
-1. returns if `cmdParams[1]` is missing, then computes `command = cmdParams[1]:lower()`;
-2. tests the job words that must win over a common word of the same name (PLD / RUN `aoe`, DRG `jump`, BST `debugprecast`), and words of its own that it tests first (PUP `petmode`, THF `steal`, BRD `forceidle` / `skillup`, SMN `skillup`);
-3. calls `JobCommands.shared(command, cmdParams, eventArgs, '<JOB>')` (`shared/utils/core/job_commands.lua`) and returns when it answers;
-4. then tests its own job commands.
+- `first`: the words that must win over a common word of the same name (PLD / RUN `aoe`, DRG `jump`, BST `debugprecast`). A handler that returns `false` lets the word through (PLD / RUN `aoe sneak` goes on to the common `aoe`);
+- `words`: the job's own words, never a common one;
+- `other`: what runs for a word no table names (PLD / WAR `ws1`..`ws9`, `JobCommands.ws_slots`; RDM's Mote words, Dispelga and cast-by-name);
+- `load`: the job's own modules, loaded at its first command.
 
-A job with no command of its own (BLU, DRK, MNK, NIN, RNG) is `job_self_command = JobCommands.router('<JOB>')`.
+The router returns if `cmdParams[1]` is missing, lower-cases it into `command`, runs `load`, then looks the word up in `first`, `JobCommands.shared`, `words`, and finally calls `other`. A job with no command of its own (BLU, DRK, MNK, NIN, RNG) is `JobCommands.router('<JOB>')`.
 
-`JobCommands.shared` answers, in this order: `watchdog` (`WatchdogCommands.handle_command`, `handled` set when it answers), `altjobupdate` (`DualBoxManager.receive_alt_job(cmdParams[2..7])`, `handled`), `requestjob` (`DualBoxManager.handle_job_request()`, `handled`), every common word (`CommonCommands.handle_command(command, job, unpack(cmdParams, 2))`, `handled` when it returns true), `ui` (`UICommands.handle_ui_command`, `handled`), `debugmidcast` (`MidcastManager.toggle_debug()` and its message, `handled`), `cyclestate` (`eventArgs.handled = CycleHandler.handle_cyclestate(...)`). None of these words is a job command, so their order among themselves changes nothing; a job word tested after the call is never a common word: `scripts/atelier/job_commands_test.lua` reads every job's router and fails on one (COR's `colors` and WAR's `perf` were such dead branches until 2026-11-27).
+`JobCommands.shared` answers, in this order: `watchdog` (`WatchdogCommands.handle_command`, `handled` set when it answers), `altjobupdate` (`DualBoxManager.receive_alt_job(cmdParams[2..7])`, `handled`), `requestjob` (`DualBoxManager.handle_job_request()`, `handled`), every common word (`CommonCommands.handle_command(command, job, unpack(cmdParams, 2))`, `handled` when it returns true), `ui` (`UICommands.handle_ui_command`, `handled`), `debugmidcast` (`MidcastManager.toggle_debug()` and its message, `handled`), `cyclestate` (`eventArgs.handled = CycleHandler.handle_cyclestate(...)`). None of these words is a job command, so their order among themselves changes nothing; a word in a job's `words` is never a common word: `scripts/atelier/job_commands_test.lua` loads every job's command file, reads the tables it gave the router and fails on one (COR's `colors` and WAR's `perf` were such dead branches until 2026-11-27).
 
 `altjobupdate` passes the sender's name (its 5th word, `cmdParams[6]`) to `DualBoxManager.receive_alt_job`, so an update from a box outside the pair is ignored (see [dualbox.md](dualbox.md)).
 
@@ -619,8 +619,8 @@ Flip it with `flip_debug('<KEY>')` in `DEBUG_COMMANDS.lua` and add its line to t
 
 ### Traps
 
-- A job-specific branch placed **after** the `JobCommands.shared` call for a name `is_common_command` claims is dead code; `scripts/atelier/job_commands_test.lua` fails on one (WAR `perf` and COR `testcolors` were, until 2026-11-27).
-- A job-specific branch placed **before** the common block silently overrides the common command on that job only. Example: BST `debugprecast`.
+- A word in a job's `words` that `is_common_command` claims is dead code; `scripts/atelier/job_commands_test.lua` fails on one (WAR `perf` and COR `testcolors` were, until 2026-11-27).
+- A word in a job's `first` silently overrides the common command on that job only. Example: BST `debugprecast`.
 - Any `gs c ...` your code sends (e.g. `gs c update`) re-enters this pipe in full: the job's prefixes, then `is_common_command`, then Mote.
 
 ## Known issues

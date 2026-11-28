@@ -29,35 +29,12 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 local MessageFormatter = nil
-local CommonCommands = nil
-local WatchdogCommands = nil
-local UICommands = nil
-local CycleHandler = nil
-local MessageCommands = nil
 local BloodPactClassifier = nil
 
 local function ensure_commands_loaded()
     if MessageFormatter then return end
 
     MessageFormatter = require('shared/utils/messages/message_formatter')
-
-    local cc_ok, cc = pcall(require, 'shared/utils/core/COMMON_COMMANDS')
-    if not cc_ok then cc = nil end
-    CommonCommands = cc
-
-    local wd_ok, wd = pcall(require, 'shared/utils/core/WATCHDOG_COMMANDS')
-    if not wd_ok then wd = nil end
-    WatchdogCommands = wd
-
-    local ui_load_ok, ui = pcall(require, 'shared/utils/ui/UI_COMMANDS')
-    if not ui_load_ok then ui = nil end
-    UICommands = ui
-
-    local ch_ok, ch = pcall(require, 'shared/utils/core/CYCLE_HANDLER')
-    if not ch_ok then ch = nil end
-    CycleHandler = ch
-
-    MessageCommands = require('shared/utils/messages/formatters/ui/message_commands')
 
     local bpc_ok, bpc = pcall(require, 'shared/jobs/smn/functions/logic/blood_pact_classifier')
     if not bpc_ok then bpc = nil end
@@ -301,63 +278,51 @@ local JobCommands = require('shared/utils/core/job_commands')
 --- Handle //gs c <command> ...
 --- @param cmdParams table {'command', 'arg1', 'arg2', ...}
 --- @param eventArgs table Event arguments; set .handled = true when consumed
-function job_self_command(cmdParams, eventArgs)
-    if not cmdParams or #cmdParams == 0 then return end
-
-    ensure_commands_loaded()
-
-    local command = cmdParams[1]:lower()
-
-    -- ==========================================================================
-    -- SUMMONING MAGIC SKILLUP LOOP
-    -- ==========================================================================
-    if command == 'skillup' then
-        local args = {}
-        for i = 2, #cmdParams do table.insert(args, cmdParams[i]) end
-        handle_skillup(args)
-        eventArgs.handled = true
-        return
-    end
-
-    if JobCommands.shared(command, cmdParams, eventArgs, 'SMN') then return end
-
-    -- ==========================================================================
-    -- SMN-SPECIFIC: smn <subcommand> [args]
-    -- ==========================================================================
-    if command == 'smn' then
-        if #cmdParams < 2 then
-            MessageFormatter.show_info('Usage: //gs c smn <summon|astralflow|astralconduit|apogee|siphon|manacede|favor|release|assault|retreat|bp> [args]')
+job_self_command = JobCommands.router('SMN', {
+    load = ensure_commands_loaded,
+    words = {
+        -- the Summoning Magic skillup loop
+        skillup = function(cmdParams, eventArgs, command)
+            local args = {}
+            for i = 2, #cmdParams do table.insert(args, cmdParams[i]) end
+            handle_skillup(args)
             eventArgs.handled = true
-            return
-        end
+        end,
+        -- smn <subcommand> [args]
+        smn = function(cmdParams, eventArgs, command)
+            if #cmdParams < 2 then
+                MessageFormatter.show_info('Usage: //gs c smn <summon|astralflow|astralconduit|apogee|siphon|manacede|favor|release|assault|retreat|bp> [args]')
+                eventArgs.handled = true
+                return
+            end
 
-        local sub = cmdParams[2]:lower()
-        local rest = {}
-        for i = 3, #cmdParams do table.insert(rest, cmdParams[i]) end
+            local sub = cmdParams[2]:lower()
+            local rest = {}
+            for i = 3, #cmdParams do table.insert(rest, cmdParams[i]) end
 
-        if sub == 'summon' then
-            handle_summon(rest)
+            if sub == 'summon' then
+                handle_summon(rest)
+                eventArgs.handled = true
+                return
+            end
+
+            if sub == 'bp' then
+                handle_bp(rest)
+                eventArgs.handled = true
+                return
+            end
+
+            if JA_SHORTCUTS[sub] then
+                handle_ja_shortcut(sub)
+                eventArgs.handled = true
+                return
+            end
+
+            MessageFormatter.show_error('Unknown smn subcommand: ' .. sub)
             eventArgs.handled = true
-            return
-        end
-
-        if sub == 'bp' then
-            handle_bp(rest)
-            eventArgs.handled = true
-            return
-        end
-
-        if JA_SHORTCUTS[sub] then
-            handle_ja_shortcut(sub)
-            eventArgs.handled = true
-            return
-        end
-
-        MessageFormatter.show_error('Unknown smn subcommand: ' .. sub)
-        eventArgs.handled = true
-        return
-    end
-end
+        end,
+    },
+})
 
 --- Called when a Mote state field changes value: repaints the HUD.
 --- No gear refresh here: Mote's state commands and CycleHandler both run

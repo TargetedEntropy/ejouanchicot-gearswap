@@ -117,8 +117,8 @@ Until step 4 runs, `_G.DualBoxConfig` is nil. This window lasts 2 s at minimum a
 
 | Wire command (sent via `send`) | Sender | When | Handler on receiver |
 |---|---|---|---|
-| `send <other> gs c altjobupdate <JOB> <SUB> <mlvl> <slvl> <sender> <weapon>` | either box, `send_job_update` | Auto-init of either box. Reply to `requestjob` (forced past the de-dup). When the main hand changes weapon type (`AltStates.watch_weapon`, packet 0x050 slot 0, read 0.5 s later); `<weapon>` is the skill name without spaces (`Sword`, `GreatKatana`, `None`), part of the de-dup payload. | `JobCommands.shared` (`shared/utils/core/job_commands.lua:58-65`), which every job's COMMANDS file (22) calls, calls `receive_alt_job(cmdParams[2..7])` |
-| `send <each other box> gs c requestjob` | either box, `request_alt_job` (every member of `AltGroup.get_alts()`, the partner alone when there is no group) | Auto-init of either box, `DualBoxRole` resync | `JobCommands.shared` (`job_commands.lua:67-71`), from every job's COMMANDS file, calls `handle_job_request`, which answers on either role with `send_job_update(true)` |
+| `send <other> gs c altjobupdate <JOB> <SUB> <mlvl> <slvl> <sender> <weapon>` | either box, `send_job_update` | Auto-init of either box. Reply to `requestjob` (forced past the de-dup). When the main hand changes weapon type (`AltStates.watch_weapon`, packet 0x050 slot 0, read 0.5 s later); `<weapon>` is the skill name without spaces (`Sword`, `GreatKatana`, `None`), part of the de-dup payload. | `JobCommands.shared` (`shared/utils/core/job_commands.lua:57-65`), which every job's COMMANDS file (22) calls, calls `receive_alt_job(cmdParams[2..7])` |
+| `send <each other box> gs c requestjob` | either box, `request_alt_job` (every member of `AltGroup.get_alts()`, the partner alone when there is no group) | Auto-init of either box, `DualBoxRole` resync | `JobCommands.shared` (`job_commands.lua:66-71`), from every job's COMMANDS file, calls `handle_job_request`, which answers on either role with `send_job_update(true)` |
 | `send <main> gs c altbuff <Buff Name> <0\|1>` | ALT, `AltBuffReporter.report` | GEO `job_buff_change`. `report_all` at ALT auto-init and on `altbuffsync` | `CommonCommands.handle_command` (`altbuff`) calls `AltBuffReporter.receive` |
 | `send <alt> gs c altbuffsync` | MAIN, `request_sync` | `//gs c altsync`, or `sync_after` seconds after an alt command that declares it | `CommonCommands.handle_command` (`altbuffsync`) calls `report_all` (sends only on the ALT) |
 | `send <other boxes> gs c altlead <leader\|off>` | the box that changed the follow, `AltGroup` `follow` | `//gs c alts follow` | `AltGroup.receive_lead` updates the saved follow state |
@@ -206,7 +206,7 @@ flowchart TD
 ```
 
 - Every job `job_self_command` checks `CommonCommands.is_common_command(command)` **before** its
-  job-specific branches: `JobCommands.shared` (`shared/utils/core/job_commands.lua:48`) answers it first.
+  job-specific branches: `JobCommands.shared` (`shared/utils/core/job_commands.lua:47`) answers it first.
   `CommonCommands.is_common_command` knows only built-in names and warp aliases; it does
   not look at the alt's config.
 - The alt's keys are Mote's last lookup. When `COMMON_COMMANDS` is loaded (once per job-file load, on the
@@ -219,7 +219,7 @@ flowchart TD
   calls `AltCommands.execute(name, args)`.
 - The result: a job command, a common command and a Mote command all keep their names; a bare alt key
   works only for names nothing on the MAIN answers. `//gs c alt <name>` always reaches the alt. RDM's
-  cast-by-name catch-all leaves a name unhandled when `selfCommandMaps` answers it (`RDM_COMMANDS.lua:318-321`). See
+  cast-by-name catch-all leaves a name unhandled when `selfCommandMaps` answers it (`RDM_COMMANDS.lua:265-268`). See
   [commands and debug](commands-and-debug.md#4-alt-commands-and-name-shadowing) for the names that collide
   today.
 
@@ -554,8 +554,8 @@ When the box is an alt (`DualBoxConfig.role == 'alt'`) playing COR, `RollTracker
 
 | Command | Run on | Handler | Effect |
 |---|---|---|---|
-| `//gs c altjobupdate <JOB> <SUB> [mlvl] [slvl] [sender] [weapon]` | either box | `JobCommands.shared` (`job_commands.lua:58`), then `receive_alt_job` | Store the other box's job. Sent automatically |
-| `//gs c requestjob` | either box | `JobCommands.shared` (`job_commands.lua:67`), then `handle_job_request` | Pushes this box's job to the other box (past the de-dup) |
+| `//gs c altjobupdate <JOB> <SUB> [mlvl] [slvl] [sender] [weapon]` | either box | `JobCommands.shared` (`job_commands.lua:57`), then `receive_alt_job` | Store the other box's job. Sent automatically |
+| `//gs c requestjob` | either box | `JobCommands.shared` (`job_commands.lua:66`), then `handle_job_request` | Pushes this box's job to the other box (past the de-dup) |
 | `//gs c alt` | MAIN | `CommonCommands.handle_alt_command`, then `AltCommands.handle` | Same as `altcmds` |
 | `//gs c alt <name> [args]` | MAIN | same | Explicit form of an alt command |
 | `//gs c altcmds [group\|search]`, `altlist` | MAIN | `AltCommands.handle` -> `list` | Overview by group, or filtered view; names that run locally are listed apart under `//gs c alt <name>` |
@@ -740,7 +740,7 @@ Behaviour per event:
   `//gs c alt <name>`. `altcmds` lists the names `runs_locally` claims apart, but it cannot see
   job-specific commands, so a job command that shares an alt key is still listed in the bare form.
 - A job whose `job_self_command` marks every unknown name as handled would hide every alt key. Only RDM
-  has a catch-all, and it leaves names that `selfCommandMaps` answers unhandled (`RDM_COMMANDS.lua:318-321`).
+  has a catch-all, and it leaves names that `selfCommandMaps` answers unhandled (`RDM_COMMANDS.lua:265-268`).
 - `requestjob` is answered on either role, always past the de-dup window.
 - The de-dup window is keyed on the payload only and applies to the auto-init push; if both boxes
   initialise within the send latency, each can receive the other's job twice (push and reply).

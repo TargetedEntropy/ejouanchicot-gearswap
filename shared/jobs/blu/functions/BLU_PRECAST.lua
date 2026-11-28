@@ -47,7 +47,7 @@ end
 --- the TP pieces after the set (shared/utils/precast/precast_pipeline.lua)
 job_precast, job_post_precast = PrecastPipeline.hooks('BLU', {
     load = ensure_modules_loaded,
-    after_cooldown = function(spell, eventArgs)
+    after_cooldown = function(spell, action, spellMap, eventArgs)
         -- Unbridled Learning first for the spells that need it
         if BLUUnbridled then
             BLUUnbridled.apply(spell, eventArgs)

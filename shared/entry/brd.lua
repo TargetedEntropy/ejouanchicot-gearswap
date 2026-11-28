@@ -30,7 +30,7 @@
 ---
 --- Specialized Modules:
 ---   BRD_PRECAST | BRD_MIDCAST | BRD_AFTERCAST | BRD_STATUS | BRD_BUFFS
----   BRD_IDLE | BRD_ENGAGED | BRD_MACROBOOK | BRD_COMMANDS | BRD_LOCKSTYLE
+---   BRD_IDLE | BRD_ENGAGED | BRD_COMMANDS
 ---   BRD_MOVEMENT
 ---============================================================================
 

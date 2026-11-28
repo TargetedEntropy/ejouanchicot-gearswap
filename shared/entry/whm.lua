@@ -5,7 +5,7 @@
 --- Delegates all specialized logic to dedicated modules for maximum maintainability.
 ---
 --- Features:
----   • Modular architecture (11 hook modules + 1 logic module)
+---   • Modular architecture (hook modules + 1 logic module)
 ---   • Healer-focused gear automation (Cure optimization)
 ---   • Afflatus Solace/Misery support
 ---   • Enhancing magic duration optimization
@@ -14,11 +14,11 @@
 ---   • UI + Keybind system
 ---
 --- Architecture:
----   Main File >> whm_functions.lua (facade) >> 11 Hooks + Logic Module
+---   Main File >> whm_functions.lua (facade) >> Hooks + Logic Module
 ---
 --- Modules:
----   • 11 Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
----               COMMANDS, MOVEMENT, LOCKSTYLE, MACROBOOK
+---   • Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
+---               COMMANDS
 ---   • Logic: set_builder
 ---   • Shared: shared/utils/whm/cure_manager.lua (Cure tier, WHM_CURE_CONFIG)
 ---

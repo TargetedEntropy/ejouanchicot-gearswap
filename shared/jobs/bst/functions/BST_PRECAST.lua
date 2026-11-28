@@ -122,7 +122,7 @@ job_precast, job_post_precast = PrecastPipeline.hooks('BST', {
     -- Ready moves (type 'Monster') spend charges. Their recast (id 102) is the
     -- charge timer, which runs while charges remain, so a cooldown check would
     -- refuse a move the game allows; the game refuses it itself at 0 charges.
-    cooldown = function(spell, eventArgs)
+    cooldown = function(spell, action, spellMap, eventArgs)
         if spell.type ~= 'Monster' then
             PrecastPipeline.cooldown(spell, eventArgs)
         end

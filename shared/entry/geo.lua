@@ -29,8 +29,7 @@
 ---
 --- Specialized Modules:
 ---   GEO_PRECAST | GEO_MIDCAST | GEO_AFTERCAST | GEO_STATUS | GEO_BUFFS
----   GEO_IDLE | GEO_ENGAGED | GEO_MACROBOOK | GEO_COMMANDS | GEO_LOCKSTYLE
----   GEO_MOVEMENT
+---   GEO_IDLE | GEO_ENGAGED | GEO_COMMANDS
 ---============================================================================
 
 ---============================================================================
