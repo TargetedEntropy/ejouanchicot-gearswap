@@ -14,20 +14,14 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 local JobCommands = require('shared/utils/core/job_commands')
 -- a handler that returns PASS leaves the word unanswered (JobCommands.router)
 local PASS = JobCommands.PASS
 
-local MessageFormatter = nil
-
-local function ensure_commands_loaded()
-    if not MessageFormatter then
-        MessageFormatter = require('shared/utils/messages/message_formatter')
-    end
-end
+local MessageFormatter = require('shared/utils/messages/message_formatter')
 
 -- Game resource tables searched by the cast-by-name fallback, in the order
 -- a name is tried: ability, then weaponskill, then spell.
@@ -293,7 +287,7 @@ end
 for word in pairs(nuke_commands) do words[word] = nuke end
 for word in pairs(spell_state_commands) do words[word] = spell_from_state end
 
-job_self_command = JobCommands.router('RDM', {load = ensure_commands_loaded, words = words, other = other})
+job_self_command = JobCommands.router('RDM', {words = words, other = other})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   STATE CHANGE HANDLER

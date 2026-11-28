@@ -13,18 +13,11 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
--- WHM message formatter, loaded on first command
-local WHMMessageFormatter = nil
-local formatter_tried = false
-
-local function ensure_commands_loaded()
-    if formatter_tried then return end
-    formatter_tried = true
-    local ok, formatter = pcall(require, 'shared/utils/whm/whm_message_formatter')
-    WHMMessageFormatter = ok and formatter or nil
-end
+-- WHM message formatter (nil when it does not load)
+local try_require = require('shared/utils/core/try_require')
+local WHMMessageFormatter = try_require('shared/utils/whm/whm_message_formatter')
 
 local JobCommands = require('shared/utils/core/job_commands')
 
@@ -34,7 +27,6 @@ local JobCommands = require('shared/utils/core/job_commands')
 
 --- afflatus: use the Afflatus stance state.AfflatusMode selects.
 job_self_command = JobCommands.router('WHM', {
-    load = ensure_commands_loaded,
     words = {
         afflatus = function()
             local stance = state.AfflatusMode.value

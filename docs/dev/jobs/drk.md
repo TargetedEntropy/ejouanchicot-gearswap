@@ -99,7 +99,7 @@ reload to `JobChangeManager.on_job_change` (`EntryKit.job`,
 
 `load_job('DRK')` installs the lockstyle and macro book,
 includes `message_buffs.lua` (unused by DRK), then `DRK_PRECAST` ..
-`DRK_COMMANDS`, and requires `dualbox_manager`.
+`DRK_COMMANDS`.
 
 ### Precast
 

@@ -49,7 +49,7 @@ function; line numbers are given only where no function name fits.
 | `shared/jobs/brd/functions/BRD_ENGAGED.lua` | 42 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/brd/functions/BRD_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/brd/functions/BRD_BUFFS.lua` | 19 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/brd/functions/BRD_COMMANDS.lua` | 369 | `job_self_command` router, `cast_song_to_target`, `job_state_change = LifecycleManager.state_change()` |
+| `shared/jobs/brd/functions/BRD_COMMANDS.lua` | 361 | `job_self_command` router, `cast_song_to_target`, `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/brd/functions/BRD_MOVEMENT.lua` | 39 | `job_handle_equipping_gear` (re-equips the locked instrument) |
 | `shared/jobs/brd/functions/logic/midcast_router.lua` | 344 | `handle_singing` (dummy / debuff / normal), `handle_healing`, `handle_enhancing`, `handle_enfeebling`, `handle_elemental`; `apply_main_instrument` |
 | `shared/jobs/brd/functions/logic/skillup.lua` | 254 | Instrument skill-up loop (`//gs c skillup` horn / harp / off / status): `handle`, `instrument` (read by `handle_singing`), `cancel`; exported as `_G.BRDSkillUp` once required |
@@ -124,8 +124,7 @@ sequenceDiagram
   `_G.update_brd_song_slots()` after `UIConfig.init_delay + 0.5` s and
   `SongOwner.start()`; `dualbox_manager` require.
 - `load_job('BRD')` installs the lockstyle and macro book,
-  includes the 8 hook files and `BRD_MOVEMENT.lua` after `BRD_COMMANDS`, and
-  requires `dualbox_manager`. BRD's `JOB_FILES` entry has
+  includes the 8 hook files and `BRD_MOVEMENT.lua` after `BRD_COMMANDS`. BRD's `JOB_FILES` entry has
   `buff_messages = false`: no `message_buffs.lua` (COR and DNC have it).
 
 ### Precast

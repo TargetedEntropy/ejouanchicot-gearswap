@@ -50,19 +50,11 @@
 ---   @date    Created: 2025-10-13
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local MessageFormatter = nil
-local SongRotationManager = nil
-local BRDSongConfig = nil
-local BRDTimingConfig = nil
-
-local function ensure_commands_loaded()
-    if not MessageFormatter then
-        MessageFormatter = require('shared/utils/messages/message_formatter')
-        SongRotationManager = require('shared/jobs/brd/functions/logic/song_rotation_manager')
-        BRDSongConfig = _G.BRDSongConfig or {}  -- Loaded from character main file
-        BRDTimingConfig = _G.BRDTimingConfig or {}  -- Loaded from character main file
-    end
-end
+local MessageFormatter = require('shared/utils/messages/message_formatter')
+local SongRotationManager = require('shared/jobs/brd/functions/logic/song_rotation_manager')
+-- set by the entry before Mote-Include (shared/entry/brd.lua before_mote)
+local BRDSongConfig = _G.BRDSongConfig or {}
+local BRDTimingConfig = _G.BRDTimingConfig or {}
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   STATIC LOOKUP TABLES (module-level constants - no recompute per call)
@@ -351,7 +343,7 @@ for slot = 1, 5 do words['song' .. slot] = song_slot end
 for word in pairs(ABILITIES) do words[word] = ability end
 for word in pairs(DEBUFFS) do words[word] = debuff end
 
-job_self_command = JobCommands.router('BRD', {load = ensure_commands_loaded, words = words})
+job_self_command = JobCommands.router('BRD', {words = words})
 
 --- BRD adds nothing of its own: the shared handler is the whole
 --- behaviour. Pass a function to state_change() to extend it.

@@ -17,22 +17,15 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
--- PLD logic modules, loaded on first command
+-- PLD logic modules
 local JobCommands = require('shared/utils/core/job_commands')
 -- a handler that returns PASS leaves the word unanswered (JobCommands.router)
 local PASS = JobCommands.PASS
 
-local AOEManager = nil
-local RuneManager = nil
-
-local function ensure_commands_loaded()
-    if not AOEManager then
-        AOEManager = require('shared/jobs/pld/functions/logic/aoe_manager')
-        RuneManager = require('shared/jobs/pld/functions/logic/rune_manager')
-    end
-end
+local AOEManager = require('shared/jobs/pld/functions/logic/aoe_manager')
+local RuneManager = require('shared/jobs/pld/functions/logic/rune_manager')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HANDLER HOOK
@@ -43,7 +36,6 @@ end
 ---   rune             Rune ability (PLD/RUN)
 ---   ws / ws1 / ws2   the weaponskill the weapon in hand put in that slot
 job_self_command = JobCommands.router('PLD', {
-    load = ensure_commands_loaded,
     first = {
         -- the bare word runs the Blue Magic rotation (PLD/BLU); `aoe sneak|invi|erase` (/SCH) goes on to the
         -- common commands

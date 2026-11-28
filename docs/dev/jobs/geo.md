@@ -126,7 +126,7 @@ sequenceDiagram
 `load_job('GEO')` installs the lockstyle and macro book,
 includes `message_buffs.lua`, then `GEO_PRECAST`, `GEO_MIDCAST`,
 `GEO_AFTERCAST`, `GEO_IDLE`, `GEO_ENGAGED`, `GEO_STATUS`, `GEO_BUFFS`,
-`GEO_COMMANDS`, and requires `dualbox_manager`.
+`GEO_COMMANDS`.
 
 ### Precast
 

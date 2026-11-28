@@ -34,7 +34,7 @@
 local CharPaths = require('shared/utils/core/char_paths')
 
 require('shared/utils/core/entry_kit').job('RUN', {
-    -- aoe_manager reads _G.BluMagicConfig when first required (//gs c aoe)
+    -- aoe_manager reads _G.BluMagicConfig when it loads (RUN_COMMANDS.lua, included after this step)
     configs = function()
         _G.BluMagicConfig = require(CharPaths.module('job', 'RUN_BLU_MAGIC', 'RUN'))
     end,

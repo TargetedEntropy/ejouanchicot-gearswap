@@ -111,7 +111,7 @@ are in `shared/utils/core/entry_kit.lua`).
 
 `load_job('SAM')` installs the lockstyle and macro book, includes
 `SAM_PRECAST`, `SAM_MIDCAST`, `SAM_AFTERCAST`, `SAM_IDLE`, `SAM_ENGAGED`,
-`SAM_STATUS`, `SAM_BUFFS`, `SAM_COMMANDS` and requires `dualbox_manager`. SAM's
+`SAM_STATUS`, `SAM_BUFFS`, `SAM_COMMANDS`. SAM's
 `JOB_FILES` entry has `buff_messages = false`: no `message_buffs.lua` (nothing
 in SAM uses it).
 

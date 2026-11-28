@@ -16,19 +16,13 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
 local JobCommands = require('shared/utils/core/job_commands')
 -- a handler that returns PASS leaves the word unanswered (JobCommands.router)
 local PASS = JobCommands.PASS
 
-local MessageFormatter = nil
-
-local function ensure_commands_loaded()
-    if not MessageFormatter then
-        MessageFormatter = require('shared/utils/messages/message_formatter')
-    end
-end
+local MessageFormatter = require('shared/utils/messages/message_formatter')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HANDLER HOOK
@@ -46,7 +40,6 @@ end
 --- Hasso or Seigan + Third Eye; tp: /SAM Meditate, /DRG Jump rotation), the Retaliation auto-cancel debug, and the
 --- weaponskill slots ws1..ws5 (ws6..ws9 have no slot and only warn).
 job_self_command = JobCommands.router('WAR', {
-    load = ensure_commands_loaded,
     words = {
         debugretaliation = retaliation_debug,
         debugretal = retaliation_debug,

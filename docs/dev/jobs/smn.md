@@ -106,7 +106,7 @@ the message hooks, sets `_G.LockstyleConfig`, `_G.UIConfig`,
 `_G.RECAST_CONFIG`, then `load_job('SMN', Profiler)`: `JobChangeManager.cancel_all()`,
 `load_job('SMN')` (lockstyle and macro book install,
 `message_buffs.lua`, the 8 hook files with `SMN_PET_MIDCAST` after
-`SMN_MIDCAST`, `dualbox_manager`) and the lockstyle cancel registration. It also marks each step for
+`SMN_MIDCAST`) and the lockstyle cancel registration. It also marks each step for
 `//gs c perf`. There is no TP config (`tp_config = false`).
 
 `user_setup()`:

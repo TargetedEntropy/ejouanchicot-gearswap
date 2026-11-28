@@ -11,13 +11,14 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
 local JobCommands = require('shared/utils/core/job_commands')
 -- a handler that returns PASS leaves the word unanswered (JobCommands.router)
 local PASS = JobCommands.PASS
 
-local GeoSpellRefiner = nil
+-- tier fallback for the elemental words
+local GeoSpellRefiner = require('shared/jobs/geo/functions/logic/geo_spell_refiner')
 
 --- Seconds //gs c indiensure leaves the bot to cast the Indi- itself before casting it.
 local INDI_ENSURE_WAIT = 10   -- the pull bubble goes first (cast + the bot's 2.7 s after it), then its Indi-
@@ -66,13 +67,6 @@ function indi_change(indi, gained)
     end
 end
 _G.indi_change = indi_change
-
-local function ensure_commands_loaded()
-    if not GeoSpellRefiner then
-        -- tier fallback for the elemental words
-        GeoSpellRefiner = require('shared/jobs/geo/functions/logic/geo_spell_refiner')
-    end
-end
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   GEO SPELL CLASSIFICATION (Buff vs Debuff)
@@ -259,7 +253,7 @@ local words = {
 }
 for word in pairs(ELEMENTAL) do words[word] = elemental end
 
-job_self_command = JobCommands.router('GEO', {load = ensure_commands_loaded, words = words})
+job_self_command = JobCommands.router('GEO', {words = words})
 
 --- GEO adds nothing of its own: the shared handler is the whole
 --- behaviour. Pass a function to state_change() to extend it.

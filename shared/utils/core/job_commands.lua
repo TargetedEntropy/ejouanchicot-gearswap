@@ -17,7 +17,6 @@
 ---                              -- DRG 'jump', BST 'debugprecast')
 ---       words = {rune = fn},   -- the job's own words, never a shared one (scripts/atelier/job_commands_test.lua)
 ---       other = fn,            -- a word no table names (a pattern: ws1..ws9)
----       load = fn,             -- the job's own modules, loaded at its first command
 ---   })
 ---
 --- Each fn(cmdParams, command) answers the word: the router sets
@@ -115,14 +114,13 @@ end
 
 --- A job's whole job_self_command.
 --- @param job string The job's code
---- @param spec table|nil {first, words, other, load} (see the header)
+--- @param spec table|nil {first, words, other} (see the header)
 --- @return function job_self_command
 function JobCommands.router(job, spec)
     spec = spec or {}
     local first, words, other = spec.first or {}, spec.words or {}, spec.other
     return function(cmdParams, eventArgs)
         if not cmdParams[1] then return end
-        if spec.load then spec.load() end
         local command = cmdParams[1]:lower()
         local fn = first[command]
         if fn and answer(fn, cmdParams, eventArgs, command) then return end

@@ -19,31 +19,20 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
 local JobCommands = require('shared/utils/core/job_commands')
 -- a handler that returns PASS leaves the word unanswered (JobCommands.router)
 local PASS = JobCommands.PASS
 
-local BLMMessages = nil
-local MessageFormatter = nil
-local StratagemCharges = nil
-local ScholarActions = nil
+local MessageFormatter = require('shared/utils/messages/message_formatter')
+-- BLM message formatter (handles all colored messages)
+local BLMMessages = require('shared/utils/messages/formatters/jobs/message_blm')
+local StratagemCharges = require('shared/utils/scholar/stratagem_charges')
+local ScholarActions = require('shared/utils/scholar/scholar_actions')
 
 --- Dark Arts has its own recast slot and costs no stratagem charge.
 local DARK_ARTS_RECAST_ID = 232
-
-local function ensure_commands_loaded()
-    if not MessageFormatter then
-        MessageFormatter = require('shared/utils/messages/message_formatter')
-
-        -- BLM message formatter (handles all colored messages)
-        BLMMessages = require('shared/utils/messages/formatters/jobs/message_blm')
-
-        StratagemCharges = require('shared/utils/scholar/stratagem_charges')
-        ScholarActions = require('shared/utils/scholar/scholar_actions')
-    end
-end
 
 ---   Build a single-target nuke name ('Fire' + 'V' -> 'Fire V')
 ---   Tier I casts the base spell, which carries no numeral.
@@ -224,7 +213,7 @@ local words = {
 for word in pairs(ELEMENT_CYCLES) do words[word] = cycle_element end
 for word in pairs(NUKES) do words[word] = nuke end
 
-job_self_command = JobCommands.router('BLM', {load = ensure_commands_loaded, words = words})
+job_self_command = JobCommands.router('BLM', {words = words})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   STATE CHANGE HOOK
@@ -242,7 +231,6 @@ job_self_command = JobCommands.router('BLM', {load = ensure_commands_loaded, wor
 function job_state_change(stateField, newValue, oldValue)
     -- DEBUG: Track which state triggered this
     if _G.AUTOMOVE_DEBUG then
-        ensure_commands_loaded()
         MessageFormatter.show_debug('BLM', string.format('[job_state_change] state=%s, old=%s, new=%s',
             tostring(stateField), tostring(oldValue), tostring(newValue)))
     end
