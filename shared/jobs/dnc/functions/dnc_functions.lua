@@ -2,7 +2,7 @@
 ---   DNC Functions Facade - Module Loader
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   Central loading facade for all DNC job modules. This file orchestrates the
----   loading of 11 hook modules; the 5 logic modules under logic/ are loaded
+---   loading of hook modules; the 5 logic modules under logic/ are loaded
 ---   on demand via require() by the hooks.
 ---
 ---   Architecture:
@@ -66,7 +66,7 @@ TIMER('DNC_BUFFS')
 ---   SECTION 5: UTILITY HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
--- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('DNC') -- Lockstyle (LockstyleManager factory)
 require('shared/utils/macrobook/macrobook_manager').install('DNC') -- Macro book selection per subjob
 include('../shared/jobs/dnc/functions/DNC_COMMANDS.lua')  -- Commands: step, dance, smartbuff + shared
@@ -98,7 +98,7 @@ require('shared/utils/dualbox/dualbox_manager')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 local MessageFormatter = require('shared/utils/messages/message_formatter')
-MessageFormatter.show_debug('DNC', 'All functions loaded (hooks + logic modules)')
+MessageFormatter.show_debug('DNC', 'All functions loaded')
 
 -- ═══════════════════════════════════════════════════════════════════
 TIMER('TOTAL DNC_functions', true)

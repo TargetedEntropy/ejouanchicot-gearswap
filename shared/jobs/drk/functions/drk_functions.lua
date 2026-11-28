@@ -63,7 +63,7 @@ TIMER('DRK_BUFFS')
 ---   SECTION 5: UTILITY HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
--- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('DRK')
 require('shared/utils/macrobook/macrobook_manager').install('DRK')
 include('../shared/jobs/drk/functions/DRK_COMMANDS.lua')
@@ -90,7 +90,7 @@ require('shared/utils/dualbox/dualbox_manager')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 local MessageFormatter = require('shared/utils/messages/message_formatter')
-MessageFormatter.show_debug('DRK', 'All functions loaded (11 hooks)')
+MessageFormatter.show_debug('DRK', 'All functions loaded')
 
 -- ═══════════════════════════════════════════════════════════════════
 TIMER('TOTAL DRK_functions', true)

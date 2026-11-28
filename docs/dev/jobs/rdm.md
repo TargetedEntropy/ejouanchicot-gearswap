@@ -46,8 +46,8 @@ the sets files (structure and set names only).
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/rdm.lua` | 209 | Entry (the same for every character; `<Char>_RDM.lua` and its template `_master/entry/Tetsouo_RDM.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD only), `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/rdm/functions/rdm_functions.lua` | 83 | Facade: includes the 11 hook files, then requires `dualbox_manager` |
+| `shared/entry/rdm.lua` | 208 | Entry (the same for every character; `<Char>_RDM.lua` and its template `_master/entry/Tetsouo_RDM.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD only), `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/jobs/rdm/functions/rdm_functions.lua` | 78 | Facade: includes the 11 hook files, then requires `dualbox_manager` |
 | `shared/jobs/rdm/functions/RDM_PRECAST.lua` | 394 | `job_precast` as stages (guard, cooldown/refine, Phalanx, Saboteur) + WS + `SpellGearLock.begin`; `job_post_precast` (TP gear, spell FC set, lock hold, `debugprecast` trace) |
 | `shared/jobs/rdm/functions/RDM_MIDCAST.lua` | 387 | `job_midcast` (empty), `job_post_midcast` -> `route_midcast` (`SKILL_HANDLERS` table) + `SpellGearLock.hold` |
 | `shared/jobs/rdm/functions/RDM_AFTERCAST.lua` | 27 | `job_aftercast = LifecycleManager.aftercast(...)` with `SpellGearLock.release` as the extra step |
@@ -55,7 +55,7 @@ the sets files (structure and set names only).
 | `shared/jobs/rdm/functions/RDM_ENGAGED.lua` | 42 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/rdm/functions/RDM_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/rdm/functions/RDM_BUFFS.lua` | 20 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/rdm/functions/RDM_COMMANDS.lua` | 361 | `job_self_command` router (cast-by-name resolved from `res`), `job_state_change` (HUD refresh) |
+| `shared/jobs/rdm/functions/RDM_COMMANDS.lua` | 331 | `job_self_command` router (cast-by-name resolved from `res`), `job_state_change` (HUD refresh) |
 | `shared/jobs/rdm/functions/logic/set_builder.lua` | 243 | Idle / engaged construction: mode sets, single vs dual wield (off-hand item and subjob), weapons, town, movement |
 | `shared/data/spells/RDM_ENFEEBLE_TIERS.lua` | 55 | Tier table of 11 enfeeble families (`RDM_ENFEEBLE_TIERS.get`) |
 | `shared/data/spells/NUKE_TIERS.lua` | 56 | Nuke / -ra / Aspir tier table (`NUKE_TIERS.get`), shared with GEO and SCH |

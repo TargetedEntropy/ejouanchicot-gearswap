@@ -6,7 +6,7 @@
 ---
 ---   Architecture:
 ---   • Hook modules (12): PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS,
----     BUFFS, COMMANDS, MOVEMENT, LOCKSTYLE, MACROBOOK (+ this facade)
+---     BUFFS, COMMANDS (+ this facade)
 ---   • Logic modules (2, required by the hooks):
 ---       logic/ranged.lua       ranged attack: Flurry precast groups
 ---                              (shared FlurryTracker) and the buff layers
@@ -47,7 +47,7 @@ TIMER('RNG_STATUS')
 include('../shared/jobs/rng/functions/RNG_BUFFS.lua')        -- Doom (shared handler)
 TIMER('RNG_BUFFS')
 
--- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('RNG')
 require('shared/utils/macrobook/macrobook_manager').install('RNG')
 include('../shared/jobs/rng/functions/RNG_COMMANDS.lua')     -- Commands, state change hook

@@ -6,14 +6,14 @@
 ---   the GearSwap event system via Mote-Include framework.
 ---
 ---   Features:
----   • Modular architecture (11 hooks + 5 logic modules)
+---   • Modular architecture (hooks + 5 logic modules)
 ---   • Dependency-ordered loading (messages >> combat >> status >> utility)
 ---   • Separation of concerns (hooks = orchestration, logic = implementation)
 ---   • Clean integration with GearSwap event system
 ---
 ---   Architecture:
 ---   • Hook modules (11): PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS,
----     BUFFS, COMMANDS, MOVEMENT, LOCKSTYLE, MACROBOOK
+---     BUFFS, COMMANDS
 ---   • Logic modules (5): sa_ta_manager, set_builder, smartbuff_manager,
 ---     range_lock, treasure_hunter
 ---   • Loaded via include() for GearSwap _G integration
@@ -84,7 +84,7 @@ TIMER('THF_BUFFS')
 ---   SECTION 5: UTILITY HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
--- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('THF') -- Lockstyle management with delays
 require('shared/utils/macrobook/macrobook_manager').install('THF') -- Macro book selection per subjob
 include('../shared/jobs/thf/functions/THF_COMMANDS.lua')  -- Custom commands (smartbuff, fbc, range)

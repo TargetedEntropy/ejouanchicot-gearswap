@@ -6,7 +6,7 @@
 ---
 ---   Architecture:
 ---   • Hook modules (11): PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS,
----     BUFFS, COMMANDS, MOVEMENT, LOCKSTYLE, MACROBOOK
+---     BUFFS, COMMANDS
 ---   • Logic modules (5, required by the hooks):
 ---       logic/spell_map.lua       Blue Magic spell -> gear category
 ---                                 (blu/combat/BLU_SPELL_MAP.lua)
@@ -49,7 +49,7 @@ TIMER('BLU_STATUS')
 include('../shared/jobs/blu/functions/BLU_BUFFS.lua')     -- Buff change (Doom)
 TIMER('BLU_BUFFS')
 
--- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('BLU')
 require('shared/utils/macrobook/macrobook_manager').install('BLU')
 include('../shared/jobs/blu/functions/BLU_COMMANDS.lua')  -- Commands, state change hook

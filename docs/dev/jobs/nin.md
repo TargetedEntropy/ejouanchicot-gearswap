@@ -36,7 +36,7 @@ and spell messages (`NIN_JA_DATABASE`, `NINJUTSU_DATABASE`).
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/nin.lua` | 138 | Entry (the same for every character; `<Char>_NIN.lua` and its template `_master/entry/Tetsouo_NIN.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
+| `shared/entry/nin.lua` | 137 | Entry (the same for every character; `<Char>_NIN.lua` and its template `_master/entry/Tetsouo_NIN.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
 | `shared/jobs/nin/functions/nin_functions.lua` | 62 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager`, debug line |
 | `shared/jobs/nin/functions/NIN_PRECAST.lua` | 42 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (TP gear) |
 | `shared/jobs/nin/functions/NIN_MIDCAST.lua` | 96 | `job_midcast` (empty) / `job_post_midcast` (Ninjutsu by family + Futae, other skills on their own chain) |

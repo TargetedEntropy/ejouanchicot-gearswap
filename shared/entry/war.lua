@@ -23,7 +23,7 @@
 --- Module Organization:
 ---   ├── functions/war_functions.lua    [Facade Loader]
 ---   ├── <Character>/war/sets/war_sets.lua [Equipment Sets]
----   ├── functions/WAR_*.lua           [11 Hook Modules]
+---   ├── functions/WAR_*.lua           [Hook Modules]
 ---   └── <Character>/war/<theme>/*.lua  [Configuration Files]
 ---============================================================================
 

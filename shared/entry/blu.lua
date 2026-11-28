@@ -15,8 +15,7 @@
 ---
 --- Hooks Modules:
 ---   BLU_PRECAST | BLU_MIDCAST | BLU_AFTERCAST | BLU_STATUS | BLU_BUFFS
----   BLU_IDLE | BLU_ENGAGED | BLU_MACROBOOK | BLU_COMMANDS | BLU_MOVEMENT
----   BLU_LOCKSTYLE
+---   BLU_IDLE | BLU_ENGAGED | BLU_COMMANDS
 ---
 --- Logic Modules:
 ---   logic/spell_map.lua        - Blue Magic spell -> gear category

@@ -106,4 +106,4 @@ TIMER('TOTAL war_functions')
 
 -- All module functions are now available in global scope
 local MessageFormatter = require('shared/utils/messages/message_formatter')
-MessageFormatter.show_debug('WAR', 'All functions loaded (11 hooks + 2 logic modules)')
+MessageFormatter.show_debug('WAR', 'All functions loaded')

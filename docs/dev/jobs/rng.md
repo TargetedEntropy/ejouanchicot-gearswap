@@ -32,7 +32,7 @@ What RNG adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/rng.lua` | 138 | Entry (the same for every character; `<Char>_RNG.lua` and its template `_master/entry/Tetsouo_RNG.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
+| `shared/entry/rng.lua` | 137 | Entry (the same for every character; `<Char>_RNG.lua` and its template `_master/entry/Tetsouo_RNG.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
 | `shared/jobs/rng/functions/rng_functions.lua` | 62 | Facade: includes `message_buffs` and the hook files, requires `dualbox_manager`, debug line |
 | `shared/jobs/rng/functions/RNG_PRECAST.lua` | 61 | `job_precast` (guard, cooldown, Flurry groups, WS handler) / `job_post_precast` (TP gear, Velocity Shot layer on the aim); starts `FlurryTracker` at load |
 | `shared/jobs/rng/functions/RNG_MIDCAST.lua` | 90 | `job_midcast` (empty) / `job_post_midcast` (ranged attack and subjob magic via MidcastManager, ranged buff layers) |

@@ -4,7 +4,7 @@
 ---   Loads all COR-specific function modules in correct order.
 ---
 ---   Features:
----   • Modular architecture (11 hook files + logic modules under logic/)
+---   • Modular architecture (hook files + logic modules under logic/)
 ---   • Dependency-ordered loading (messages >> combat >> status >> utility)
 ---   • Separation of concerns (hooks = orchestration, logic = implementation)
 ---   • Clean integration with GearSwap event system
@@ -73,7 +73,7 @@ TIMER('COR_BUFFS')
 ---   SECTION 5: UTILITY HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
--- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('COR')
 require('shared/utils/macrobook/macrobook_manager').install('COR')
 include('../shared/jobs/cor/functions/COR_COMMANDS.lua')
@@ -127,6 +127,6 @@ local DualBoxManager = require('shared/utils/dualbox/dualbox_manager')
 
 -- All module functions are now available in global scope
 local MessageFormatter = require('shared/utils/messages/message_formatter')
-MessageFormatter.show_debug('COR', 'All functions loaded (11 hooks + logic modules)')
+MessageFormatter.show_debug('COR', 'All functions loaded')
 
 TIMER('TOTAL COR_functions', true)

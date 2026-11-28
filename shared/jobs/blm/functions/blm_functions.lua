@@ -103,7 +103,7 @@ TIMER('BLM_BUFFS')
 ---   SECTION 7: UTILITY HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
--- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('BLM')
 require('shared/utils/macrobook/macrobook_manager').install('BLM')
 include('../shared/jobs/blm/functions/BLM_COMMANDS.lua')
@@ -295,6 +295,6 @@ local DualBoxManager = require('shared/utils/dualbox/dualbox_manager')
 
 -- All hook functions loaded, logic modules will load on demand
 local MessageFormatter = require('shared/utils/messages/message_formatter')
-MessageFormatter.show_debug('BLM', 'Hook functions loaded (11 hooks + 5 global exports with lazy loading)')
+MessageFormatter.show_debug('BLM', 'Hook functions loaded (and 5 global exports)')
 
 TIMER('TOTAL BLM_functions', true)

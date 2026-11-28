@@ -5,7 +5,7 @@
 ---   This facade ensures all hooks are registered before GearSwap events fire.
 ---
 ---   Features:
----   • Modular architecture (11 hook files + logic modules under logic/)
+---   • Modular architecture (hook files + logic modules under logic/)
 ---   • Dependency-ordered loading (lockstyle >> macros >> combat >> utility)
 ---   • Separation of concerns (hooks = orchestration, logic = implementation)
 ---
@@ -30,7 +30,7 @@
 local Profiler = require('shared/utils/debug/performance_profiler')
 local TIMER = Profiler.create_timer('BRD')
 
--- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('BRD')
 require('shared/utils/macrobook/macrobook_manager').install('BRD')
 

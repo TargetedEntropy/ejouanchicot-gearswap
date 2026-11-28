@@ -6,8 +6,7 @@
 ---
 ---   Architecture:
 ---   • Hook modules (12 + pet midcast): PRECAST, MIDCAST, PET_MIDCAST,
----     AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS, COMMANDS, MOVEMENT,
----     LOCKSTYLE, MACROBOOK
+---     AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS, COMMANDS
 ---   • Logic modules (3, required by the hooks):
 ---       logic/set_builder.lua  idle / engaged sets: town, HybridMode DT,
 ---                              wyvern layer, Spirit Surge, weapons, movement
@@ -49,7 +48,7 @@ TIMER('DRG_STATUS')
 include('../shared/jobs/drg/functions/DRG_BUFFS.lua')        -- Doom, Spirit Surge
 TIMER('DRG_BUFFS')
 
--- Utility hooks (LOCKSTYLE / MACROBOOK are lazy: built on first call)
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('DRG')
 require('shared/utils/macrobook/macrobook_manager').install('DRG')
 include('../shared/jobs/drg/functions/DRG_COMMANDS.lua')     -- Commands (jump), state change hook

@@ -112,7 +112,7 @@ require('shared/utils/dualbox/dualbox_manager')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 local MessageFormatter = require('shared/utils/messages/message_formatter')
-MessageFormatter.show_debug('PLD', 'All functions loaded (11 hooks + 5 logic modules)')
+MessageFormatter.show_debug('PLD', 'All functions loaded')
 
 -- ═══════════════════════════════════════════════════════════════════
 TIMER('TOTAL PLD_functions', true)

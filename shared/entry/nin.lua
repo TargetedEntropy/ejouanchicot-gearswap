@@ -15,8 +15,7 @@
 ---
 --- Hooks Modules:
 ---   NIN_PRECAST | NIN_MIDCAST | NIN_AFTERCAST | NIN_STATUS | NIN_BUFFS
----   NIN_IDLE | NIN_ENGAGED | NIN_MACROBOOK | NIN_COMMANDS | NIN_MOVEMENT
----   NIN_LOCKSTYLE
+---   NIN_IDLE | NIN_ENGAGED | NIN_COMMANDS
 ---
 --- Logic Modules:
 ---   logic/ninjutsu.lua         - Ninjutsu spell -> gear family, burst mode

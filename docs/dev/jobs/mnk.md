@@ -34,7 +34,7 @@ from `H2H_WS_DATABASE.lua`.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/mnk.lua` | 138 | Entry (the same for every character; `<Char>_MNK.lua` and its template `_master/entry/Tetsouo_MNK.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
+| `shared/entry/mnk.lua` | 137 | Entry (the same for every character; `<Char>_MNK.lua` and its template `_master/entry/Tetsouo_MNK.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
 | `shared/jobs/mnk/functions/mnk_functions.lua` | 61 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager`, debug line |
 | `shared/jobs/mnk/functions/MNK_PRECAST.lua` | 66 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (WS buff layers, then TP gear) |
 | `shared/jobs/mnk/functions/MNK_MIDCAST.lua` | 75 | `job_midcast` (empty) / `job_post_midcast` (subjob magic via MidcastManager) |

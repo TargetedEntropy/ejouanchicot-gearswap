@@ -5,7 +5,7 @@
 --- Delegates all specialized logic to dedicated modules for maximum maintainability.
 ---
 --- Features:
----   • Modular architecture (11 hook modules + 5 logic modules)
+---   • Modular architecture (hook modules + 5 logic modules)
 ---   • Tank-focused gear automation (PDT/MDT modes)
 ---   • Blue Magic AOE spell rotation (PLD/BLU)
 ---   • Rune management (RUN subjob)
@@ -15,11 +15,11 @@
 ---   • UI + Keybind system
 ---
 --- Architecture:
----   Main File >> pld_functions.lua (facade) >> 11 Hooks + 5 Logic Modules
+---   Main File >> pld_functions.lua (facade) >> Hooks + 5 Logic Modules
 ---
 --- Modules:
----   • 11 Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
----               COMMANDS, MOVEMENT, LOCKSTYLE, MACROBOOK
+---   • Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
+---               COMMANDS
 ---   • 5 Logic: aoe_manager, cure_set_builder, enmity_override, rune_manager, set_builder
 ---
 --- @file    shared/entry/pld.lua

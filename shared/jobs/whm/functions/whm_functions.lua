@@ -18,7 +18,7 @@ local Profiler = require('shared/utils/debug/performance_profiler')
 local TIMER = Profiler.create_timer('WHM')
 -- ═══════════════════════════════════════════════════════════════════
 
--- LOCKSTYLE and MACROBOOK use lazy loading - loaded on first call, not during startup
+-- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
 require('shared/utils/lockstyle/lockstyle_manager').install('WHM')
 require('shared/utils/macrobook/macrobook_manager').install('WHM')
 include('../shared/jobs/whm/functions/WHM_PRECAST.lua')

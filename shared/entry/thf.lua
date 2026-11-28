@@ -27,8 +27,7 @@
 ---
 --- Hooks Modules:
 ---   THF_PRECAST | THF_MIDCAST | THF_AFTERCAST | THF_STATUS | THF_BUFFS
----   THF_IDLE | THF_ENGAGED | THF_MACROBOOK | THF_COMMANDS | THF_MOVEMENT
----   THF_LOCKSTYLE
+---   THF_IDLE | THF_ENGAGED | THF_COMMANDS
 ---
 --- Logic Modules:
 ---   logic/treasure_hunter.lua  - TH tracking and management
