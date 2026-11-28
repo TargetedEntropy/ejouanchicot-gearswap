@@ -38,16 +38,17 @@
 -- _G.RDMTPConfig itself; RDMStates.configure() creates the Storm state when the subjob is SCH (configure_storm), on
 -- every load and every subjob change, so job_sub_job_change has no Storm work.
 local CharPaths = require('shared/utils/core/char_paths')
+local try_require = require('shared/utils/core/try_require')
 
 require('shared/utils/core/entry_kit').job('RDM', {
     configs = function()
-        local ok, RDMSaboteurConfig = pcall(require, CharPaths.module('job', 'RDM_SABOTEUR_CONFIG', 'RDM'))
-        _G.RDMSaboteurConfig = (ok and RDMSaboteurConfig) or {auto_trigger_spells = {}, wait_time = 2}
+        _G.RDMSaboteurConfig = try_require(CharPaths.module('job', 'RDM_SABOTEUR_CONFIG', 'RDM'))
+            or {auto_trigger_spells = {}, wait_time = 2}
     end,
     -- Cure Auto-Tier mode (state.CureAutoTier), when the character has a RDM_CURE_CONFIG.lua (<Char>/rdm/combat/):
     -- made in shared/utils/whm/cure_manager.lua setup_state, before the keybinds so the HUD shows it
     after_states = function()
-        local ok, CureManager = pcall(require, 'shared/utils/whm/cure_manager')
-        if ok and CureManager then CureManager.setup_state() end
+        local CureManager = try_require('shared/utils/whm/cure_manager')
+        if CureManager then CureManager.setup_state() end
     end,
 })

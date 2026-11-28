@@ -39,16 +39,13 @@
 
 -- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
 -- (shared/utils/core/entry_kit.lua), with THF's range / ammo lock
-local function range_lock()
-    local ok, RangeLock = pcall(require, 'shared/jobs/thf/functions/logic/range_lock')
-    return ok and RangeLock or nil
-end
+local try_require = require('shared/utils/core/try_require')
 
 require('shared/utils/core/entry_kit').job('THF', {
     -- A subjob change re-runs user_setup in the same sandbox: keep RangeLock On while the range/ammo lock is still
     -- in place.
     after_states = function()
-        local RangeLock = range_lock()
+        local RangeLock = try_require('shared/jobs/thf/functions/logic/range_lock')
         if RangeLock then RangeLock.sync_state() end
     end,
     -- Release the range/ammo lock: GearSwap keeps slot locks across job files while RangeLock starts Off in the
@@ -56,7 +53,7 @@ require('shared/utils/core/entry_kit').job('THF', {
     -- file_unload in a single pcall (engine flow.lua:339-348), so an error after it would leak the slot lock into
     -- the next job.
     unload = function()
-        local RangeLock = range_lock()
+        local RangeLock = try_require('shared/jobs/thf/functions/logic/range_lock')
         if RangeLock then RangeLock.release() end
     end,
 })

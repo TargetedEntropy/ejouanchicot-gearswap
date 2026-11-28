@@ -33,11 +33,7 @@
 -- (shared/utils/core/entry_kit.lua), with PLD's Blue Magic configuration, weaponskill slots and Ampulla lock. PLD_TP_CONFIG.lua
 -- also sets _G.PLDTPConfig itself.
 local CharPaths = require('shared/utils/core/char_paths')
-
-local function ampulla_lock()
-    local ok, AmpullaLock = pcall(require, 'shared/utils/equipment/ampulla_lock')
-    return ok and AmpullaLock or nil
-end
+local try_require = require('shared/utils/core/try_require')
 
 local function rebuild_ws_slots()
     if _G.pld_rebuild_ws_slots then
@@ -64,14 +60,14 @@ require('shared/utils/core/entry_kit').job('PLD', {
         -- configure() has just put HybridMode back to its default, so any ammo lock still held by the sandbox
         -- belongs to a stance that is no longer selected. GearSwap slot locks outlive the job file; nothing else
         -- would ever give the slot back.
-        local AmpullaLock = ampulla_lock()
+        local AmpullaLock = try_require('shared/utils/equipment/ampulla_lock')
         if AmpullaLock then AmpullaLock.apply(state.HybridMode and state.HybridMode.value) end
     end,
     -- Give the ammo slot back before the next job file loads: a GearSwap slot lock survives a job change, and
     -- nothing on the other side knows it. First in file_unload: GearSwap wraps the whole of it in a single pcall
     -- (engine flow.lua:339-348), so an error after it would leak the slot lock into the next job.
     unload = function()
-        local AmpullaLock = ampulla_lock()
+        local AmpullaLock = try_require('shared/utils/equipment/ampulla_lock')
         if AmpullaLock then AmpullaLock.release() end
     end,
 })

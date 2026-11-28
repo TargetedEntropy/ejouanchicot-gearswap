@@ -39,17 +39,12 @@
 
 -- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
 -- (shared/utils/core/entry_kit.lua), with COR's roll tracking and the rolltracker addon it replaces
-local function roll_tracker()
-    local ok, RollTracker = pcall(require, 'shared/jobs/cor/functions/logic/roll_tracker')
-    return ok and RollTracker or nil
-end
+local try_require = require('shared/utils/core/try_require')
 
 --- PartyTracker and roll detection, from get_sets(): every dependency it needs exists by then.
 local function init_party_tracking()
-    local pt_ok, PartyTracker = pcall(require, 'shared/jobs/cor/functions/logic/party_tracker')
-    if not pt_ok then PartyTracker = nil end
-    local mf_ok, MF = pcall(require, 'shared/utils/messages/message_formatter')
-    if not mf_ok then MF = nil end
+    local PartyTracker = try_require('shared/jobs/cor/functions/logic/party_tracker')
+    local MF = try_require('shared/utils/messages/message_formatter')
     if not PartyTracker then
         if MF then
             MF.show_error('[COR] PartyTracker failed to load - no roll detection')
@@ -98,7 +93,7 @@ require('shared/utils/core/entry_kit').job('COR', {
     -- unregisters every event of the previous job file at load (refresh.lua), and _G is a new environment.
     before_mote = function()
         _G.cor_pending_roll_value = nil
-        local RollTracker = roll_tracker()
+        local RollTracker = try_require('shared/jobs/cor/functions/logic/roll_tracker')
         if RollTracker and RollTracker.cleanup then RollTracker.cleanup() end
     end,
     -- The rolltracker addon would conflict with the integrated roll tracker: unloaded here, loaded again by
@@ -116,11 +111,11 @@ require('shared/utils/core/entry_kit').job('COR', {
         -- the roll detection handler (PartyTracker.init_roll_listener, from get_sets)
         pcall(function() require('shared/utils/core/action_listener').off('cor_roll') end)
         -- every roll state and global
-        local RollTracker = roll_tracker()
+        local RollTracker = try_require('shared/jobs/cor/functions/logic/roll_tracker')
         if RollTracker and RollTracker.cleanup then RollTracker.cleanup() end
         -- PartyTracker's event handlers and state
-        local pt_ok, PartyTracker = pcall(require, 'shared/jobs/cor/functions/logic/party_tracker')
-        if pt_ok and PartyTracker and PartyTracker.cleanup then PartyTracker.cleanup() end
+        local PartyTracker = try_require('shared/jobs/cor/functions/logic/party_tracker')
+        if PartyTracker and PartyTracker.cleanup then PartyTracker.cleanup() end
         release_rolltracker(next_file)
     end,
 })

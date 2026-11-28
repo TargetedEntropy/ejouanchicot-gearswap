@@ -27,19 +27,16 @@
 
 -- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
 -- (shared/utils/core/entry_kit.lua), with BLU's AzureSets (its Blue Magic spell lists)
-local function azure_sets()
-    local ok, AzureSets = pcall(require, 'shared/jobs/blu/functions/logic/azure_sets')
-    return ok and AzureSets or nil
-end
+local try_require = require('shared/utils/core/try_require')
 
 require('shared/utils/core/entry_kit').job('BLU', {
     -- the spell lists while on BLU
     after_setup = function()
-        local AzureSets = azure_sets()
+        local AzureSets = try_require('shared/jobs/blu/functions/logic/azure_sets')
         if AzureSets then AzureSets.load() end
     end,
     unload = function()
-        local AzureSets = azure_sets()
+        local AzureSets = try_require('shared/jobs/blu/functions/logic/azure_sets')
         if AzureSets then AzureSets.unload() end
     end,
 })

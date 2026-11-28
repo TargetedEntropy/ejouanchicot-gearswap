@@ -25,27 +25,24 @@
 
 -- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
 -- (shared/utils/core/entry_kit.lua), with PUP's automaton (PetMode from its head) and pet WS poll
-local function pup(module)
-    local ok, mod = pcall(require, 'shared/jobs/pup/functions/logic/' .. module)
-    return ok and mod or nil
-end
+local try_require = require('shared/utils/core/try_require')
 
 require('shared/utils/core/entry_kit').job('PUP', {
     -- PetMode from the automaton's head before the HUD first draws it
     after_states = function()
-        local Automaton = pup('automaton')
+        local Automaton = try_require('shared/jobs/pup/functions/logic/automaton')
         if Automaton then Automaton.refresh_mode(true) end
     end,
     -- before Mote puts the gear on (every gs c update, cycle, set, toggle): PetMode from a changed automaton head,
     -- the pet WS poll started if it has something to watch, then the HUD
     update = function()
-        local Automaton = pup('automaton')
+        local Automaton = try_require('shared/jobs/pup/functions/logic/automaton')
         if Automaton then Automaton.refresh_mode() end
-        local PetWS = pup('pet_ws')
+        local PetWS = try_require('shared/jobs/pup/functions/logic/pet_ws')
         if PetWS then PetWS.ensure_running() end
     end,
     unload = function()
-        local PetWS = pup('pet_ws')
+        local PetWS = try_require('shared/jobs/pup/functions/logic/pet_ws')
         if PetWS then PetWS.stop() end
     end,
 })

@@ -45,6 +45,7 @@ Everything described here runs inside the GearSwap sandbox of the current job fi
 | `shared/utils/equipment/spell_gear_lock.lua` | A piece a spell cannot be cast without (Dispelga: Daybreak), worn through Combat Mode for the cast |
 | `shared/utils/core/optional_state.lua`, `optional_state_commands.lua` | Base of Combat Mode and Treasure Mode: shown / hidden / key per job, commands (see [keybinds-and-custom.md](keybinds-and-custom.md#optional-states-combat-mode-and-treasure-mode)) |
 | `shared/utils/core/live_tp.lua` | TP read from the game, not from GearSwap's copy |
+| `shared/utils/core/try_require.lua` | A module the caller can do without: the module, or nil when it does not load |
 | `shared/utils/core/gear_hold.lua` | `GearHold.active()`: whether a COR roll holds the idle / engaged gear; asked by DualWield, TreasureHunter (engaged overlay) and the custom gear hook (see [core-lifecycle.md](core-lifecycle.md#gearhold)) |
 | `shared/utils/core/auto_options.lua` | The automatic job abilities a character turns on or off, by the names the jobs ask by (switches of `<job>/combat/<JOB>_CONFIG.lua`, through `JobConfig`) |
 | `shared/utils/core/job_config.lua` | `JobConfig`: a job's own settings (`<job>/combat/<JOB>_CONFIG.lua`) and the two common files `_common/combat/SUBJOB_CONFIG.lua`, `_common/travel/WARP_CONFIG.lua` |
@@ -134,7 +135,7 @@ The per-job config is `<char>/<job>/display/<JOB>_LOCKSTYLE.lua`. `install()` st
 | `by_subjob` | yes, when there is no `get_style` | since 2026-10-30 `resolve_style` reads `by_subjob[subjob]` itself when the config has no `get_style` (the BLM, BLU, BRD, DRG, MNK, NIN, PUP, RDM, RNG, SAM, SCH, THF and WHM templates); before, their `by_subjob` did nothing. The Atelier's Macros & lockstyle part writes this table (`atelier/app/js/macro_edit.js`) |
 | `style` | no | "backward compatibility" field, no reader |
 
-`_master/config_global/LOCKSTYLE_CONFIG.lua` is deployed to `<char>/_common/display/`. The entries read its `initial_load_delay` (8.0), with a fallback table in `load_configs` (`shared/utils/core/entry_kit.lua:45`), and pass it from `user_setup()` to `EntryKit.macro_and_lockstyle` (`shared/utils/core/entry_kit.lua`), which schedules `select_default_lockstyle` after it. It is the file's only setting: `job_change_delay` and `cooldown`, which nothing read, were removed on 2026-09-29.
+`_master/config_global/LOCKSTYLE_CONFIG.lua` is deployed to `<char>/_common/display/`. The entries read its `initial_load_delay` (8.0), with a fallback table in `load_configs` (`shared/utils/core/entry_kit.lua:40`), and pass it from `user_setup()` to `EntryKit.macro_and_lockstyle` (`shared/utils/core/entry_kit.lua`), which schedules `select_default_lockstyle` after it. It is the file's only setting: `job_change_delay` and `cooldown`, which nothing read, were removed on 2026-09-29.
 
 DressUp management flag: `_G.DRESSUP_MANAGEMENT_ENABLED`. It is initialised on each module load from the presence of `windower.addon_path .. 'data/.dressup_disabled'` (file present = off; `read_dressup_state`). The file is gitignored.
 
@@ -635,6 +636,10 @@ flowchart TD
 ---
 
 ## Core helpers
+
+### `try_require` (`shared/utils/core/try_require.lua`)
+
+The module returns a function: `local try_require = require('shared/utils/core/try_require')`. `try_require(name)` is the module, or nil when it does not load (the file is missing, or it or one of its dependencies raises). It replaces the `local ok, M = pcall(require, name)` / `ok and M or nil` pair for a module whose absence the caller handles (`EntryKit.job`, the job entries). The error is dropped: a caller that must say why something failed keeps its own `pcall(require, ...)` (the keybinds in `EntryKit.job`). A character's own files go through `CharPaths.optional` / `CharPaths.load`.
 
 ### `live_tp` (`shared/utils/core/live_tp.lua`)
 

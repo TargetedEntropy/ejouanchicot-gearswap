@@ -32,7 +32,7 @@ What PUP adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/pup.lua` | 51 | Entry (the same for every character; `<Char>_PUP.lua` and its template `_master/entry/Tetsouo_PUP.lua` are one `include` of it): one `EntryKit.job('PUP', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with PUP's steps: `after_states` (first PetMode detection), `update` (PetMode, poll, before the HUD), `unload` (poll stop) |
+| `shared/entry/pup.lua` | 48 | Entry (the same for every character; `<Char>_PUP.lua` and its template `_master/entry/Tetsouo_PUP.lua` are one `include` of it): one `EntryKit.job('PUP', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with PUP's steps: `after_states` (first PetMode detection), `update` (PetMode, poll, before the HUD), `unload` (poll stop) |
 | `shared/jobs/pup/functions/PUP_PRECAST.lua` | 42 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (TP gear) |
 | `shared/jobs/pup/functions/PUP_MIDCAST.lua` | 99 | `job_midcast` (empty) / `job_post_midcast` (subjob magic via MidcastManager) / `job_get_spell_map` (Maneuver) |
 | `shared/jobs/pup/functions/PUP_PET_MIDCAST.lua` | 66 | `job_pet_midcast`: automaton weaponskills; automaton spells left to Mote |

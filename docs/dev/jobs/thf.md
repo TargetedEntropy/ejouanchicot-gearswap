@@ -43,7 +43,7 @@ function; line numbers are deliberately not used.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/thf.lua` | 62 | Entry point (the same for every character; `<Char>_THF.lua` and its template `_master/entry/Tetsouo_THF.lua` are one `include` of it): one `EntryKit.job('THF', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with THF's steps: `after_states` `RangeLock.sync_state`, `unload` `RangeLock.release` (first in `file_unload`) |
+| `shared/entry/thf.lua` | 59 | Entry point (the same for every character; `<Char>_THF.lua` and its template `_master/entry/Tetsouo_THF.lua` are one `include` of it): one `EntryKit.job('THF', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with THF's steps: `after_states` `RangeLock.sync_state`, `unload` `RangeLock.release` (first in `file_unload`) |
 | `shared/jobs/thf/functions/thf_functions.lua` | 13 | What THF defines besides its hook files: calls `TreasureHunter.init()` (THF layer). Loaded last of the job files (`JOB_FILES` `own`, `shared/utils/core/entry_kit.lua`) |
 | `shared/jobs/thf/functions/THF_PRECAST.lua` | 79 | `job_precast` / `job_post_precast`: guard, cooldown, SA/TA pending flags, WS handler; post: SA/TA WS variant, then TP gear |
 | `shared/jobs/thf/functions/THF_MIDCAST.lua` | 94 | `job_midcast` (ranged lock via `RangeLock.engage`) / `job_post_midcast` (watchdog, MidcastManager for Ninjutsu, Healing, Enhancing) |

@@ -29,11 +29,7 @@
 -- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
 -- (shared/utils/core/entry_kit.lua), with WAR's weaponskill slots and Ampulla lock
 local CharPaths = require('shared/utils/core/char_paths')
-
-local function ampulla_lock()
-    local ok, AmpullaLock = pcall(require, 'shared/utils/equipment/ampulla_lock')
-    return ok and AmpullaLock or nil
-end
+local try_require = require('shared/utils/core/try_require')
 
 --- Align state.MainWeapon (and the WS slots) with the weapon in hand.
 --- WARStates.configure() runs from user_setup(), which Mote calls before
@@ -41,15 +37,15 @@ end
 --- yet, so its sync cannot recognise the weapon and MainWeapon stays on its
 --- first option. Called again here, once the sets are loaded.
 local function sync_weapon_with_hand()
-    local ok, WSSlots = pcall(require, 'shared/utils/weaponskill/ws_slots')
-    if not (ok and WSSlots and _G.WARWSConfig and state.MainWeapon) then
+    local WSSlots = try_require('shared/utils/weaponskill/ws_slots')
+    if not (WSSlots and _G.WARWSConfig and state.MainWeapon) then
         return
     end
     local before = state.MainWeapon.value
     WSSlots.sync(state.MainWeapon, _G.WARWSConfig)
     -- The keybind HUD was drawn in user_setup() with the old value
-    local ui_ok, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
-    if state.MainWeapon.value ~= before and ui_ok and KeybindUI then
+    local KeybindUI = state.MainWeapon.value ~= before and try_require('shared/utils/ui/UI_MANAGER')
+    if KeybindUI then
         KeybindUI.update()
     end
 end
@@ -64,13 +60,13 @@ require('shared/utils/core/entry_kit').job('WAR', {
     -- configure() has just put HybridMode back to its default, so any ammo lock still held by the sandbox belongs to
     -- a stance that is no longer selected. GearSwap slot locks outlive the job file.
     after_states = function()
-        local AmpullaLock = ampulla_lock()
+        local AmpullaLock = try_require('shared/utils/equipment/ampulla_lock')
         if AmpullaLock then AmpullaLock.apply(state.HybridMode and state.HybridMode.value) end
     end,
     -- Give the ammo slot back first: a GearSwap slot lock survives a job change, and GearSwap runs file_unload in a
     -- single pcall, so an error further down would otherwise leak the lock into the next job.
     unload = function()
-        local AmpullaLock = ampulla_lock()
+        local AmpullaLock = try_require('shared/utils/equipment/ampulla_lock')
         if AmpullaLock then AmpullaLock.release() end
     end,
 })

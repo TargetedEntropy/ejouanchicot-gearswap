@@ -41,7 +41,7 @@ numbers are avoided because they drift.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/pld.lua` | 77 | Entry point (the same for every character; `<Char>_PLD.lua` and its template `_master/entry/Tetsouo_PLD.lua` are one `include` of it): one `EntryKit.job('PLD', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with PLD's steps: `before_mote` sets `_G.PLDWSConfig`, `configs` `_G.BluMagicConfig`, `after_load` and `after_states` the WS slot rebuild (`after_states` also `AmpullaLock.apply`), `unload` `AmpullaLock.release` |
+| `shared/entry/pld.lua` | 73 | Entry point (the same for every character; `<Char>_PLD.lua` and its template `_master/entry/Tetsouo_PLD.lua` are one `include` of it): one `EntryKit.job('PLD', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with PLD's steps: `before_mote` sets `_G.PLDWSConfig`, `configs` `_G.BluMagicConfig`, `after_load` and `after_states` the WS slot rebuild (`after_states` also `AmpullaLock.apply`), `unload` `AmpullaLock.release` |
 | `shared/jobs/pld/functions/PLD_PRECAST.lua` | 131 | `job_precast` (guard, cooldown, auto-abilities, WS) / `job_post_precast` (/SCH weaponskill variants, TP gear, CureSelf FC, enmity override) |
 | `shared/jobs/pld/functions/PLD_MIDCAST.lua` | 203 | `job_midcast` (Cure to Cure IV) / `job_post_midcast` (name-before-skill dispatch, enmity override) |
 | `shared/jobs/pld/functions/PLD_AFTERCAST.lua` | 36 | `LifecycleManager.aftercast()`, empty `job_post_aftercast` |
