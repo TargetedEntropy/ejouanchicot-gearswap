@@ -17,21 +17,11 @@
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local CommonCommands = nil
-local UICommands = nil
-local WatchdogCommands = nil
-local CycleHandler = nil
 local MessageFormatter = nil
-local MessageCommands = nil
 
 local function ensure_commands_loaded()
-    if not UICommands then
-        CommonCommands = require('shared/utils/core/COMMON_COMMANDS')
-        UICommands = require('shared/utils/ui/UI_COMMANDS')
-        WatchdogCommands = require('shared/utils/core/WATCHDOG_COMMANDS')
-        CycleHandler = require('shared/utils/core/CYCLE_HANDLER')
+    if not MessageFormatter then
         MessageFormatter = require('shared/utils/messages/message_formatter')
-        MessageCommands = require('shared/utils/messages/formatters/ui/message_commands')
     end
 end
 
@@ -146,38 +136,92 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---   COMMAND HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Handle custom job commands
----   @param cmdParams table Command parameters
----   @param eventArgs table Event arguments
----   @return void
-function job_self_command(cmdParams, eventArgs)
-    if not cmdParams or #cmdParams == 0 then
-        return
+--- //gs c enspell [element]: cast that element's enspell, or cycle state.EnSpell (silent)
+local function enspell(cmdParams, eventArgs)
+    eventArgs.handled = true
+
+    if #cmdParams >= 2 then
+        local element = cmdParams[2]:lower()
+        local enspell_map = {
+            fire = 'Enfire',
+            blizzard = 'Enblizzard',
+            ice = 'Enblizzard',
+            aero = 'Enaero',
+            wind = 'Enaero',
+            stone = 'Enstone',
+            earth = 'Enstone',
+            thunder = 'Enthunder',
+            water = 'Enwater'
+        }
+
+        local spell = enspell_map[element]
+        if spell then
+            send_command('input /ma "' .. spell .. '" <me>')
+        else
+            MessageFormatter.show_error('Unknown element: ' .. cmdParams[2])
+            MessageFormatter.show_element_list()
+        end
+    else
+        -- Cycle through enspell state (silent - no message needed)
+        if state.EnSpell then
+            state.EnSpell:cycle()
+            -- Update UI manually (Mote doesn't trigger job_update for custom commands)
+            if job_update then
+                job_update()
+            end
+        end
     end
+end
 
-    -- Lazy load command handlers on first command
-    ensure_commands_loaded()
+--- castlight / castsublight / castdark / castsubdark: the element state's nuke at state.NukeTier
+local function nuke(cmdParams, eventArgs, command)
+    eventArgs.handled = true
+    local config = nuke_commands[command]
+    local element_state = state[config.state_name]
 
-    local command = cmdParams[1]:lower()
+    if element_state and state.NukeTier then
+        local element = element_state.value
+        local tier = state.NukeTier.value
 
-    if JobCommands.shared(command, cmdParams, eventArgs, 'RDM') then return end
+        local spell_name = element
+        if tier ~= 'I' then
+            spell_name = element .. ' ' .. tier
+        end
 
-    ---  ─────────────────────────────────────────────────────────────────────────
-    ---   MOTE-INCLUDE NATIVE COMMANDS (prevent fallback)
-    ---  ─────────────────────────────────────────────────────────────────────────
+        send_command('input /ma "' .. spell_name .. '" <t>')
+    else
+        MessageFormatter.show_error(config.error_msg)
+    end
+end
 
+--- castenspell / castgain / castbar / castbarailment / castspike / caststorm: the spell a state selects
+local function spell_from_state(cmdParams, eventArgs, command)
+    eventArgs.handled = true
+    local config = spell_state_commands[command]
+    local spell_state = state[config.state_name]
+
+    if spell_state then
+        -- Check if EnSpell is 'Off' (special case)
+        if config.check_off and spell_state.value == 'Off' then
+            config.error_func()
+        else
+            send_command('input /ma "' .. spell_state.value .. '" ' .. config.target)
+        end
+    else
+        config.error_func()
+    end
+end
+
+--- A word no table names: Mote's own commands, a spell that needs a piece in hand, else an action by its name.
+local function other(command, cmdParams, eventArgs)
     -- Mote's own commands (update, cycle, set, naked...) are left unhandled:
     -- Mote runs them once job_self_command returns. rawget, because a plain
     -- lookup would also answer the alt's command names, and those must not
-    -- get past the RDM commands below.
+    -- get past the RDM commands.
     local mote_maps = mote_command_maps()
     if mote_maps and rawget(mote_maps, command) then
         return
     end
-
-    ---  ─────────────────────────────────────────────────────────────────────────
-    ---   RDM-SPECIFIC COMMANDS
-    ---  ─────────────────────────────────────────────────────────────────────────
 
     -- //gs c dispelga [target]: a spell that needs a piece in hand (Daybreak),
     -- cast through Combat Mode (spell_gear_lock.lua)
@@ -186,148 +230,74 @@ function job_self_command(cmdParams, eventArgs)
         return
     end
 
-    if command == 'enspell' then
-        -- Cycle through enspells or cast specific enspell
-        -- Example: //gs c enspell fire
-        eventArgs.handled = true
+    -- Cast by name: a spell bound without a command of its own
+    -- ({ key = "^5", command = "Refresh II" } casts /ma "Refresh II" <me>, target below)
+    -- Reconstruct full spell name from cmdParams (handles multi-word spells)
+    local spell_name = table.concat(cmdParams, " ")
 
-        if #cmdParams >= 2 then
-            local element = cmdParams[2]:lower()
-            local enspell_map = {
-                fire = 'Enfire',
-                blizzard = 'Enblizzard',
-                ice = 'Enblizzard',
-                aero = 'Enaero',
-                wind = 'Enaero',
-                stone = 'Enstone',
-                earth = 'Enstone',
-                thunder = 'Enthunder',
-                water = 'Enwater'
-            }
+    if spell_name and spell_name ~= "" then
+        -- Default target: <me> (self - avoids sub-target cursor)
+        -- Can be overridden by adding target after spell name (e.g., <stpc>, <t>)
+        local target = '<me>'
 
-            local spell = enspell_map[element]
-            if spell then
-                send_command('input /ma "' .. spell .. '" <me>')
-            else
-                MessageFormatter.show_error('Unknown element: ' .. cmdParams[2])
-                MessageFormatter.show_element_list()
+        -- Check if last parameter looks like a target (<me>, <t>, <stpc>, etc.)
+        if #cmdParams >= 2 and cmdParams[#cmdParams]:match('^<.*>$') then
+            target = cmdParams[#cmdParams]
+            -- Rebuild spell name without target
+            local spell_parts = {}
+            for i = 1, #cmdParams - 1 do
+                table.insert(spell_parts, cmdParams[i])
             end
-        else
-            -- Cycle through enspell state (silent - no message needed)
-            if state.EnSpell then
-                state.EnSpell:cycle()
-                -- Update UI manually (Mote doesn't trigger job_update for custom commands)
-                if job_update then
-                    job_update()
-                end
-            end
+            spell_name = table.concat(spell_parts, " ")
         end
 
-    elseif quick_ja_commands[command] then
-        -- Quick JA commands (Convert, Chainspell, Saboteur, Composure)
-        eventArgs.handled = true
-        send_command('input /ja "' .. quick_ja_commands[command] .. '" <me>')
-
-    elseif nuke_commands[command] then
-        -- Cast elemental nuke with tier (castlight, castsublight, castdark, castsubdark)
-        eventArgs.handled = true
-
-        local config = nuke_commands[command]
-        local element_state = state[config.state_name]
-
-        if element_state and state.NukeTier then
-            local element = element_state.value
-            local tier = state.NukeTier.value
-
-            local spell_name = element
-            if tier ~= 'I' then
-                spell_name = element .. ' ' .. tier
-            end
-
-            send_command('input /ma "' .. spell_name .. '" <t>')
-        else
-            MessageFormatter.show_error(config.error_msg)
+        -- Auto-detect action type (JA, WS, or Magic)
+        local action_type = resolve_action_prefix(spell_name)
+        local ok_t, Trace = pcall(require, 'shared/utils/debug/trace_log')
+        if ok_t and Trace then
+            Trace.log('RDM', 'cast by name "%s" target %s -> %s (res global %s)', spell_name, target,
+                action_type, rawget(_G, 'res') ~= nil)
         end
 
-    elseif spell_state_commands[command] then
-        -- Cast spell from state (castenspell, castgain, castbar, castbarailment, castspike, caststorm)
-        eventArgs.handled = true
-
-        local config = spell_state_commands[command]
-        local spell_state = state[config.state_name]
-
-        if spell_state then
-            -- Check if EnSpell is 'Off' (special case)
-            if config.check_off and spell_state.value == 'Off' then
-                config.error_func()
-            else
-                send_command('input /ma "' .. spell_state.value .. '" ' .. config.target)
-            end
+        if action_type then
+            eventArgs.handled = true
+            send_command('input ' .. action_type .. ' "' .. spell_name .. '" ' .. target)
+        elseif mote_maps and mote_maps[cmdParams[1]] then
+            -- Not an action but one of the alt's commands: left unhandled,
+            -- Mote runs it through selfCommandMaps.
+            return
         else
-            config.error_func()
+            eventArgs.handled = true
+            MessageFormatter.show_error(string.format("Command not recognized: '%s'", spell_name))
+            MessageFormatter.show_info("Valid types: Job Abilities, Weaponskills, Magic Spells")
         end
+    end
+end
 
-    elseif command == 'cyclestorm' then
-        -- Cycle Storm spell (SCH subjob only)
+local words = {
+    enspell = enspell,
+    -- Cycle Storm spell (SCH subjob only)
+    cyclestorm = function(cmdParams, eventArgs)
         eventArgs.handled = true
-
         if state.Storm then
             state.Storm:cycle()
             MessageFormatter.show_storm_current(state.Storm.value)
         else
             MessageFormatter.show_storm_requires_sch()
         end
-
-    else
-        ---  ─────────────────────────────────────────────────────────────────────────
-        ---   FALLBACK: Auto-cast from command name
-        ---  ─────────────────────────────────────────────────────────────────────────
-        -- This allows users to bind spells without creating explicit commands
-        -- Example: { key = "^5", command = "Refresh II", desc = "Refresh II", state = nil }
-        -- Will cast: /ma "Refresh II" <me> (default target, see below)
-
-        -- Reconstruct full spell name from cmdParams (handles multi-word spells)
-        local spell_name = table.concat(cmdParams, " ")
-
-        if spell_name and spell_name ~= "" then
-            -- Default target: <me> (self - avoids sub-target cursor)
-            -- Can be overridden by adding target after spell name (e.g., <stpc>, <t>)
-            local target = '<me>'
-
-            -- Check if last parameter looks like a target (<me>, <t>, <stpc>, etc.)
-            if #cmdParams >= 2 and cmdParams[#cmdParams]:match('^<.*>$') then
-                target = cmdParams[#cmdParams]
-                -- Rebuild spell name without target
-                local spell_parts = {}
-                for i = 1, #cmdParams - 1 do
-                    table.insert(spell_parts, cmdParams[i])
-                end
-                spell_name = table.concat(spell_parts, " ")
-            end
-
-            -- Auto-detect action type (JA, WS, or Magic)
-            local action_type = resolve_action_prefix(spell_name)
-            local ok_t, Trace = pcall(require, 'shared/utils/debug/trace_log')
-            if ok_t and Trace then
-                Trace.log('RDM', 'cast by name "%s" target %s -> %s (res global %s)', spell_name, target,
-                    action_type, rawget(_G, 'res') ~= nil)
-            end
-
-            if action_type then
-                eventArgs.handled = true
-                send_command('input ' .. action_type .. ' "' .. spell_name .. '" ' .. target)
-            elseif mote_maps and mote_maps[cmdParams[1]] then
-                -- Not an action but one of the alt's commands: left unhandled,
-                -- Mote runs it through selfCommandMaps.
-                return
-            else
-                eventArgs.handled = true
-                MessageFormatter.show_error(string.format("Command not recognized: '%s'", spell_name))
-                MessageFormatter.show_info("Valid types: Job Abilities, Weaponskills, Magic Spells")
-            end
-        end
+    end,
+}
+-- Quick JA commands (Convert, Chainspell, Saboteur, Composure)
+for word, ability in pairs(quick_ja_commands) do
+    words[word] = function(cmdParams, eventArgs)
+        eventArgs.handled = true
+        send_command('input /ja "' .. ability .. '" <me>')
     end
 end
+for word in pairs(nuke_commands) do words[word] = nuke end
+for word in pairs(spell_state_commands) do words[word] = spell_from_state end
+
+job_self_command = JobCommands.router('RDM', {load = ensure_commands_loaded, words = words, other = other})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   STATE CHANGE HANDLER

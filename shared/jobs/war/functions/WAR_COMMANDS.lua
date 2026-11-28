@@ -2,41 +2,27 @@
 ---   WAR Commands - Custom Command Handling
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   Handles job-specific custom commands for Warrior job:
----   • Common commands (reload, checksets, waltz, jump, etc.)
----   • UI commands (toggle, update, reload UI)
 ---   • WAR buff commands (berserk, defender, thirdeye, tp)
 ---   • Weaponskill slots (ws1..ws5)
 ---   • Retaliation debug (debugretaliation, retalstatus)
 ---   • State change UI synchronization
 ---
----   Uses centralized command handlers for consistency across all jobs.
+---   The words every job shares go through JobCommands.router (shared/utils/core/job_commands.lua).
 ---
 ---   @file    shared/jobs/war/functions/WAR_COMMANDS.lua
 ---   @author  ejouanchicot
 ---   @version 2.0.0
 ---   @date    Created: 2025-09-29
----   @requires shared/utils/ui/UI_COMMANDS, shared/utils/core/COMMON_COMMANDS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
--- Command handlers loaded on first command
-local UICommands = nil
-local CommonCommands = nil
-local WatchdogCommands = nil
 local MessageFormatter = nil
-local CycleHandler = nil
-local MessageCommands = nil
 
 local function ensure_commands_loaded()
-    if not UICommands then
-        UICommands = require('shared/utils/ui/UI_COMMANDS')
-        CommonCommands = require('shared/utils/core/COMMON_COMMANDS')
-        WatchdogCommands = require('shared/utils/core/WATCHDOG_COMMANDS')
-        CycleHandler = require('shared/utils/core/CYCLE_HANDLER')
+    if not MessageFormatter then
         MessageFormatter = require('shared/utils/messages/message_formatter')
-        MessageCommands = require('shared/utils/messages/formatters/ui/message_commands')
     end
 end
 
@@ -46,121 +32,55 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---   COMMAND HANDLER HOOK
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Handle job-specific self commands
----   Processes commands in order: JobCommands.shared (watchdog >> dual-box >> common >> UI >>
----   debugmidcast >> cyclestate) >> WAR-specific
----
----   Common commands:
----   • reload         - Reload GearSwap
----   • checksets      - Validate equipment sets
----   • waltz <target> - Perform waltz on target
----   • jump           - Use DRG subjob Jump
----
----   UI commands:
----   • ui             - Toggle UI visibility
----
----   WAR buff commands:
----   • berserk        - Buff with Berserk-focused abilities
----   • defender       - Buff with Defender-focused abilities
----   • thirdeye       - SAM subjob abilities (Hasso/Seigan + Third Eye)
----   • tp             - TP building (/SAM Meditate, /DRG Jump rotation)
----   • ws1..ws5       - Fire the weaponskill in that slot for the current weapon
----
----   @param cmdParams table Command parameters array (e.g., {"berserk"})
----   @param eventArgs table Event arguments with handled flag
----   @return void
-function job_self_command(cmdParams, eventArgs)
-    if not cmdParams[1] then
-        return
-    end
-
-    -- Lazy load command handlers on first command
-    ensure_commands_loaded()
-
-    local command = cmdParams[1]:lower()
-
-    if JobCommands.shared(command, cmdParams, eventArgs, 'WAR') then return end
-
-    if command == 'debugretaliation' or command == 'debugretal' then
-        -- Toggle Retaliation auto-cancel debug mode
-        if toggle_retaliation_debug then
-            toggle_retaliation_debug()
-        else
-            MessageFormatter.show_error('[WAR] Retaliation debug function not available')
-        end
-
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'retalstatus' then
-        -- Show Retaliation tracking status
-        if get_retaliation_status then
-            local status = get_retaliation_status()
-            MessageFormatter.show_info('[WAR] Retaliation Status:')
-            MessageFormatter.show_info('[WAR]   Debug Mode: ' .. tostring(status.debug_mode))
-            MessageFormatter.show_info('[WAR]   Tracking: ' .. tostring(status.tracking))
-            MessageFormatter.show_info('[WAR]   Elapsed Time: ' .. string.format('%.2f', status.elapsed_time) .. 's / ' .. status.move_duration_needed .. 's')
-        else
-            MessageFormatter.show_error('[WAR] Retaliation status function not available')
-        end
-
-        eventArgs.handled = true
-        return
-    end
-
-    -- ══════════════════════════════════════════════════════════════════════════
-    -- WAR-SPECIFIC BUFF COMMANDS
-    -- ══════════════════════════════════════════════════════════════════════════
-
-    -- Berserk mode: Buff WAR abilities excluding Defender
-    if command == 'berserk' then
-        if buff_war then
-            buff_war('Berserk')
+--- A WAR buff routine (WAR_BUFFS / logic/smartbuff_manager), the word answered only when the routine is defined.
+--- @param name string The global function's name
+local function routine(name, ...)
+    local args = {...}
+    return function(cmdParams, eventArgs)
+        local f = _G[name]
+        if f then
+            f(unpack(args))
             eventArgs.handled = true
         end
-        return
-    end
-
-    -- Defender mode: Buff WAR abilities excluding Berserk
-    if command == 'defender' then
-        if buff_war then
-            buff_war('Defender')
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- SAM subjob: Hasso/Seigan + Third Eye
-    if command == 'thirdeye' then
-        if buff_sam_sub then
-            buff_sam_sub()
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- TP building via subjob: /SAM -> Meditate, /DRG -> Jump rotation
-    if command == 'tp' then
-        if build_tp then
-            build_tp()
-            eventArgs.handled = true
-        end
-        return
-    end
-
-    -- Weaponskill slots: ws1..ws5 fire whatever the current weapon put there;
-    -- ws6..ws9 have no slot and only warn.
-    local slot = command:match('^ws([1-9])$')
-    if slot then
-        local ok, WSSlots = pcall(require, 'shared/utils/weaponskill/ws_slots')
-        if ok and WSSlots then
-            WSSlots.cast(tonumber(slot))
-            eventArgs.handled = true
-        end
-        return
     end
 end
+
+local function retaliation_debug(cmdParams, eventArgs)
+    if toggle_retaliation_debug then
+        toggle_retaliation_debug()
+    else
+        MessageFormatter.show_error('[WAR] Retaliation debug function not available')
+    end
+    eventArgs.handled = true
+end
+
+--- WAR's words: the buff routines (berserk / defender: WAR abilities without the other one; thirdeye: /SAM
+--- Hasso or Seigan + Third Eye; tp: /SAM Meditate, /DRG Jump rotation), the Retaliation auto-cancel debug, and the
+--- weaponskill slots ws1..ws5 (ws6..ws9 have no slot and only warn).
+job_self_command = JobCommands.router('WAR', {
+    load = ensure_commands_loaded,
+    words = {
+        debugretaliation = retaliation_debug,
+        debugretal = retaliation_debug,
+        retalstatus = function(cmdParams, eventArgs)
+            if get_retaliation_status then
+                local status = get_retaliation_status()
+                MessageFormatter.show_info('[WAR] Retaliation Status:')
+                MessageFormatter.show_info('[WAR]   Debug Mode: ' .. tostring(status.debug_mode))
+                MessageFormatter.show_info('[WAR]   Tracking: ' .. tostring(status.tracking))
+                MessageFormatter.show_info('[WAR]   Elapsed Time: ' .. string.format('%.2f', status.elapsed_time) .. 's / ' .. status.move_duration_needed .. 's')
+            else
+                MessageFormatter.show_error('[WAR] Retaliation status function not available')
+            end
+            eventArgs.handled = true
+        end,
+        berserk = routine('buff_war', 'Berserk'),
+        defender = routine('buff_war', 'Defender'),
+        thirdeye = routine('buff_sam_sub'),
+        tp = routine('build_tp'),
+    },
+    other = JobCommands.ws_slots(),
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   STATE CHANGE HOOK

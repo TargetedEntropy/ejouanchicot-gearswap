@@ -25,52 +25,13 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
--- Command handlers loaded on first command
 local MessageFormatter = nil
-local CommonCommands = nil
-local WatchdogCommands = nil
-local UICommands = nil
-local CycleHandler = nil
-local MessageCommands = nil
 local EcosystemManager = nil
 local PetManager = nil
 
 local function ensure_commands_loaded()
     if not MessageFormatter then
         MessageFormatter = require('shared/utils/messages/message_formatter')
-
-        -- Common commands (reload, checksets, etc.)
-        local success_cc
-        success_cc, CommonCommands = pcall(require, 'shared/utils/core/COMMON_COMMANDS')
-        if not success_cc then
-            MessageFormatter.show_error_module_not_loaded('CommonCommands')
-            CommonCommands = nil
-        end
-
-        -- Watchdog commands
-        local success_wd
-        success_wd, WatchdogCommands = pcall(require, 'shared/utils/core/WATCHDOG_COMMANDS')
-        if not success_wd then
-            WatchdogCommands = nil
-        end
-
-        -- UI commands (ui save, ui hide, etc.)
-        local success_ui
-        success_ui, UICommands = pcall(require, 'shared/utils/ui/UI_COMMANDS')
-        if not success_ui then
-            MessageFormatter.show_error_module_not_loaded('UICommands')
-            UICommands = nil
-        end
-
-        -- Cycle handler
-        local success_ch
-        success_ch, CycleHandler = pcall(require, 'shared/utils/core/CYCLE_HANDLER')
-        if not success_ch then
-            CycleHandler = nil
-        end
-
-        -- Message commands (for debug messages)
-        MessageCommands = require('shared/utils/messages/formatters/ui/message_commands')
 
         -- Ecosystem manager
         local success_em
@@ -174,216 +135,186 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---   COMMAND HOOK
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Handle job-specific commands
----   @param cmdParams table Command parameters (array of strings)
----   @param eventArgs table Event arguments (modified if command handled)
----   @return void
-function job_self_command(cmdParams, eventArgs)
-    if not cmdParams or #cmdParams == 0 then
-        return
-    end
-
-    -- Lazy load command handlers on first command
-    ensure_commands_loaded()
-
-    local command = cmdParams[1]:lower()
-
-    if command == 'debugprecast' then
-        -- Toggle BST-specific precast debug (for Job Abilities)
-        -- Universal system only handles Magic, BST needs JA debug
-        _G.BST_DEBUG_PRECAST = not _G.BST_DEBUG_PRECAST
-
-        local status = _G.BST_DEBUG_PRECAST and "ON" or "OFF"
-        MessageFormatter.show_success("BST Precast Debug (JA): " .. status)
-
-        eventArgs.handled = true
-        return
-    end
-
-    if JobCommands.shared(command, cmdParams, eventArgs, 'BST') then return end
-
-    ---══════════════════════════════════════════════════════════════════════════
-    --- ECOSYSTEM COMMANDS
-    ---══════════════════════════════════════════════════════════════════════════
-
-    if command == 'ecosystem' then
-        if EcosystemManager then
-            EcosystemManager.change_ecosystem()
-            eventArgs.handled = true
-        else
-            MessageFormatter.show_error_module_not_loaded('EcosystemManager')
-        end
-        return
-    end
-
-    if command == 'species' then
-        if EcosystemManager then
-            EcosystemManager.change_species()
-            eventArgs.handled = true
-        else
-            MessageFormatter.show_error_module_not_loaded('EcosystemManager')
-        end
-        return
-    end
-
-    if command == 'broth' or command == 'broths' then
-        display_broth_count()
-        eventArgs.handled = true
-        return
-    end
-
-    ---══════════════════════════════════════════════════════════════════════════
-    --- PET COMMANDS
-    ---══════════════════════════════════════════════════════════════════════════
-
-    if command == 'pet' then
-        if #cmdParams < 2 then
-            MessageFormatter.show_info('Usage: //gs c pet [engage|disengage]')
-            eventArgs.handled = true
-            return
-        end
-
-        local pet_command = cmdParams[2]:lower()
-
-        if pet_command == 'engage' then
-            if PetManager then
-                PetManager.engage_pet()
-                eventArgs.handled = true
-            else
-                MessageFormatter.show_error_module_not_loaded('PetManager')
-            end
-            return
-        end
-
-        if pet_command == 'disengage' then
-            if PetManager then
-                PetManager.disengage_pet()
-                eventArgs.handled = true
-            else
-                MessageFormatter.show_error_module_not_loaded('PetManager')
-            end
-            return
-        end
-
-        MessageFormatter.show_error('Unknown pet command: ' .. pet_command)
-        eventArgs.handled = true
-        return
-    end
-
-    ---══════════════════════════════════════════════════════════════════════════
-    --- READY MOVE COMMANDS (RdyMove 1-6, RdyList)
-    ---══════════════════════════════════════════════════════════════════════════
-
-    if command == 'rdylist' then
-        if not PetManager then
-            MessageFormatter.show_error_module_not_loaded('PetManager')
-            eventArgs.handled = true
-            return
-        end
-
-        -- Check if pet exists
-        local pet = _G.pet
-        if not pet or not pet.id or pet.id == 0 then
-            MessageFormatter.show_error_no_pet()
-            eventArgs.handled = true
-            return
-        end
-
-        -- Get ready moves list
-        local ready_moves = PetManager.get_ready_moves()
-
-        if not ready_moves or #ready_moves == 0 then
-            MessageFormatter.show_error_no_ready_moves()
-            eventArgs.handled = true
-            return
-        end
-
-        MessageFormatter.show_bst_ready_moves_list(pet.name, ready_moves)
-        eventArgs.handled = true
-        return
-    end
-
-    if command == 'rdymove' then
-        if not PetManager then
-            MessageFormatter.show_error_module_not_loaded('PetManager')
-            eventArgs.handled = true
-            return
-        end
-
-        -- Check if index provided
-        if #cmdParams < 2 then
-            MessageFormatter.show_info('Usage: //gs c RdyMove [1-6]')
-            eventArgs.handled = true
-            return
-        end
-
-        -- Parse index
-        local index = tonumber(cmdParams[2])
-        if not index or index < 1 then
-            MessageFormatter.show_error_invalid_index(cmdParams[2])
-            eventArgs.handled = true
-            return
-        end
-
-        -- Check if pet exists
-        local pet = _G.pet
-        if not pet or not pet.id or pet.id == 0 then
-            MessageFormatter.show_error_no_pet()
-            eventArgs.handled = true
-            return
-        end
-
-        -- Get ready moves list
-        local ready_moves = PetManager.get_ready_moves()
-        if not ready_moves or #ready_moves == 0 then
-            MessageFormatter.show_error_no_ready_moves()
-            eventArgs.handled = true
-            return
-        end
-
-        -- Check if index is valid
-        if index > #ready_moves then
-            MessageFormatter.show_error_index_out_of_range(index, #ready_moves)
-            eventArgs.handled = true
-            return
-        end
-
-        -- Get the move
-        local move = ready_moves[index]
-        if not move or not move.name then
-            MessageFormatter.show_error('Invalid Ready Move at index ' .. index)
-            eventArgs.handled = true
-            return
-        end
-
-        -- Check pet and player engagement status
-        local pet_engaged = (pet.status == 1 or pet.status == "Engaged")
-        local player_engaged = (player and player.status == "Engaged")
-
-        -- Capture move name in local variable for coroutine closure
-        local move_name = move.name
-
-        if pet_engaged then
-            -- Pet is already fighting - just use the Ready Move
-            MessageFormatter.show_bst_ready_move_use(index, move_name)
-            send_command('input /pet "' .. move_name .. '" <me>')
-        else
-            -- Pet is idle - check if player is engaged
-            if player_engaged then
-                -- Player engaged + Pet idle >> Fight + Ready Move (NO Heel)
-                MessageFormatter.show_bst_ready_move_auto_engage(index, move_name)
-                run_rdymove_sequence(move_name, false)
-            else
-                -- Player idle + Pet idle >> Fight + Ready Move + Heel
-                MessageFormatter.show_bst_ready_move_auto_sequence(index, move_name)
-                run_rdymove_sequence(move_name, true)
-            end
-        end
-
-        eventArgs.handled = true
-        return
-    end
+local function broth_command(cmdParams, eventArgs, command)
+    display_broth_count()
+    eventArgs.handled = true
 end
+
+job_self_command = JobCommands.router('BST', {
+    load = ensure_commands_loaded,
+    first = {
+        debugprecast = function(cmdParams, eventArgs, command)
+            -- Toggle BST-specific precast debug (for Job Abilities)
+            -- Universal system only handles Magic, BST needs JA debug
+            _G.BST_DEBUG_PRECAST = not _G.BST_DEBUG_PRECAST
+
+            local status = _G.BST_DEBUG_PRECAST and "ON" or "OFF"
+            MessageFormatter.show_success("BST Precast Debug (JA): " .. status)
+
+            eventArgs.handled = true
+        end,
+    },
+    words = {
+        -- Ecosystem commands
+        ecosystem = function(cmdParams, eventArgs, command)
+            if EcosystemManager then
+                EcosystemManager.change_ecosystem()
+                eventArgs.handled = true
+            else
+                MessageFormatter.show_error_module_not_loaded('EcosystemManager')
+            end
+        end,
+        species = function(cmdParams, eventArgs, command)
+            if EcosystemManager then
+                EcosystemManager.change_species()
+                eventArgs.handled = true
+            else
+                MessageFormatter.show_error_module_not_loaded('EcosystemManager')
+            end
+        end,
+        broth = broth_command, broths = broth_command,
+        -- Pet commands
+        pet = function(cmdParams, eventArgs, command)
+            if #cmdParams < 2 then
+                MessageFormatter.show_info('Usage: //gs c pet [engage|disengage]')
+                eventArgs.handled = true
+                return
+            end
+
+            local pet_command = cmdParams[2]:lower()
+
+            if pet_command == 'engage' then
+                if PetManager then
+                    PetManager.engage_pet()
+                    eventArgs.handled = true
+                else
+                    MessageFormatter.show_error_module_not_loaded('PetManager')
+                end
+                return
+            end
+
+            if pet_command == 'disengage' then
+                if PetManager then
+                    PetManager.disengage_pet()
+                    eventArgs.handled = true
+                else
+                    MessageFormatter.show_error_module_not_loaded('PetManager')
+                end
+                return
+            end
+
+            MessageFormatter.show_error('Unknown pet command: ' .. pet_command)
+            eventArgs.handled = true
+        end,
+        -- Ready move commands (rdymove 1-6, rdylist)
+        rdylist = function(cmdParams, eventArgs, command)
+            if not PetManager then
+                MessageFormatter.show_error_module_not_loaded('PetManager')
+                eventArgs.handled = true
+                return
+            end
+
+            -- Check if pet exists
+            local pet = _G.pet
+            if not pet or not pet.id or pet.id == 0 then
+                MessageFormatter.show_error_no_pet()
+                eventArgs.handled = true
+                return
+            end
+
+            -- Get ready moves list
+            local ready_moves = PetManager.get_ready_moves()
+
+            if not ready_moves or #ready_moves == 0 then
+                MessageFormatter.show_error_no_ready_moves()
+                eventArgs.handled = true
+                return
+            end
+
+            MessageFormatter.show_bst_ready_moves_list(pet.name, ready_moves)
+            eventArgs.handled = true
+        end,
+        rdymove = function(cmdParams, eventArgs, command)
+            if not PetManager then
+                MessageFormatter.show_error_module_not_loaded('PetManager')
+                eventArgs.handled = true
+                return
+            end
+
+            -- Check if index provided
+            if #cmdParams < 2 then
+                MessageFormatter.show_info('Usage: //gs c RdyMove [1-6]')
+                eventArgs.handled = true
+                return
+            end
+
+            -- Parse index
+            local index = tonumber(cmdParams[2])
+            if not index or index < 1 then
+                MessageFormatter.show_error_invalid_index(cmdParams[2])
+                eventArgs.handled = true
+                return
+            end
+
+            -- Check if pet exists
+            local pet = _G.pet
+            if not pet or not pet.id or pet.id == 0 then
+                MessageFormatter.show_error_no_pet()
+                eventArgs.handled = true
+                return
+            end
+
+            -- Get ready moves list
+            local ready_moves = PetManager.get_ready_moves()
+            if not ready_moves or #ready_moves == 0 then
+                MessageFormatter.show_error_no_ready_moves()
+                eventArgs.handled = true
+                return
+            end
+
+            -- Check if index is valid
+            if index > #ready_moves then
+                MessageFormatter.show_error_index_out_of_range(index, #ready_moves)
+                eventArgs.handled = true
+                return
+            end
+
+            -- Get the move
+            local move = ready_moves[index]
+            if not move or not move.name then
+                MessageFormatter.show_error('Invalid Ready Move at index ' .. index)
+                eventArgs.handled = true
+                return
+            end
+
+            -- Check pet and player engagement status
+            local pet_engaged = (pet.status == 1 or pet.status == "Engaged")
+            local player_engaged = (player and player.status == "Engaged")
+
+            -- Capture move name in local variable for coroutine closure
+            local move_name = move.name
+
+            if pet_engaged then
+                -- Pet is already fighting - just use the Ready Move
+                MessageFormatter.show_bst_ready_move_use(index, move_name)
+                send_command('input /pet "' .. move_name .. '" <me>')
+            else
+                -- Pet is idle - check if player is engaged
+                if player_engaged then
+                    -- Player engaged + Pet idle >> Fight + Ready Move (NO Heel)
+                    MessageFormatter.show_bst_ready_move_auto_engage(index, move_name)
+                    run_rdymove_sequence(move_name, false)
+                else
+                    -- Player idle + Pet idle >> Fight + Ready Move + Heel
+                    MessageFormatter.show_bst_ready_move_auto_sequence(index, move_name)
+                    run_rdymove_sequence(move_name, true)
+                end
+            end
+
+            eventArgs.handled = true
+        end,
+    },
+})
 
 --- BST adds nothing of its own: the shared handler is the whole
 --- behaviour. Pass a function to state_change() to extend it.

@@ -17,29 +17,13 @@
 ---   same on every job with /SCH); nuke / helix / storm are
 ---   logic/spell_commands.lua.
 ---
----   Order: JobCommands.shared (watchdog >> dual-box >> common >> UI >>
----   debugmidcast >> cyclestate) >> the SCH commands.
+---   None of them is a shared word (JobCommands.router).
 ---
 ---   @file    shared/jobs/sch/functions/SCH_COMMANDS.lua
 ---   @author  ejouanchicot
 ---   @version 1.0
 ---   @date    Created: 2026-09-29
 ---  ═══════════════════════════════════════════════════════════════════════════
-
-local UICommands = nil
-local CommonCommands = nil
-local WatchdogCommands = nil
-local CycleHandler = nil
-local MessageCommands = nil
-
-local function ensure_commands_loaded()
-    if UICommands then return end
-    UICommands = require('shared/utils/ui/UI_COMMANDS')
-    CommonCommands = require('shared/utils/core/COMMON_COMMANDS')
-    WatchdogCommands = require('shared/utils/core/WATCHDOG_COMMANDS')
-    CycleHandler = require('shared/utils/core/CYCLE_HANDLER')
-    MessageCommands = require('shared/utils/messages/formatters/ui/message_commands')
-end
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   JOB COMMANDS
@@ -66,21 +50,14 @@ local function show_help()
     })
 end
 
---- Job commands: true when the command was one of them.
---- @param command string Lower-case command
---- @param cmdParams table Command parameters
---- @return boolean
-local function handle_job_command(command, cmdParams)
-    if command == 'nuke' or command == 'helix' or command == 'storm' then
-        require('shared/jobs/sch/functions/logic/spell_commands').cast(command)
-    elseif command == 'strat' or command == 'stratagems' then
-        require('shared/jobs/sch/functions/logic/spell_commands').show_stratagems()
-    elseif command == 'schhelp' then
-        show_help()
-    else
-        return false
-    end
-    return true
+local function spell(cmdParams, eventArgs, command)
+    require('shared/jobs/sch/functions/logic/spell_commands').cast(command)
+    eventArgs.handled = true
+end
+
+local function stratagems(cmdParams, eventArgs)
+    require('shared/jobs/sch/functions/logic/spell_commands').show_stratagems()
+    eventArgs.handled = true
 end
 
 local JobCommands = require('shared/utils/core/job_commands')
@@ -89,21 +66,16 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---   JOB SELF COMMAND HANDLER
 ---  ═══════════════════════════════════════════════════════════════════════════
 
----   Handle job self commands (router)
----   @param cmdParams table Command parameters array
----   @param eventArgs table Event arguments with handled flag
-function job_self_command(cmdParams, eventArgs)
-    if not cmdParams[1] then return end
-    ensure_commands_loaded()
-    local command = cmdParams[1]:lower()
-
-    if handle_job_command(command, cmdParams) then
-        eventArgs.handled = true
-        return
-    end
-
-    if JobCommands.shared(command, cmdParams, eventArgs, 'SCH') then return end
-end
+job_self_command = JobCommands.router('SCH', {
+    words = {
+        nuke = spell, helix = spell, storm = spell,
+        strat = stratagems, stratagems = stratagems,
+        schhelp = function(cmdParams, eventArgs)
+            show_help()
+            eventArgs.handled = true
+        end,
+    },
+})
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   STATE CHANGE HOOK
