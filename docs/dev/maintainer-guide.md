@@ -798,8 +798,11 @@ Since 2026-10-18 the page players open, `atelier/index.html`, is **built**: neve
   libs in the sandbox, functions left on `windower.*`), files loaded twice, time, memory and
   commands sent. It then breaks every character file read by one load, four ways, one at a
   time, and says whether GearSwap still loads and names the file. Sets, states, commands and
-  globals of each load are kept in `scripts/loadcheck/out/fp/`: the next run lists the loads
-  whose result changed, the proof a refactor changed nothing. Report: `scripts/loadcheck/out/report.md`.
+  globals of each load are kept in `scripts/loadcheck/out/fp/`, and so is what each line of
+  `scripts/loadcheck/commands.txt` (every job and common word, and multi-word commands such as
+  `pet engage`, `cycle Storm`, `Refresh II <stpc>`) did through `job_self_command`: what it sent,
+  wrote in chat, equipped and scheduled, and whether it was answered. The next run lists the loads
+  whose result changed, the proof a refactor changed nothing. A new command goes in `commands.txt`. Report: `scripts/loadcheck/out/report.md`.
   `run_tests.py --full` runs it with `--quick --no-inject`.
 - Differential tests (old vs new version of a module on the same cases) and
   static scans live in `scripts/audit/` (gitignored, local).

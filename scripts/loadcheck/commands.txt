@@ -1,0 +1,287 @@
+# Each line is sent through the job's job_self_command after every load of check_load.py (harness.lua): what it
+# sent, wrote in chat, equipped and scheduled, and whether it was answered, goes into the load's fingerprint, so a
+# change in what a command does shows as "loads changed since last run". One command per line, words separated by
+# spaces; # starts a comment. `ui` is left out: parallel loads race on the HUD settings file.
+aero
+afflatus
+alexander
+allies
+allsongs
+altjobupdate
+alts
+aoe
+aoedark
+aoelight
+aoewaltz
+astralconduit
+atomos
+avatar
+ave
+avenger
+behind
+belt
+berserk
+blitz
+blitzer
+blizzard
+bolt
+bolter
+broth
+broths
+buff
+buffs
+caitsith
+carbuncle
+carol
+cast
+castbar
+castbarailment
+castdark
+castenspell
+caster
+castgain
+castlight
+castspike
+cast_start
+caststorm
+castsubdark
+castsublight
+chainspell
+chaos
+check_off
+checksets
+cleanse
+clearparty
+clearrolls
+cmds
+colors
+combatmode
+commands
+comp
+companion
+composure
+convert
+cor
+corsair
+counter
+course
+courser
+cyclemaindark
+cyclemainlight
+cyclestate
+cyclestorm
+cyclesubdark
+cyclesublight
+dance
+dark
+darkaoe
+darkarts
+darkspell
+debugmidcast
+debugprecast
+debugretal
+debugretaliation
+defender
+diabolos
+disengage
+dispel
+doubleup
+du
+dummy
+dummy1
+dummy2
+dummysongs
+dw
+earth
+ecosystem
+elegy
+engage
+enspell
+entrust
+error_func
+error_msg
+escort
+escort_pending
+escort_seq
+etude
+evo
+evoker
+fandance
+fbc
+fenrir
+fields
+fight
+fightend
+fighter
+fightopen
+fire
+foe
+forceidle
+gal
+gallant
+garuda
+geo
+groups
+hasso
+helix
+help
+hunter
+hunters
+ice
+ifrit
+indi
+indiensure
+job_self_command
+job_state_change
+jump
+klima
+klimaform
+leviathan
+light
+lightaoe
+lightarts
+lightspell
+lines
+lock
+lockstyle
+lullaby
+lullaby2
+ma
+main
+marcato
+melee
+meleesong
+miser
+nat
+naturalist
+ni
+nightingale
+notes
+nt
+nuke
+odin
+party
+perf
+pet
+petmode
+pi
+pianissimo
+ramuh
+range
+rdylist
+rdymove
+rdymove_seq
+reload
+reloaded
+requestjob
+requiem
+retalstatus
+ring_data
+ring_name
+rogue
+roll1
+roll2
+rolldebug
+rolls
+rune
+saboteur
+sam
+samurai
+schhelp
+seigan
+shiva
+siren
+skillup
+smartbuff
+smn
+song1
+song2
+song3
+song4
+song5
+songplan
+songs
+songstop
+sortie
+soul_voice
+species
+spell_name
+state_name
+steal
+stealth
+step
+stone
+stopped
+storm
+strat
+stratagems
+subaoedark
+subaoelight
+subdark
+sublight
+sv
+tact
+tactician
+tag
+target
+tb
+testcolors
+th
+thirdeye
+threnody
+thunder
+titan
+title
+tp
+tr
+trace
+track_roll
+trackroll
+troubadour
+version
+waltz
+warlock
+watchdog
+water
+wind
+wiz
+wizard
+ws
+zzunknown
+pet engage
+pet disengage
+pet sit
+cycle Storm
+cycle HybridMode
+aoe sneak
+aoe
+rdymove 3
+rdymove x
+rdylist
+track_roll chaos 7
+track_roll chaos
+enspell fire
+enspell
+Refresh II <stpc>
+Refresh II
+Haste
+Fire IV <t>
+smn summon Ifrit
+smn bp Flaming Crush
+smn release
+smn
+skillup horn
+skillup status
+fightopen Tetsouo mob bolster
+fightend
+indiensure Indi-Haste 3
+escort Indi-Regen Tetsouo
+behind off
+songs full
+song3
+ws1
+ws 2
+dispelga <t>
+petmode auto
+schhelp
+strat

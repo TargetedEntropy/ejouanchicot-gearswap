@@ -9,7 +9,8 @@
 ---   SHARED_* (Lua's own tables changed), WINDOWER_LIB_IN_SANDBOX, PINS_SANDBOX
 ---   (a function of this load reachable from windower.*: it would survive a reload),
 ---   CHARREAD (every character file read), PCALL_FAIL.
---- Writes fp_<Player>_<MAIN>.txt (sets, states, commands, globals) in the
+--- Writes fp_<Player>_<MAIN>.txt (sets, states, commands sent, globals, then
+--- what each line of commands.txt did through job_self_command) in the
 --- current folder, to compare two versions of the code.
 ---
 --- Never run on the real folder: it writes saved/ files like the game does.
@@ -447,3 +448,48 @@ for _, m in ipairs(CHAT) do
     line('CHAT', m)
 end
 for _, k in ipairs(order) do if k:lower():find('data/' .. PLAYER:lower() .. '/', 1, true) then line('CHARREAD', 'include ' .. k) end end
+
+-- ==== commands: each line of commands.txt through job_self_command, appended to the fingerprint ====
+-- Last, so that nothing a command does reaches the report above. What each command sent, wrote in chat, equipped,
+-- scheduled and whether it was answered: a change in any of them is a changed load in check_load.py's report.
+do
+    local here = (debug.getinfo(1, 'S').source:match('^@(.*[/\\])') or './')
+    local list = io.open(here .. 'commands.txt')
+    if list and type(env.job_self_command) == 'function' then
+        local root = ROOT:gsub('%p', '%%%0')
+        local function clean(s)
+            s = tostring(s):gsub(root, '<root>/'):gsub('[\30\31].', ''):gsub('\\cs%([%d, ]*%)', ''):gsub('\\cr', '')
+            s = s:gsub('[%z\1-\9\11-\31]', ''):gsub('\n', ' / '):gsub('[%w_%./\\%-]+%.lua:%d+:%s*', '')
+            return s:sub(1, 200)
+        end
+        local equipped
+        local real_equip = env.equip
+        env.equip = function(...)
+            local parts = {}
+            for i = 1, select('#', ...) do parts[#parts + 1] = dump((select(i, ...))) end
+            if equipped then equipped[#equipped + 1] = 'equip ' .. table.concat(parts, ' ') end
+        end
+        local cmd = io.open('fp_' .. PLAYER .. '_' .. MAIN .. '.txt', 'a')
+        for text in list:lines() do
+            if text:find('%S') and not text:find('^%s*#') then
+                local params = {}
+                for word in text:gmatch('%S+') do params[#params + 1] = word end
+                local s0, c0, q0, ea = #SENT, #CHAT, #scheduled, {}
+                equipped = {}
+                local ok, err = pcall(env.job_self_command, params, ea)
+                local r = {'COMMAND ' .. text}
+                if not ok then r[#r + 1] = 'ERR ' .. clean(err) end
+                for i = s0 + 1, #SENT do r[#r + 1] = 'send ' .. clean(SENT[i]) end
+                for i = c0 + 1, #CHAT do r[#r + 1] = 'chat ' .. clean(CHAT[i]) end
+                for _, e in ipairs(equipped) do r[#r + 1] = e end
+                r[#r + 1] = 'scheduled +' .. (#scheduled - q0)
+                r[#r + 1] = 'handled=' .. tostring(ea.handled)
+                cmd:write(table.concat(r, ' | '), string.char(10))
+            end
+        end
+        equipped = nil
+        env.equip = real_equip
+        cmd:close()
+    end
+    if list then list:close() end
+end
