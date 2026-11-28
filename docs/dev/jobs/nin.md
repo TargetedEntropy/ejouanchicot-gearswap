@@ -76,13 +76,13 @@ Same shape as BLU ([core lifecycle](../systems/core-lifecycle.md#how-a-job-file-
 `NINKeybinds` and `bind_all()` (a failed require prints `[NIN] Keybinds failed
 to load: <error>`), `KeybindUI.smart_init("NIN", UIConfig.init_delay)`,
 `JobChangeManager.initialize()` with `EntryKit.macro_and_lockstyle` (the macro
-book 0.2 s later, once `EntryKit.load_job_files` has run, and the lockstyle after
+book 0.2 s later, once `load_job` has run, and the lockstyle after
 `LockstyleConfig.initial_load_delay`), then the dual-box manager.
 
-`get_sets()` runs `EntryKit.after_mote`, sets `_G.LockstyleConfig`, `_G.UIConfig`,
+`get_sets()` runs `after_mote`, sets `_G.LockstyleConfig`, `_G.UIConfig`,
 `_G.RECAST_CONFIG`, `_G.NINTPConfig`,
 cancels pending job-change work, loads the job files and registers
-`cancel_nin_lockstyle_operations` (`EntryKit.load_job`). `job_update` refreshes the HUD.
+`cancel_nin_lockstyle_operations` (`load_job`). `job_update` refreshes the HUD.
 `file_unload`: `JobChangeManager.cancel_all()`, then `NINKeybinds.unbind_all()`.
 All six hooks are defined by `EntryKit.job('NIN')`
 (`shared/utils/core/entry_kit.lua`); NIN adds no step.

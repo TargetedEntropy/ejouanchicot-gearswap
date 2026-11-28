@@ -79,9 +79,9 @@ Same shape as PUP / BLU ([core lifecycle](../systems/core-lifecycle.md#how-a-job
 `SCHKeybinds` and `bind_all()` (a failed require prints
 `[SCH] Keybinds failed to load: <error>`), `KeybindUI.smart_init("SCH", UIConfig.init_delay)`,
 `JobChangeManager.initialize()`, `EntryKit.macro_and_lockstyle` (macro book
-0.2 s later, once `EntryKit.load_job_files` has run, lockstyle after `initial_load_delay`),
-`dualbox_manager`. `get_sets()` runs `EntryKit.after_mote`, sets
-`_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`, `_G.SCHTPConfig`; then `EntryKit.load_job` cancels pending job-change work,
+0.2 s later, once `load_job` has run, lockstyle after `initial_load_delay`),
+`dualbox_manager`. `get_sets()` runs `after_mote`, sets
+`_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`, `_G.SCHTPConfig`; then `load_job` cancels pending job-change work,
 loads the job files and registers `cancel_sch_lockstyle_operations`. `job_update`
 repaints the HUD. `file_unload`: `JobChangeManager.cancel_all()`, then
 `SCHKeybinds.unbind_all()`. All six hooks are defined by

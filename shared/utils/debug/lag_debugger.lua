@@ -375,7 +375,7 @@ function LagDebugger.on_prerender_check(pet_eng_val, prev_pet_eng, sent_update)
 end
 
 --- Called by job_update() (fires on every gs c update received by GearSwap).
---- Wired in every entry, through EntryKit.update_hud (shared/utils/core/entry_kit.lua).
+--- Wired in every entry, through update_hud (shared/utils/core/entry_kit.lua).
 function LagDebugger.on_job_update()
     if not S.enabled then return end
     local moving_val = (state and state.Moving and state.Moving.value) or 'nil'

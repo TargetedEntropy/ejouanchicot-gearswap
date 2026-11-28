@@ -1,10 +1,10 @@
 ---============================================================================
---- Entry Kit - the hooks every job entry wrote the same way
+--- Entry Kit - every job's entry
 ---============================================================================
---- The 22 entries (shared/entry/<job>.lua) each carried their own copy of
---- job_update, job_sub_job_change, file_unload's common part, the keybind
---- error message and the first macro book / lockstyle. They are written once
---- here; an entry keeps only what its job adds (a lock to release first, an
+--- Each entry (shared/entry/<job>.lua) is one EntryKit.job call: the six
+--- globals GearSwap and Mote call (get_sets, init_gear_sets, user_setup,
+--- job_sub_job_change, job_update, file_unload) are defined here, and the
+--- entry hands in only the steps its job adds (a lock to release first, an
 --- addon to unload, a pet loop to stop).
 ---
 --- @file    shared/utils/core/entry_kit.lua
@@ -20,7 +20,7 @@ require('shared/utils/core/char_paths')
 local EntryKit = {}
 
 -- after user_setup(), get_sets() has loaded the job's files by then (load_job)
-local FACADE_WAIT = 0.2
+local JOB_FILES_WAIT = 0.2
 
 local function job_change_manager()
     local ok, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
@@ -38,10 +38,8 @@ end
 --- _G.RegionConfig at each use: set before the first coloured message) and the
 --- HUD settings (ConfigLoader.load_ui_config, which also sets _G.UIConfig:
 --- UI_MANAGER reads it when it loads, so it comes before UI_MANAGER).
---- @param job string The entry's job
 --- @return table LockstyleConfig, table UIConfig
-function EntryKit.load_configs(job)
-    local CharPaths = require('shared/utils/core/char_paths')
+local function load_configs(job, CharPaths)
     local ok, LockstyleConfig = pcall(require, CharPaths.module('common', 'LOCKSTYLE_CONFIG'))
     if not ok or not LockstyleConfig then
         LockstyleConfig = {initial_load_delay = 8.0}
@@ -54,10 +52,9 @@ function EntryKit.load_configs(job)
     return LockstyleConfig, UIConfig
 end
 
---- get_sets' middle, the same for every job, right after include('Mote-Include.lua'):
---- the shared systems, the spell / ability / weaponskill data, the three message hooks.
---- @param Profiler table The performance profiler get_sets started (its marks, //gs c perf)
-function EntryKit.after_mote(Profiler)
+--- get_sets' middle, right after include('Mote-Include.lua'): the shared systems,
+--- the spell / ability / weaponskill data, the three message hooks.
+local function after_mote(Profiler)
     include('../shared/utils/core/INIT_SYSTEMS.lua')
     Profiler.mark('After INIT_SYSTEMS')
     require('shared/utils/data/data_loader')
@@ -94,7 +91,7 @@ local JOB_FILES = {
     WHM = {buff_messages = false},
 }
 
---- The files EntryKit.load_job_files includes for a job, in order (the tests read it).
+--- The files load_job includes for a job, in order (the tests read it).
 --- @param job string The job's code
 --- @return table paths, from data/ ('../shared/...')
 function EntryKit.job_files(job)
@@ -113,11 +110,15 @@ function EntryKit.job_files(job)
     return files
 end
 
---- Everything a job defines: its hook files (EntryKit.job_files), its lockstyle and
---- macro book (the shared managers, shared/data/job_defaults.lua) and the dual-box
---- manager. Each file is timed under //gs c perf.
---- @param job string The job's code
-function EntryKit.load_job_files(job)
+--- Everything a job defines: what the previous job scheduled is cancelled first;
+--- then its lockstyle and macro book (the shared managers, shared/data/job_defaults.lua)
+--- and its hook files (EntryKit.job_files), each timed under //gs c perf; then the
+--- job's lockstyle cancel (defined by LockstyleManager.install) goes to JobChangeManager.
+local function load_job(job, Profiler)
+    local JobChangeManager = job_change_manager()
+    if JobChangeManager then
+        JobChangeManager.cancel_all()
+    end
     local TIMER = require('shared/utils/debug/performance_profiler').create_timer(job)
     require('shared/utils/lockstyle/lockstyle_manager').install(job)
     require('shared/utils/macrobook/macrobook_manager').install(job)
@@ -128,19 +129,6 @@ function EntryKit.load_job_files(job)
     -- auto-initialises, and handles the main <-> alt messages
     require('shared/utils/dualbox/dualbox_manager')
     TIMER('TOTAL ' .. job .. ' files', true)
-end
-
---- The job's files (load_job_files): what the previous job scheduled is cancelled
---- first, and the job's lockstyle cancel (defined by LockstyleManager.install) is
---- handed to JobChangeManager after.
---- @param job string The entry's job
---- @param Profiler table The performance profiler get_sets started
-function EntryKit.load_job(job, Profiler)
-    local JobChangeManager = job_change_manager()
-    if JobChangeManager then
-        JobChangeManager.cancel_all()
-    end
-    EntryKit.load_job_files(job)
     Profiler.mark('After ' .. job:lower() .. ' files')
     local cancel = rawget(_G, 'cancel_' .. job:lower() .. '_lockstyle_operations')
     if JobChangeManager and cancel then
@@ -148,12 +136,10 @@ function EntryKit.load_job(job, Profiler)
     end
 end
 
---- Body of job_update (Mote, after every cycle/set/toggle and gs c update):
---- refresh the HUD. Step 2 of the //gs c debugupdate trace (step 1 is
---- AutoMove's send, the next ones UI_MANAGER's and the job's customize hooks).
---- @param job string Job tag for the trace
---- @return void
-function EntryKit.update_hud(job)
+--- job_update's end (Mote, after every cycle/set/toggle and gs c update): refresh
+--- the HUD. Step 2 of the //gs c debugupdate trace (step 1 is AutoMove's send,
+--- the next ones UI_MANAGER's and the job's customize hooks).
+local function update_hud(job)
     if _G.LagDebugger then _G.LagDebugger.on_job_update() end
     if _G.UPDATE_DEBUG then
         local now = os.clock()
@@ -167,48 +153,6 @@ function EntryKit.update_hud(job)
     local ok, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
     if ok and KeybindUI and KeybindUI.update then
         KeybindUI.update()
-    end
-end
-
---- Body of job_sub_job_change: JobChangeManager debounces and reloads.
---- The dual-box message goes from user_setup() after the reload.
---- @param job string The entry's job, used while player is not readable
---- @param new_subjob string
---- @return void
-function EntryKit.sub_job_change(job, new_subjob)
-    local JobChangeManager = job_change_manager()
-    if JobChangeManager then
-        JobChangeManager.on_job_change(player and player.main_job or job, new_subjob)
-    end
-end
-
---- Common end of file_unload: cancel what the job change had scheduled, and
---- unbind the job's keys (Windower binds outlive a gs reload). A job releases
---- its own locks BEFORE calling this: GearSwap runs file_unload in a single
---- pcall, so an error here must not keep a slot locked into the next job.
---- @param keybinds table|nil The job's keybind module (<JOB>Keybinds)
---- @return void
-function EntryKit.unload(keybinds)
-    local JobChangeManager = job_change_manager()
-    if JobChangeManager then
-        JobChangeManager.cancel_all()
-    end
-    if keybinds and keybinds.unbind_all then
-        keybinds.unbind_all()
-    end
-end
-
---- Says why the keybind file did not load. Loudly: otherwise the job loads,
---- //gs c answers, and only the keys are dead. A failed pcall(require) does
---- not mean the file is missing (the sandbox require raises the same way for
---- an error in any dependency), so the real message is the one to show.
---- @param job string Job tag
---- @param err any What pcall returned in place of the module
---- @return void
-function EntryKit.keybind_error(job, err)
-    local MessageFormatter = formatter()
-    if MessageFormatter then
-        MessageFormatter.show_error('[' .. job .. '] Keybinds failed to load: ' .. tostring(err))
     end
 end
 
@@ -245,7 +189,7 @@ function EntryKit.macro_and_lockstyle(lockstyle_delay)
         end)
         return
     end
-    require('shared/utils/core/load_gate').defer(FACADE_WAIT, function()
+    require('shared/utils/core/load_gate').defer(JOB_FILES_WAIT, function()
         if player and select_default_macro_book then
             select_default_macro_book()
         end
@@ -268,7 +212,9 @@ end
 ---                     JobChangeManager + first macro book / lockstyle,
 ---                     after_setup(), dual-box manager
 ---   job_update        update(), then the HUD (it shows what update() changed)
----   file_unload       unload(next_file), then EntryKit.unload
+---   job_sub_job_change  JobChangeManager.on_job_change (it debounces and reloads)
+---   file_unload       unload(next_file), then the job change cancelled and the
+---                     keys unbound
 ---
 --- The common configs are _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG and
 --- _G.<JOB>TPConfig (none with tp_config = false). They are set right after
@@ -276,12 +222,12 @@ end
 --- user_setup reads them (BRD, BST). The keybind module is _G.<JOB>Keybinds.
 --- @param job string The job's code ('WAR')
 --- @param spec table|nil The job's steps (see above)
---- @return table LockstyleConfig, table UIConfig (EntryKit.load_configs)
+--- @return table LockstyleConfig, table UIConfig (load_configs)
 function EntryKit.job(job, spec)
     spec = spec or {}
     local jl = job:lower()
     local CharPaths = require('shared/utils/core/char_paths')
-    local LockstyleConfig, UIConfig = EntryKit.load_configs(job)
+    local LockstyleConfig, UIConfig = load_configs(job, CharPaths)
     -- after load_configs: UI_MANAGER reads _G.UIConfig when it loads
     local jcm_ok, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
     local ui_ok, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
@@ -304,12 +250,12 @@ function EntryKit.job(job, spec)
         include('Mote-Include.lua')
         Profiler.mark('After Mote-Include')
         -- the shared systems, the data, the spell / ability / weaponskill messages
-        EntryKit.after_mote(Profiler)
+        after_mote(Profiler)
         if not spec.early_configs then common_configs() end
         if spec.configs then spec.configs() end
         Profiler.mark('After configs')
         -- what the last job scheduled is cancelled, the job's files loaded, its lockstyle cancel registered
-        EntryKit.load_job(job, Profiler)
+        load_job(job, Profiler)
         if spec.after_load then spec.after_load() end
         Profiler.finish()
     end
@@ -326,7 +272,13 @@ function EntryKit.job(job, spec)
             _G[job .. 'Keybinds'] = keybinds
             keybinds.bind_all()
         else
-            EntryKit.keybind_error(job, keybinds)
+            -- Loudly: otherwise the job loads, //gs c answers, and only the keys are dead. A failed
+            -- pcall(require) does not mean the file is missing (the sandbox require raises the same way for an
+            -- error in any dependency), so the real message is the one to show.
+            local MessageFormatter = formatter()
+            if MessageFormatter then
+                MessageFormatter.show_error('[' .. job .. '] Keybinds failed to load: ' .. tostring(keybinds))
+            end
         end
     end
 
@@ -359,21 +311,35 @@ function EntryKit.job(job, spec)
         pcall(require, 'shared/utils/dualbox/dualbox_manager')
     end
 
+    -- Mote, on a subjob change: JobChangeManager debounces and reloads (the entry's job while player is not
+    -- readable). The dual-box message goes from user_setup() after the reload.
     _G.job_sub_job_change = function(new_subjob)
-        EntryKit.sub_job_change(job, new_subjob)
+        local JCM = job_change_manager()
+        if JCM then
+            JCM.on_job_change(player and player.main_job or job, new_subjob)
+        end
     end
 
     -- Mote, after every cycle / set / toggle and gs c update
     _G.job_update = function()
         if spec.update then spec.update() end
-        EntryKit.update_hud(job)
+        update_hud(job)
     end
 
-    -- GearSwap, when this job file is unloaded (job change, reload): the job's own
-    -- releases first (EntryKit.unload's note)
+    -- GearSwap, when this job file is unloaded (job change, reload). The job's own releases come first: GearSwap
+    -- runs file_unload in a single pcall, so an error further down must not keep a slot locked into the next job.
+    -- Then what the job change had scheduled is cancelled, and the keys are unbound (Windower binds outlive a gs
+    -- reload).
     _G.file_unload = function(next_file)
         if spec.unload then spec.unload(next_file) end
-        EntryKit.unload(rawget(_G, job .. 'Keybinds'))
+        local JCM = job_change_manager()
+        if JCM then
+            JCM.cancel_all()
+        end
+        local keybinds = rawget(_G, job .. 'Keybinds')
+        if keybinds and keybinds.unbind_all then
+            keybinds.unbind_all()
+        end
     end
 
     return LockstyleConfig, UIConfig

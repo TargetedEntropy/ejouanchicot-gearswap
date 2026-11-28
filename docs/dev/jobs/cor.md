@@ -100,7 +100,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/cor.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     participant P as PartyTracker
     GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, config_loader + UIConfig, JCM, UI_MANAGER)
     GS->>E: get_sets()
@@ -108,16 +108,16 @@ sequenceDiagram
     E->>M: include Mote-Include
     M->>E: user_setup() (states, keybinds + show_intro, UI, JCM + EntryKit.macro_and_lockstyle, dualbox)
     M->>E: init_gear_sets() -> include sets file
-    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, RECAST_CONFIG, CORTPConfig
     E->>E: configs: lua unload rolltracker
-    E->>E: EntryKit.load_job("COR"): JobChangeManager.cancel_all()
+    E->>E: load_job("COR"): JobChangeManager.cancel_all()
     E->>F: load_job_files('COR')
     E->>E: register_lockstyle_cancel("COR", ...)
     E->>P: after_load: init_party_tracking() -> PartyTracker.init()
 ```
 
-- `EntryKit.load_job('COR')` cancels what the previous job scheduled, loads the
+- `load_job('COR')` cancels what the previous job scheduled, loads the
   files and registers the lockstyle cancel; COR's `configs` step (the rolltracker
   unload) runs just before it. `load_job_files` installs the lockstyle and macro book, includes
   `message_buffs.lua`, the 8 hook files and `COR_MOVEMENT.lua` after
@@ -135,10 +135,10 @@ sequenceDiagram
   both handlers. Harmless, kept.
 - `user_setup()` (`EntryKit.job`; COR adds no step): `CORStates.configure()`; `COR_KEYBINDS` (which returns
   `KeybindManager.create('COR', ...)`) -> global `CORKeybinds`, `bind_all()`
-  (`EntryKit.keybind_error` if the file fails to load);
+  (`EntryKit.job`'s `bind_keys` if the file fails to load);
   `KeybindUI.smart_init("COR", UIConfig.init_delay)`; `JobChangeManager.initialize()`
   and `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-  (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has
+  (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `load_job` has
   defined `select_default_macro_book` / `select_default_lockstyle`, the macro
   book, then the lockstyle after 8 s; then the `dualbox_manager` require. Until 2026-10-15 COR ran a second,
   guarded macrobook + lockstyle block of its own.

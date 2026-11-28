@@ -88,7 +88,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/dnc.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, config_loader + UIConfig, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
@@ -97,7 +97,7 @@ sequenceDiagram
     E->>E: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, UIConfig, RECAST_CONFIG, DNCTPConfig
     E->>E: configs(): _G.DNCWSConfig, replace _G.cancel_conflicting_buffs
-    E->>E: EntryKit.load_job("DNC"): JobChangeManager.cancel_all()
+    E->>E: load_job("DNC"): JobChangeManager.cancel_all()
     E->>F: load_job_files('DNC') -> message_buffs + 8 hooks, refine_waltz override
     E->>E: register_lockstyle_cancel("DNC", ...)
 ```
@@ -107,14 +107,14 @@ is `KeybindManager.create('DNC', ...)`);
 `KeybindUI.smart_init("DNC", UIConfig.init_delay)` (the UI waits for `state.MainStep`);
 `JobChangeManager.initialize()` plus
 `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-(`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has defined
+(`shared/utils/core/entry_kit.lua`): 0.2 s later, once `load_job` has defined
 `select_default_macro_book` / `select_default_lockstyle`, the macro book, then
 the lockstyle after 8 s; `dualbox_manager`.
 
 The two Mote overrides:
 
 - `refine_waltz` (`DNC_PRECAST.lua`) is a global no-op defined when
-  `EntryKit.load_job_files` includes `DNC_PRECAST`. Mote's `user_precast` calls it on every action
+  `load_job` includes `DNC_PRECAST`. Mote's `user_precast` calls it on every action
   (`Mote-Globals.lua`), so a waltz typed or macroed by hand is never re-tiered,
   never downgraded for TP and never blocked on full HP. On other jobs with
   /DNC, Mote's own `refine_waltz` stays (it re-tiers a waltz on self).

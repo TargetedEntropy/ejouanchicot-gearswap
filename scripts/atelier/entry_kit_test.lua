@@ -4,8 +4,9 @@
 --- The first macro book and lockstyle come even when the keybinds did not
 --- load (the job's files define them only after user_setup), and a newer load
 --- drops them, and so does the old sandbox's user_setup() on a subjob change;
---- unload cancels then unbinds; a subjob change goes to
---- JobChangeManager with the job of the game.
+--- EntryKit.job defines the six globals in their order: unload releases, then
+--- cancels and unbinds; a subjob change goes to JobChangeManager with the job
+--- of the game.
 ---
 --- Run from data/: lua5.1 scripts/atelier/entry_kit_test.lua
 ---
@@ -98,22 +99,6 @@ check('no state: no reload pending', EntryKit.reload_pending(), false)
 windower.ffxi.get_player = function() return {main_job = 'WAR', sub_job = 'SAM'} end
 player = {main_job = 'WAR', sub_job = 'SAM'}
 
--- 3. unload: cancel first, then the keys
-calls = {}
-EntryKit.unload({unbind_all = function() calls[#calls + 1] = 'unbind' end})
-check('unload cancels', calls[1], 'cancel')
-check('unload unbinds', calls[2], 'unbind')
-EntryKit.unload(nil)
-check('unload without keys', calls[3], 'cancel')
-
--- 4. subjob change: the game's main job, the entry's when player is not readable
-calls = {}
-EntryKit.sub_job_change('WAR', 'DNC')
-player = nil
-EntryKit.sub_job_change('WAR', 'NIN')
-check('subjob change with the game job', calls[1], 'change WAR/DNC')
-check('subjob change without player', calls[2], 'change WAR/NIN')
-
 -- the job's files: every file EntryKit.job_files lists exists, and every hook file of a job folder is listed
 -- (a hook file nobody includes defines nothing; a listed file missing stops get_sets)
 local JOBS = {'BLM', 'BLU', 'BRD', 'BST', 'COR', 'DNC', 'DRG', 'DRK', 'GEO', 'MNK', 'NIN', 'PLD', 'PUP', 'RDM',
@@ -162,7 +147,7 @@ stub('shared/utils/dualbox/dualbox_manager', {})
 JCM.initialize = function() log('jcm') end
 JCM.cancel_all = function() log('cancel') end
 JCM.register_lockstyle_cancel = function() end
-JCM.on_job_change = function(main, sub) log('change ' .. sub) end
+JCM.on_job_change = function(main, sub) log('change ' .. main .. '/' .. sub) end
 include = function(file)
     if file == 'Mote-Include.lua' then
         log('mote')
@@ -199,11 +184,20 @@ trace = {}
 job_update()
 check('job_update: the step, then the HUD', table.concat(trace, ', '), 'update, hud update')
 trace = {}
-job_sub_job_change('NIN', 'SAM')
-check('job_sub_job_change', table.concat(trace, ', '), 'change NIN')
+job_sub_job_change('NIN')
+local saved_player = player
+player = nil
+job_sub_job_change('DNC')
+player = saved_player
+check('job_sub_job_change: the game\'s job, the entry\'s without player', table.concat(trace, ', '),
+    'change WAR/NIN, change TST/DNC')
 trace = {}
 file_unload('next.lua')
 check('file_unload: the job\'s releases first, then the job change cancelled and the keys', table.concat(trace, ', '),
     'unload next.lua, cancel, unbind')
+trace = {}
+_G.TSTKeybinds = nil
+file_unload(nil)
+check('file_unload without keys', table.concat(trace, ', '), 'unload, cancel')
 
 T.done()

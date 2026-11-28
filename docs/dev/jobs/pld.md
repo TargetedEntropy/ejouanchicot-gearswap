@@ -102,16 +102,16 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/pld.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>E: before_mote: _G.PLDWSConfig = CharPaths.optional PLD_WS_CONFIG
     E->>M: include Mote-Include
     M->>E: user_setup() (states, after_states: WS slots if modules exist + ammo lock, keybinds, UI, JCM, macrobook/lockstyle, dualbox)
     M->>E: init_gear_sets() -> include pld/sets/pld_sets.lua
-    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, PLD_TP_CONFIG (sets _G.PLDTPConfig), configs: _G.BluMagicConfig
-    E->>E: EntryKit.load_job("PLD"): JobChangeManager.cancel_all()
+    E->>E: load_job("PLD"): JobChangeManager.cancel_all()
     E->>F: load_job_files('PLD')
     F->>F: lockstyle + macro book install, message_buffs + 8 hook files, require dualbox_manager
     E->>E: register_lockstyle_cancel("PLD", ...), after_load: pld_rebuild_ws_slots()
@@ -126,34 +126,34 @@ PLD's `before_mote` step, before Mote-Include: `configure()` builds `state.WS1`/
    calls `apply_hybrid_profile(state.HybridMode.value)`. Then `after_states`:
    `_G.pld_rebuild_ws_slots()` runs only when the job modules already exist (a
    subjob change re-runs `user_setup` in the same sandbox); on a cold load
-   `get_sets` calls it after `EntryKit.load_job('PLD')` (`after_load`). Then
+   `get_sets` calls it after `load_job('PLD')` (`after_load`). Then
    `AmpullaLock.apply(state.HybridMode.value)` gives back an ammo lock left by a
    stance that is no longer selected.
 2. `require(CharPaths.module('job', 'PLD_KEYBINDS', 'PLD'))` (a `KeybindManager` module) into
    the global `PLDKeybinds`, then `bind_all()`: `KeybindManager` clears keys no
    longer wanted, binds the ones whose `subjob` / `exclude_subjob` / `visible`
    rules apply, then `show_intro()`. A failed require prints
-   `[PLD] Keybinds failed to load: <error>` (`EntryKit.keybind_error`, `MessageFormatter.show_error`).
+   `[PLD] Keybinds failed to load: <error>` (`EntryKit.job`'s `bind_keys`, `MessageFormatter.show_error`).
 3. `KeybindUI.smart_init("PLD", UIConfig.init_delay)`. The UI readiness
    anchor for PLD is `state.HybridMode` (`ui_lifecycle.lua` `are_states_ready`).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
    (`shared/utils/core/entry_kit.lua`): 0.2 s later (`LoadGate.defer`), once
-   `EntryKit.load_job_files` has defined `select_default_macro_book` / `select_default_lockstyle`,
+   `load_job` has defined `select_default_macro_book` / `select_default_lockstyle`,
    the macro book is set and the lockstyle scheduled after 8 s.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
 `job_sub_job_change` only calls `JobChangeManager.on_job_change`
-(`EntryKit.sub_job_change`). `file_unload` runs PLD's `unload` step first, which releases the ammo lock
+(`EntryKit.job`). `file_unload` runs PLD's `unload` step first, which releases the ammo lock
 (GearSwap runs the whole of `file_unload` in one `pcall`, so an error further
-down would leak the lock), then `EntryKit.unload(PLDKeybinds)`:
+down would leak the lock), then `file_unload`'s common end:
 `JobChangeManager.cancel_all()`, then `PLDKeybinds.unbind_all()`. `job_update`
-is `EntryKit.update_hud('PLD')`; its `UPDATE_DEBUG` step 2 line, once PLD's
+is `update_hud('PLD')`; its `UPDATE_DEBUG` step 2 line, once PLD's
 own, now prints for every job.
 
-`get_sets` ends with `EntryKit.load_job('PLD', Profiler)` (cancel what the previous job scheduled,
+`get_sets` ends with `load_job('PLD', Profiler)` (cancel what the previous job scheduled,
 load the files, register the lockstyle cancel), then PLD's `after_load` step runs
-`pld_rebuild_ws_slots()`. `EntryKit.load_job_files('PLD')` installs the lockstyle and macro book, includes `message_buffs.lua`,
+`pld_rebuild_ws_slots()`. `load_job('PLD')` installs the lockstyle and macro book, includes `message_buffs.lua`,
 `PLD_PRECAST`, `PLD_MIDCAST`, `PLD_AFTERCAST`, `PLD_IDLE`, `PLD_ENGAGED`,
 `PLD_STATUS`, `PLD_BUFFS`, `PLD_COMMANDS`, then requires `dualbox_manager`. Logic modules are required lazily by
 the hooks (`ensure_modules_loaded`, `ensure_commands_loaded`, first idle/engage).

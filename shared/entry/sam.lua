@@ -2,7 +2,7 @@
 --- FFXI GearSwap Configuration - Samurai (SAM) - Modular Architecture
 ---============================================================================
 --- Main coordinator for Samurai job configuration. Loads Mote-Include, the
---- shared systems and the SAM modules (EntryKit.load_job_files).
+--- shared systems and the SAM modules (load_job).
 ---
 --- @file shared/entry/sam.lua
 --- @author ejouanchicot

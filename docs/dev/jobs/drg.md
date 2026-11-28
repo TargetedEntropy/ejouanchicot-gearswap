@@ -73,12 +73,12 @@ Same shape as PUP / BLU ([core lifecycle](../systems/core-lifecycle.md#how-a-job
 `DRGKeybinds` and `bind_all()` (a failed require prints `[DRG] Keybinds
 failed to load: <error>`), `KeybindUI.smart_init("DRG", UIConfig.init_delay)`,
 `JobChangeManager.initialize()`, `EntryKit.macro_and_lockstyle` (macro book
-0.2 s later, once `EntryKit.load_job_files` has run, and lockstyle after
+0.2 s later, once `load_job` has run, and lockstyle after
 `LockstyleConfig.initial_load_delay`), `dualbox_manager`. `get_sets()` then
-runs `EntryKit.after_mote`, sets `_G.LockstyleConfig`, `_G.UIConfig`,
+runs `after_mote`, sets `_G.LockstyleConfig`, `_G.UIConfig`,
 `_G.RECAST_CONFIG`, `_G.DRGTPConfig`, cancels
 pending job-change work, loads the job files and registers
-`cancel_drg_lockstyle_operations` (`EntryKit.load_job`). `job_update` repaints the HUD.
+`cancel_drg_lockstyle_operations` (`load_job`). `job_update` repaints the HUD.
 `file_unload`: `JobChangeManager.cancel_all()`, `DRGKeybinds.unbind_all()`.
 All six hooks are defined by `EntryKit.job('DRG')`
 (`shared/utils/core/entry_kit.lua`); DRG adds no step.

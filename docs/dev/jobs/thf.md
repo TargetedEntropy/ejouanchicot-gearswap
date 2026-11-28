@@ -94,15 +94,15 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/thf.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
     M->>E: user_setup() (states, after_states: RangeLock sync, keybinds + intro, UI, JCM, macrobook/lockstyle, dualbox)
     M->>E: init_gear_sets() -> include sets file
-    E->>E: EntryKit.after_mote: INIT_SYSTEMS (hooks: belt, DW, TH, midcast fallback, custom, cast time, combat mode), data_loader, message hooks
+    E->>E: after_mote: INIT_SYSTEMS (hooks: belt, DW, TH, midcast fallback, custom, cast time, combat mode), data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.THFTPConfig
-    E->>E: EntryKit.load_job("THF"): JobChangeManager.cancel_all()
+    E->>E: load_job("THF"): JobChangeManager.cancel_all()
     E->>F: load_job_files('THF')
     F->>F: lockstyle + macro book install, message_buffs + 8 hook files, thf_functions.lua (TreasureHunter.init()), require dualbox_manager
     E->>E: register_lockstyle_cancel("THF", ...)
@@ -120,17 +120,17 @@ sequenceDiagram
    has already attached the two optional states: Combat Mode (hidden,
    `!numpad0`) and Treasure Mode, which reuses THF's own `^numpad3` entry. A
    failed `require` prints `[THF] Keybinds failed to load: <error>`
-   (`EntryKit.keybind_error`).
+   (`EntryKit.job`'s `bind_keys`).
 3. `KeybindUI.smart_init("THF", UIConfig.init_delay)`. The UI waits for `state.TreasureMode`
    (`ui_lifecycle.lua` `are_states_ready`).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has
+   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `load_job` has
    defined `select_default_macro_book` / `select_default_lockstyle`, the macro
    book is set and the lockstyle scheduled after 8 s.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-`EntryKit.load_job_files('THF')` installs the lockstyle and macro book,
+`load_job('THF')` installs the lockstyle and macro book,
 includes `message_buffs.lua`, `THF_PRECAST`, `THF_MIDCAST`, `THF_AFTERCAST`,
 `THF_IDLE`, `THF_ENGAGED`, `THF_STATUS`, `THF_BUFFS`, `THF_COMMANDS`, then
 `thf_functions.lua` (THF's `JOB_FILES` entry, `own`), which calls the THF

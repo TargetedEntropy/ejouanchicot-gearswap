@@ -61,7 +61,7 @@ What RNG adds on top of the shared pipeline:
 Same shape as BLU and PUP ([core lifecycle](../systems/core-lifecycle.md#how-a-job-file-boots)):
 Mote-Include calls `user_setup()` and `init_gear_sets()` from inside
 `include('Mote-Include.lua')`, before `INIT_SYSTEMS` and before the RNG hook
-files exist. `EntryKit.job` (`EntryKit.load_configs`) sets `_G.RegionConfig` first, then
+files exist. `EntryKit.job` (`load_configs`) sets `_G.RegionConfig` first, then
 loads the UI config (`config_loader`).
 
 `user_setup()` (`EntryKit.job`, `shared/utils/core/entry_kit.lua`):
@@ -72,17 +72,17 @@ loads the UI config (`config_loader`).
 3. `KeybindUI.smart_init("RNG", UIConfig.init_delay)`. `ui_lifecycle.lua` waits for
    `state.RangeWeapon` before drawing the HUD of an RNG.
 4. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`: macro
-   book 0.2 s later, once `EntryKit.load_job_files` has run, lockstyle after
+   book 0.2 s later, once `load_job` has run, lockstyle after
    `LockstyleConfig.initial_load_delay`.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-`get_sets()` then runs `EntryKit.after_mote`, sets `_G.LockstyleConfig`,
-`_G.UIConfig`, `_G.RECAST_CONFIG`, `_G.RNGTPConfig`; then `EntryKit.load_job` cancels pending job-change work, loads the job files
+`get_sets()` then runs `after_mote`, sets `_G.LockstyleConfig`,
+`_G.UIConfig`, `_G.RECAST_CONFIG`, `_G.RNGTPConfig`; then `load_job` cancels pending job-change work, loads the job files
 and registers `cancel_rng_lockstyle_operations`.
 
-`job_update`: `EntryKit.update_hud` (`KeybindUI.update()`). `file_unload`:
-`EntryKit.unload(RNGKeybinds)`: `JobChangeManager.cancel_all()`, then
-`RNGKeybinds.unbind_all()`. `job_sub_job_change` is `EntryKit.sub_job_change`.
+`job_update`: `update_hud` (`KeybindUI.update()`). `file_unload`:
+`file_unload`'s common end: `JobChangeManager.cancel_all()`, then
+`RNGKeybinds.unbind_all()`. `job_sub_job_change` is `EntryKit.job`.
 All six come from `EntryKit.job('RNG')`; RNG adds no step.
 
 ### Precast

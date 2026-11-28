@@ -26,7 +26,7 @@
 ---   • Smart lockstyle/macrobook per subjob
 ---
 --- Architecture Overview:
----   EntryKit.job >> EntryKit.load_job_files >> Hooks + 5 Logic Modules
+---   EntryKit.job >> load_job >> Hooks + 5 Logic Modules
 ---
 --- Module Organization:
 ---   ├── <Character>/dnc/sets/dnc_sets.lua [Equipment Sets]

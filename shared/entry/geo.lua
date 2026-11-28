@@ -20,7 +20,7 @@
 ---   - PetTP addon loaded on GEO, unloaded on file_unload
 ---
 --- Architecture Overview:
----   EntryKit.job >> EntryKit.load_job_files >> Specialized Modules
+---   EntryKit.job >> load_job >> Specialized Modules
 ---
 --- Module Organization:
 ---   ├── <Character>/geo/sets/geo_sets.lua [Equipment Sets]

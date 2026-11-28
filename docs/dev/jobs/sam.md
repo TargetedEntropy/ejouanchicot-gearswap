@@ -79,15 +79,15 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/sam.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig via ConfigLoader, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
     M->>E: user_setup(): states, keybinds, UI, JCM, macrobook/lockstyle, dualbox
     M->>E: init_gear_sets() -> include sam/sets/sam_sets.lua
-    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.SAMTPConfig
-    E->>E: EntryKit.load_job('SAM'): JobChangeManager.cancel_all()
+    E->>E: load_job('SAM'): JobChangeManager.cancel_all()
     E->>F: load_job_files('SAM')
     E->>E: register_lockstyle_cancel('SAM', ...)
 ```
@@ -102,14 +102,14 @@ global `SAMKeybinds` and `bind_all()` (4 binds, the optional states, the
 character's common keys, then `show_intro()`),
 `KeybindUI.smart_init('SAM', UIConfig.init_delay)`,
 `JobChangeManager.initialize()` + `EntryKit.macro_and_lockstyle` (macro book
-0.2 s later, once `EntryKit.load_job_files` has defined the `select_default_*` globals,
+0.2 s later, once `load_job` has defined the `select_default_*` globals,
 lockstyle 8 s after that), and the `dualbox_manager` require. A keybind file
 that fails to load prints `[SAM] Keybinds failed to load: <error>`
-(`EntryKit.keybind_error`). `job_sub_job_change` only hands over to
-`JobChangeManager.on_job_change` (`EntryKit.sub_job_change`; the shared hooks
+(`EntryKit.job`'s `bind_keys`). `job_sub_job_change` only hands over to
+`JobChangeManager.on_job_change` (`EntryKit.job`; the shared hooks
 are in `shared/utils/core/entry_kit.lua`).
 
-`EntryKit.load_job_files('SAM')` installs the lockstyle and macro book, includes
+`load_job('SAM')` installs the lockstyle and macro book, includes
 `SAM_PRECAST`, `SAM_MIDCAST`, `SAM_AFTERCAST`, `SAM_IDLE`, `SAM_ENGAGED`,
 `SAM_STATUS`, `SAM_BUFFS`, `SAM_COMMANDS` and requires `dualbox_manager`. SAM's
 `JOB_FILES` entry has `buff_messages = false`: no `message_buffs.lua` (nothing

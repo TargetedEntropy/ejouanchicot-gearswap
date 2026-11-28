@@ -94,15 +94,15 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/geo.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     GS->>E: file chunk: LOCKSTYLE_CONFIG, UIConfig (ConfigLoader), REGION_CONFIG; JCM, UI_MANAGER
     GS->>E: get_sets()
     E->>M: include('Mote-Include.lua')
     M->>E: user_setup(): states, after_states: lua load pettp, keybinds (+ show_intro), HUD, JobChangeManager, EntryKit.macro_and_lockstyle, dualbox_manager
     M->>E: init_gear_sets(): include('geo/sets/geo_sets.lua')
-    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.GEOTPConfig
-    E->>E: EntryKit.load_job("GEO"): JobChangeManager.cancel_all()
+    E->>E: load_job("GEO"): JobChangeManager.cancel_all()
     E->>F: load_job_files('GEO')
     E->>E: register_lockstyle_cancel("GEO", ...)
 ```
@@ -113,17 +113,17 @@ sequenceDiagram
 2. `after_states`: `JobAddons.run('load', 'pettp')` ([JobAddons](../systems/factories-and-helpers.md#jobaddons-sharedutilscorejob_addonslua)): the PetTP addon, unloaded again in
    `file_unload` (`unload`, which first stops a `//gs c behind` run: `stand_behind.unload()`); `pettp = false` in `_common/tools/ADDONS_CONFIG.lua` skips both. The load is sent only when the flag `windower._geo_pettp_loaded` (it outlives the sandbox) is not set, so a subjob change or `//gs reload` of GEO sends neither the unload nor the load again. `file_unload(next_file)` unloads at once when GearSwap itself unloads (`next_file` nil); otherwise it asks the game 2 s later and unloads only when the main job is no longer GEO (`shared/entry/geo.lua`, since `edbcfb96`).
 3. `GEO_KEYBINDS` (which returns `KeybindManager.create('GEO', ...)`) ->
-   global `GEOKeybinds`, `bind_all()`. A failed require prints the Lua error (`EntryKit.keybind_error`).
+   global `GEOKeybinds`, `bind_all()`. A failed require prints the Lua error (`EntryKit.job`'s `bind_keys`).
 4. `KeybindUI.smart_init("GEO", UIConfig.init_delay)` (`[GEO] Failed to load
    UI_MANAGER` when it did not load).
 5. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has
+   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `load_job` has
    defined them, `select_default_macro_book()`,
    then `select_default_lockstyle` after 8 s.
 6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-`EntryKit.load_job_files('GEO')` installs the lockstyle and macro book,
+`load_job('GEO')` installs the lockstyle and macro book,
 includes `message_buffs.lua`, then `GEO_PRECAST`, `GEO_MIDCAST`,
 `GEO_AFTERCAST`, `GEO_IDLE`, `GEO_ENGAGED`, `GEO_STATUS`, `GEO_BUFFS`,
 `GEO_COMMANDS`, and requires `dualbox_manager`.

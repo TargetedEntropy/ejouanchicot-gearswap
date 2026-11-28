@@ -12,7 +12,7 @@
 ---   include('../shared/hooks/init_spell_messages.lua')
 ---   include('../shared/hooks/init_ability_messages.lua')
 ---   include('../shared/hooks/init_ws_messages.lua')
----   EntryKit.load_job('<JOB>', Profiler)
+---   load_job('<JOB>', Profiler)
 ---
 --- Features:
 ---   - Works for ALL jobs (WAR, SAM, DNC, THF, etc.)

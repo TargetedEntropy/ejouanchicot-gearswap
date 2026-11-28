@@ -103,8 +103,8 @@ are the cached instances
 Mote-Include (which runs `user_setup()` and `init_gear_sets()` =
 `include(CharPaths.relative('sets', 'smn_sets.lua', 'SMN'))`), then `INIT_SYSTEMS`, `data_loader` and
 the message hooks, sets `_G.LockstyleConfig`, `_G.UIConfig`,
-`_G.RECAST_CONFIG`, then `EntryKit.load_job('SMN', Profiler)`: `JobChangeManager.cancel_all()`,
-`EntryKit.load_job_files('SMN')` (lockstyle and macro book install,
+`_G.RECAST_CONFIG`, then `load_job('SMN', Profiler)`: `JobChangeManager.cancel_all()`,
+`load_job('SMN')` (lockstyle and macro book install,
 `message_buffs.lua`, the 8 hook files with `SMN_PET_MIDCAST` after
 `SMN_MIDCAST`, `dualbox_manager`) and the lockstyle cancel registration. It also marks each step for
 `//gs c perf`. There is no TP config (`tp_config = false`).
@@ -115,12 +115,12 @@ the message hooks, sets `_G.LockstyleConfig`, `_G.UIConfig`,
 2. `require` of `SMN_KEYBINDS` -> global `SMNKeybinds`, `bind_all()` (3 binds
    plus the character's common keys), which calls `show_intro()`. A failed
    require prints `[SMN] Keybinds failed to load: <error>`
-   (`EntryKit.keybind_error`).
+   (`EntryKit.job`'s `bind_keys`).
 3. `KeybindUI.smart_init("SMN", UIConfig.init_delay)` (`[SMN] Failed to load
    UI_MANAGER` when it did not load).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-   (`shared/utils/core/entry_kit.lua`): `EntryKit.load_job_files` has not run yet, so it
+   (`shared/utils/core/entry_kit.lua`): `load_job` has not run yet, so it
    waits 0.2 s for `select_default_macro_book` / `select_default_lockstyle`,
    sets the macro book, and schedules the lockstyle after 8 s.
 5. `after_setup`: a task `initial_load_delay + 2` s later (10 s, `LoadGate.defer(..., 'smn summon')`: dropped when a newer load came first): if the main job is
@@ -365,7 +365,7 @@ it stays on after the first cast.
   ([midcast and buffs](../systems/midcast-and-buffs.md)); `LifecycleManager`
   (status), `DoomManager` directly (buffs).
 - Messages: `MessageFormatter` generic calls, `message_buffs` (included by
-  `EntryKit.load_job_files`), `message_commands`; Blood Pact activation messages come from the
+  `load_job`), `message_commands`; Blood Pact activation messages come from the
   shared ability handler through `SMN_SPELL_DATABASE`
   ([messages](../systems/messages.md)).
 - Pet hooks are shared with [BST](bst.md) and PUP (`job_pet_midcast`).
