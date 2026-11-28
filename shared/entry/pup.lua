@@ -11,7 +11,7 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---
 --- Architecture:
----   Main File (this) >> EntryKit.load_job_files >> Hooks >> Logic Modules
+---   EntryKit.job >> EntryKit.load_job_files >> Hooks >> Logic Modules
 ---
 --- Hooks Modules:
 ---   PUP_PRECAST | PUP_MIDCAST | PUP_PET_MIDCAST | PUP_AFTERCAST | PUP_STATUS
@@ -23,140 +23,29 @@
 ---   logic/set_builder.lua  - Idle / engaged sets, pet layers
 ---============================================================================
 
----============================================================================
--- INITIALIZATION
----============================================================================
-
--- Load lockstyle timing configuration
--- Where the character's files are (_common/, <job>/, saved/; older config/ and sets/)
-local CharPaths = require('shared/utils/core/char_paths')
--- The hooks every entry shares (job_update, subjob change, unload, keybind error)
-local EntryKit = require('shared/utils/core/entry_kit')
-
--- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
-local LockstyleConfig, UIConfig = EntryKit.load_configs('PUP')
-
---- GearSwap entry hook: loads Mote-Include, the shared systems and the PUP modules.
---- Called by GearSwap each time this job file is loaded.
---- @return void
-function get_sets()
-    local Profiler = require('shared/utils/debug/performance_profiler')
-    Profiler.start('get_sets')
-
-    mote_include_version = 2
-    include('Mote-Include.lua')
-    Profiler.mark('After Mote-Include')
-    -- the shared systems, the data, the spell / ability / weaponskill messages
-    EntryKit.after_mote(Profiler)
-
-    Profiler.mark('After message hooks')
-
-    _G.LockstyleConfig = LockstyleConfig
-    _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
-
-    -- PUP-specific configs
-    _G.PUPTPConfig = require(CharPaths.module('job', 'PUP_TP_CONFIG', 'PUP'))
-
-    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
-    -- cancel registered
-    EntryKit.load_job('PUP', Profiler)
-
-    Profiler.finish()
+-- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
+-- (shared/utils/core/entry_kit.lua), with PUP's automaton (PetMode from its head) and pet WS poll
+local function pup(module)
+    local ok, mod = pcall(require, 'shared/jobs/pup/functions/logic/' .. module)
+    return ok and mod or nil
 end
 
----============================================================================
--- JOB CHANGE HANDLING
----============================================================================
-
---- Handle sub job change events (called by Mote-Include)
---- @param newSubjob string New subjob
---- @param oldSubjob string Old subjob
---- @return void
-function job_sub_job_change(newSubjob, oldSubjob)
-    EntryKit.sub_job_change('PUP', newSubjob)
-end
-
----============================================================================
--- SETUP FUNCTIONS
----============================================================================
-
---- Configure states (PetMode from the automaton's head), keybinds, UI and the
---- initial macrobook/lockstyle.
---- Called by Mote-Include from init_include() (inside include('Mote-Include.lua'),
---- before init_gear_sets) and again on every subjob change.
---- @return void
-function user_setup()
-    local PUPStates = require(CharPaths.module('job', 'PUP_STATES', 'PUP'))
-    PUPStates.configure()
-
+require('shared/utils/core/entry_kit').job('PUP', {
     -- PetMode from the automaton's head before the HUD first draws it
-    local am_ok, Automaton = pcall(require, 'shared/jobs/pup/functions/logic/automaton')
-    if am_ok and Automaton then
-        Automaton.refresh_mode(true)
-    end
-
-    local success, keybinds = pcall(require, CharPaths.module('job', 'PUP_KEYBINDS', 'PUP'))
-    if success and keybinds then
-        PUPKeybinds = keybinds
-        PUPKeybinds.bind_all()
-    else
-        EntryKit.keybind_error('PUP', keybinds)
-    end
-
-    local ui_success, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
-    if ui_success and KeybindUI then
-        local init_delay = (_G.UIConfig and _G.UIConfig.init_delay) or 5.0
-        KeybindUI.smart_init("PUP", init_delay)
-    end
-
-    local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    if jcm_success and JobChangeManager then
-        JobChangeManager.initialize()
-        EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)
-    end
-
-    -- DUALBOX IPC: the require() triggers dualbox_manager auto-init (once per gs reload)
-    pcall(require, 'shared/utils/dualbox/dualbox_manager')
-end
-
----============================================================================
---- STATE UPDATE HOOK
----============================================================================
-
---- Called by Mote-Include before it puts the gear on (every gs c update,
---- cycle, set, toggle): PetMode from a changed automaton head, the pet WS
---- poll started if it has something to watch, then the HUD.
---- @param cmdParams table Parameters passed to Mote's handle_update
---- @param eventArgs table Mote event arguments (unused)
---- @return void
-function job_update(cmdParams, eventArgs)
-    local am_ok, Automaton = pcall(require, 'shared/jobs/pup/functions/logic/automaton')
-    if am_ok and Automaton then
-        Automaton.refresh_mode()
-    end
-    local ws_ok, PetWS = pcall(require, 'shared/jobs/pup/functions/logic/pet_ws')
-    if ws_ok and PetWS then
-        PetWS.ensure_running()
-    end
-    EntryKit.update_hud('PUP')
-end
-
---- Load the PUP equipment sets.
---- Called by Mote-Include at the end of init_include(), after user_setup().
---- @return void
-function init_gear_sets()
-    include(CharPaths.relative('sets', 'pup_sets.lua', 'PUP'))
-end
-
---- Called by GearSwap when this job file is unloaded (job change, reload).
---- @return void
-function file_unload()
-    -- First: GearSwap runs file_unload under one pcall (engine refresh.lua
-    -- load_user_files), so an error further down would skip what follows it.
-    local ws_ok, PetWS = pcall(require, 'shared/jobs/pup/functions/logic/pet_ws')
-    if ws_ok and PetWS then
-        PetWS.stop()
-    end
-
-    EntryKit.unload(PUPKeybinds)
-end
+    after_states = function()
+        local Automaton = pup('automaton')
+        if Automaton then Automaton.refresh_mode(true) end
+    end,
+    -- before Mote puts the gear on (every gs c update, cycle, set, toggle): PetMode from a changed automaton head,
+    -- the pet WS poll started if it has something to watch, then the HUD
+    update = function()
+        local Automaton = pup('automaton')
+        if Automaton then Automaton.refresh_mode() end
+        local PetWS = pup('pet_ws')
+        if PetWS then PetWS.ensure_running() end
+    end,
+    unload = function()
+        local PetWS = pup('pet_ws')
+        if PetWS then PetWS.stop() end
+    end,
+})

@@ -102,12 +102,13 @@ flowchart TD
 - **Entry file** (`data/<Char>/<Char>_<JOB>.lua`, template
   `_master/entry/Tetsouo_<JOB>.lua`): since 2026-09-30 one statement,
   `include('../shared/entry/<job>.lua')`. The shared entry
-  (`shared/entry/<job>.lua`, 168-376 lines, the same for every character) is
-  the loader: it defines `get_sets`, `user_setup`, `init_gear_sets`,
-  `job_sub_job_change`, `job_update`, `file_unload`, and finds the
-  character's files through `shared/utils/core/char_paths.lua`. What every
-  entry does the same way in those hooks is in
-  `shared/utils/core/entry_kit.lua`. See
+  (`shared/entry/<job>.lua`, 16-159 lines, the same for every character) is
+  one `EntryKit.job('<JOB>', spec)` call (`shared/utils/core/entry_kit.lua`),
+  which defines `get_sets`, `init_gear_sets`, `user_setup`,
+  `job_sub_job_change`, `job_update`, `file_unload` and finds the
+  character's files through `shared/utils/core/char_paths.lua`; the spec
+  holds only the job's own steps (none for MNK, DRG, NIN, RNG, SCH, BLM, DRK,
+  SAM, whose entry is one line). See
   [core-lifecycle.md](systems/core-lifecycle.md).
 - **Job files** (`EntryKit.load_job_files(job)`, `shared/utils/core/entry_kit.lua`):
   installs the job's lockstyle and macro book (`LockstyleManager.install`,
@@ -133,32 +134,38 @@ flowchart TD
 For a character entry such as `Tetsouo/Tetsouo_WAR.lua`, whose only statement
 includes `shared/entry/war.lua`:
 
-1. **File chunk** of `shared/entry/war.lua`: requires `char_paths`, loads
-   `LOCKSTYLE_CONFIG` and `REGION_CONFIG` under pcall,
-   `ConfigLoader.load_ui_config` (`dofile` of `UI_CONFIG`), defines the hook
-   functions. WAR, BST and SMN also require `JobChangeManager` and
-   `UI_MANAGER` here (PUP requires them inside its hooks).
+1. **File chunk** of `shared/entry/war.lua`: `EntryKit.job('WAR', spec)`
+   requires `char_paths`, loads `LOCKSTYLE_CONFIG` and `REGION_CONFIG` under
+   pcall, `ConfigLoader.load_ui_config` (`dofile` of `UI_CONFIG`), requires
+   `JobChangeManager` and `UI_MANAGER`, and defines the hook functions.
 2. **`get_sets()`**:
-   1. Job globals that states need before Mote (WAR `_G.WARWSConfig`, BRD, BST).
+   1. `before_mote()`: job globals that states need before Mote (WAR
+      `_G.WARWSConfig`, PLD `_G.PLDWSConfig`, BRD, BST; BRD and BST also set
+      the common configs of step 5 here, `early_configs`).
    2. `include('Mote-Include.lua')` → `init_include()`: Mote states and set
       skeleton, Mote's F9-F12 binds, **`user_setup()`**, then
-      **`init_gear_sets()`** (the set file).
+      **`init_gear_sets()`** (the set file, then `after_sets()`).
    3. `include INIT_SYSTEMS` (see below).
    4. `require data_loader`, then the three message hooks
       (`init_spell_messages`, `init_ability_messages`, `init_ws_messages`).
-   5. `_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`, job TP configs.
+      Steps 3-4 are `EntryKit.after_mote(Profiler)`.
+   5. `_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`,
+      `_G.<JOB>TPConfig` (not SMN), then the job's `configs()`.
    6. `JobChangeManager.cancel_all()`.
    7. `EntryKit.load_job_files('<JOB>')`, the job files.
    8. `register_lockstyle_cancel`.
+   9. `after_load()` (PLD WS slots, COR party tracking).
 
-   Steps 6-8 are `EntryKit.load_job('<JOB>', Profiler)`; COR, PLD and SAM
-   write them out and call `EntryKit.load_job_files` themselves.
+   Steps 6-8 are `EntryKit.load_job('<JOB>', Profiler)`.
 3. **`user_setup()`** (called from step 2.2, so before INIT_SYSTEMS and the
-   job files): `<JOB>States.configure()`, keybinds `bind_all()`,
-   `KeybindUI.smart_init()`, `JobChangeManager.initialize()` (a seed, not an
-   assignment), `EntryKit.macro_and_lockstyle` (macro book 0.2 s later, once
-   the job files are loaded; lockstyle after 8 s), `pcall(require
-   dualbox_manager)`.
+   job files): `<JOB>States.configure()`, `after_states()`, keybinds
+   `bind_all()` (RUN 0.5 s later), `KeybindUI.smart_init()` (or an error
+   when `UI_MANAGER` failed to load), `after_ui()`,
+   `JobChangeManager.initialize()` (a seed, not an assignment),
+   `EntryKit.macro_and_lockstyle` (macro book 0.2 s later, once the job files
+   are loaded; lockstyle after 8 s), `after_setup()`, `pcall(require
+   dualbox_manager)`. `file_unload` runs the job's `unload()` (its locks,
+   addons, loops) before `EntryKit.unload` (JCM cancel, keys).
 
 `INIT_SYSTEMS.lua` then starts, in order, what every job needs: synchronously
 the Atelier set and SubWeapon overrides, the debug flags, the require cache, the

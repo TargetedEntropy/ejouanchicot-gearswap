@@ -40,7 +40,7 @@ function; line numbers are deliberately not used.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/sam.lua` | 148 | Entry point (the same for every character; `<Char>_SAM.lua` and its template `_master/entry/Tetsouo_SAM.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload` |
+| `shared/entry/sam.lua` | 16 | Entry point (the same for every character; `<Char>_SAM.lua` and its template `_master/entry/Tetsouo_SAM.lua` are one `include` of it): one line, `EntryKit.job('SAM')` (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`); SAM adds no step |
 | `shared/jobs/sam/functions/SAM_PRECAST.lua` | 143 | `job_precast` (guard, cooldown, `remember_stance`, auto-Seigan, WS handler, auto-Third Eye) / `job_post_precast` (TP gear, Sekkanoki, Meikyo Shisui by `buffactive`) |
 | `shared/jobs/sam/functions/SAM_MIDCAST.lua` | 75 | `job_midcast` (empty) / `job_post_midcast`: watchdog, Healing and Enhancing via `MidcastManager` |
 | `shared/jobs/sam/functions/SAM_AFTERCAST.lua` | 22 | `job_aftercast = LifecycleManager.aftercast()` |
@@ -62,7 +62,7 @@ function; line numbers are deliberately not used.
 | `_master/config/sam/SAM_CONFIG.lua` | 23 | The job's own settings: `auto_hasso = false`, `auto_third_eye_ws = true` (both read through `shared/utils/core/auto_options.lua`), `idle_hp` (`job_config.lua`) |
 | `shared/data/job_abilities/SAM_JA_DATABASE.lua` + `sam/sam_{mainjob,subjob,sp}.lua` | | JA data for the ability message hooks |
 
-The entry and the templates name no character: `shared/entry/sam.lua` finds the
+The entry and the templates name no character: `EntryKit.job` finds the
 files through `CharPaths`
 ([characters and templates](../architecture/characters-and-templates.md)).
 
@@ -77,17 +77,17 @@ before `INIT_SYSTEMS` and the hook files.
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as <Character>_SAM.lua
+    participant E as shared/entry/sam.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
-    GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig via ConfigLoader)
+    GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig via ConfigLoader, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
     M->>E: user_setup(): states, keybinds, UI, JCM, macrobook/lockstyle, dualbox
     M->>E: init_gear_sets() -> include sam/sets/sam_sets.lua
-    E->>E: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.SAMTPConfig
-    E->>E: JobChangeManager.cancel_all()
+    E->>E: EntryKit.load_job('SAM'): JobChangeManager.cancel_all()
     E->>F: load_job_files('SAM')
     E->>E: register_lockstyle_cancel('SAM', ...)
 ```
@@ -97,7 +97,7 @@ sequenceDiagram
 - `REGION_CONFIG` is loaded in the file chunk, before `INIT_SYSTEMS` loads
   `message_colors`, which reads `_G.RegionConfig` at each use (`region_config`).
 
-`user_setup()`: `SAMStates.configure()`, then `SAM_KEYBINDS` stored in the
+`user_setup()` (`EntryKit.job`): `SAMStates.configure()`, then `SAM_KEYBINDS` stored in the
 global `SAMKeybinds` and `bind_all()` (4 binds, the optional states, the
 character's common keys, then `show_intro()`),
 `KeybindUI.smart_init('SAM', UIConfig.init_delay)`,
@@ -393,7 +393,7 @@ T = `_master/sets/sam_sets.lua` (no live copy in the repository).
 - An automation that spends an ability before a weaponskill belongs after
   `WSPrecastHandler.handle`, never before: a refused weaponskill must not
   cost the ability.
-- The entry names no character: `shared/entry/sam.lua` finds the files through
+- The entry names no character: `EntryKit.job('SAM')` finds the files through
   `CharPaths` (`CharPaths.module('job', 'SAM_STATES', 'SAM')`...).
 
 ### Extending

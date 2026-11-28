@@ -39,7 +39,7 @@ function; line numbers are deliberately not used.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/drk.lua` | 170 | Entry point (the same for every character; `<Char>_DRK.lua` and its template `_master/entry/Tetsouo_DRK.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload` |
+| `shared/entry/drk.lua` | 33 | Entry point (the same for every character; `<Char>_DRK.lua` and its template `_master/entry/Tetsouo_DRK.lua` are one `include` of it): one line, `require('shared/utils/core/entry_kit').job('DRK')` (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`; DRK adds no step) |
 | `shared/jobs/drk/functions/DRK_PRECAST.lua` | 62 | `job_precast` (guard, cooldown, pending flags, WS handler, JA gear, FC) / `job_post_precast` (TP gear) |
 | `shared/jobs/drk/functions/DRK_MIDCAST.lua` | 150 | `job_midcast` (empty) / `job_post_midcast`: watchdog + `JOB_POST_MIDCAST_HANDLERS` (Dark, Enfeebling, Elemental) |
 | `shared/jobs/drk/functions/DRK_AFTERCAST.lua` | 86 | `job_aftercast` (watchdog, pending flags), empty `job_post_aftercast` |
@@ -68,26 +68,27 @@ function; line numbers are deliberately not used.
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as <Character>_DRK.lua
+    participant E as shared/entry/drk.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
-    GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG)
+    GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig via ConfigLoader, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
     M->>E: user_setup(): states, keybinds, UI, JCM, macrobook/lockstyle, dualbox
     M->>E: init_gear_sets() -> include drk/sets/drk_sets.lua
     E->>E: INIT_SYSTEMS, data_loader, message hooks
-    E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, require DRK_TP_CONFIG
+    E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.DRKTPConfig
     E->>E: EntryKit.load_job("DRK"): JobChangeManager.cancel_all()
     E->>F: load_job_files('DRK')
     E->>E: register_lockstyle_cancel("DRK", ...)
 ```
 
-- `DRK_TP_CONFIG` sets `_G.DRKTPConfig` itself; the entry only requires it.
+- `DRK_TP_CONFIG` sets `_G.DRKTPConfig` itself; `EntryKit.job` also assigns
+  the module it returns.
 - `ConfigLoader.load_ui_config` writes `_G.UIConfig`; `user_setup` reads
-  `_G.UIConfig.init_delay` with a 5.0 fallback.
+  `UIConfig.init_delay`.
 
-`user_setup()`: `DRKStates.configure()`, the keybinds stored in the global
+`user_setup()` (`EntryKit.job`, `shared/utils/core/entry_kit.lua`; DRK adds no step): `DRKStates.configure()`, the keybinds stored in the global
 `DRKKeybinds` and `bind_all()` (3 binds, the optional states, the common keys,
 then `show_intro()`), `KeybindUI.smart_init`, `JobChangeManager`
 initialisation + `EntryKit.macro_and_lockstyle` (macro book 0.2 s later, once

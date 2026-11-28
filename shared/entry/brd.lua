@@ -21,7 +21,7 @@
 ---   - Madrigal, Minuet, Prelude support
 ---
 --- Architecture Overview:
----   Main File (this) >> EntryKit.load_job_files >> Specialized Modules
+---   EntryKit.job >> EntryKit.load_job_files >> Specialized Modules
 ---
 --- Module Organization:
 ---   ├── <Character>/brd/sets/brd_sets.lua [Equipment Sets]
@@ -33,177 +33,39 @@
 ---   BRD_MOVEMENT
 ---============================================================================
 
----============================================================================
--- INITIALIZATION
----============================================================================
-
--- Load lockstyle timing configuration
--- Where the character's files are (_common/, <job>/, saved/; older config/ and sets/)
+-- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
+-- (shared/utils/core/entry_kit.lua), with BRD's song configs (before Mote-Include, so user_setup has them), song slots and song
+-- ownership
 local CharPaths = require('shared/utils/core/char_paths')
--- The hooks every entry shares (job_update, subjob change, unload, keybind error)
-local EntryKit = require('shared/utils/core/entry_kit')
+local UIConfig
 
--- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
-local LockstyleConfig, UIConfig = EntryKit.load_configs('BRD')
-
---- GearSwap entry hook: loads the BRD configs, Mote-Include, the shared systems
---- and the BRD modules. Called by GearSwap each time this job file is loaded.
---- @return void
-function get_sets()
-    -- PERFORMANCE PROFILING (enable with: //gs c perf start)
-    local Profiler = require('shared/utils/debug/performance_profiler')
-    Profiler.start('get_sets')
-
-    mote_include_version = 2
-
-    -- BRD-specific configs (BEFORE Mote-Include so they're available in user_setup)
-    _G.LockstyleConfig = LockstyleConfig
-    _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
-    _G.BRDTPConfig = require(CharPaths.module('job', 'BRD_TP_CONFIG', 'BRD'))
-    _G.BRDSongConfig = require(CharPaths.module('job', 'BRD_SONG_CONFIG', 'BRD'))
-    _G.BRDTimingConfig = require(CharPaths.module('job', 'BRD_TIMING_CONFIG', 'BRD'))
-
-    -- Eager-load song rotation manager so _G.update_brd_song_slots is available
-    -- when user_setup() schedules the initial UI population (avoids empty slots on reload)
-    require('shared/jobs/brd/functions/logic/song_rotation_manager')
-
-    -- Load Mote-Include first (calls user_setup and creates 'state')
-    include('Mote-Include.lua')
-    Profiler.mark('After Mote-Include')
-
-    -- the shared systems, the data, the spell / ability / weaponskill messages
-    EntryKit.after_mote(Profiler)
-
-    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
-    -- cancel registered
-    EntryKit.load_job('BRD', Profiler)
-
-    -- Initial macrobook/lockstyle are triggered from user_setup();
-    -- subjob changes go through JobChangeManager (job_sub_job_change).
-
-    Profiler.finish()
-end
-
----============================================================================
--- JOB CHANGE HANDLING
----============================================================================
-
---- Handle sub job change events (called by Mote-Include)
---- Coordinates lockstyle, macros, keybinds, and UI reload via JobChangeManager
---- @param newSubjob string New subjob
---- @param oldSubjob string Old subjob
---- @return void
-function job_sub_job_change(newSubjob, oldSubjob)
-    EntryKit.sub_job_change('BRD', newSubjob)
-end
-
----============================================================================
--- USER SETUP
----============================================================================
-
---- Configure states, keybinds, UI, song slots and the initial macrobook/lockstyle.
---- Called by Mote-Include from init_include() (inside include('Mote-Include.lua'),
---- before init_gear_sets) and again on every subjob change, before job_sub_job_change().
---- @return void
-function user_setup()
-    -- ==========================================================================
-    -- STATE DEFINITIONS (Loaded from BRD_STATES.lua)
-    -- ==========================================================================
-
-    local BRDStates = require(CharPaths.module('job', 'BRD_STATES', 'BRD'))
-    BRDStates.configure()
-
-    -- ==========================================================================
-    -- KEYBIND LOADING (Always executed after reload)
-    -- ==========================================================================
-    local success, keybinds = pcall(require, CharPaths.module('job', 'BRD_KEYBINDS', 'BRD'))
-    if success and keybinds then
-        BRDKeybinds = keybinds
-        BRDKeybinds.bind_all()
-    else
-        EntryKit.keybind_error('BRD', keybinds)
-    end
-
-    -- ==========================================================================
-    -- UI INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    local ui_success, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
-    if ui_success and KeybindUI then
-        local init_delay = (_G.UIConfig and _G.UIConfig.init_delay) or 5.0
-        KeybindUI.smart_init("BRD", init_delay)
-    end
-
-    -- ==========================================================================
-    -- JOB CHANGE MANAGER INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    if jcm_success and JobChangeManager then
-        -- Initialize with current job state
-        JobChangeManager.initialize()
-
-        EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)
-    end
-
-    -- ==========================================================================
-    -- SONG SLOTS INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    coroutine.schedule(function()
-        if _G.update_brd_song_slots then
-            _G.update_brd_song_slots()
-        end
-    end, UIConfig.init_delay + 0.5)
-
-    -- Which songs up are ours (end times of packet 0x063), against other
-    -- bards' and Trusts' songs: shared/jobs/brd/functions/logic/song_owner.lua
-    local owner_ok, SongOwner = pcall(require, 'shared/jobs/brd/functions/logic/song_owner')
-    if owner_ok and SongOwner then SongOwner.start() end
-
-    -- ==========================================================================
-    -- DUALBOX IPC (covers main job change - job_sub_job_change is subjob-only)
-    -- The require() triggers dualbox_manager auto-init which schedules the
-    -- correct IPC call once per gs reload (request_alt_job for MAIN role,
-    -- send_job_update for ALT role). Do NOT call them explicitly here.
-    -- ==========================================================================
-    pcall(require, 'shared/utils/dualbox/dualbox_manager')
-end
-
----============================================================================
--- STATE UPDATE HOOK
----============================================================================
-
---- Called by Mote-Include after state changes
---- Updates the song slots and the UI to reflect current state values
---- @param cmdParams table Parameters passed to Mote's handle_update
---- @param eventArgs table Mote event arguments (unused)
---- @return void
-function job_update(cmdParams, eventArgs)
-    -- Update song slots when SongMode changes (displays pack configuration)
+local function update_song_slots()
     if _G.update_brd_song_slots then
         _G.update_brd_song_slots()
     end
-    EntryKit.update_hud('BRD')
 end
 
----============================================================================
--- GEAR SET INITIALIZATION
----============================================================================
-
---- Load the BRD equipment sets.
---- Called by Mote-Include at the end of init_include(), after user_setup().
---- @return void
-function init_gear_sets()
-    include(CharPaths.relative('sets', 'brd_sets.lua', 'BRD'))
-end
-
----============================================================================
--- CLEANUP
----============================================================================
-
---- Called by GearSwap when this job file is unloaded (job change, reload).
---- Cancels pending job-change operations and unbinds the job keys.
---- @return void
-function file_unload()
+local _
+_, UIConfig = require('shared/utils/core/entry_kit').job('BRD', {
+    early_configs = true,
+    before_mote = function()
+        _G.BRDSongConfig = require(CharPaths.module('job', 'BRD_SONG_CONFIG', 'BRD'))
+        _G.BRDTimingConfig = require(CharPaths.module('job', 'BRD_TIMING_CONFIG', 'BRD'))
+        -- Eager-load song rotation manager so _G.update_brd_song_slots is available
+        -- when user_setup() schedules the initial UI population (avoids empty slots on reload)
+        require('shared/jobs/brd/functions/logic/song_rotation_manager')
+    end,
+    after_setup = function()
+        coroutine.schedule(update_song_slots, UIConfig.init_delay + 0.5)
+        -- Which songs up are ours (end times of packet 0x063), against other
+        -- bards' and Trusts' songs: shared/jobs/brd/functions/logic/song_owner.lua
+        local owner_ok, SongOwner = pcall(require, 'shared/jobs/brd/functions/logic/song_owner')
+        if owner_ok and SongOwner then SongOwner.start() end
+    end,
+    -- the song slots follow SongMode (they show the pack)
+    update = update_song_slots,
     -- the instrument skill-up loop stops with the job (logic/skillup.lua)
-    if _G.BRDSkillUp then pcall(_G.BRDSkillUp.cancel) end
-    EntryKit.unload(BRDKeybinds)
-end
+    unload = function()
+        if _G.BRDSkillUp then pcall(_G.BRDSkillUp.cancel) end
+    end,
+})

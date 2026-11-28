@@ -732,9 +732,9 @@ sends `lua <action> <addon>` when allowed and returns whether it did.
 
 | Addon | Job | Call |
 |---|---|---|
-| `rolltracker` | COR | `run('unload', ...)` in `shared/entry/cor.lua` `get_sets`, `run('load', ...)` in `file_unload` |
-| `bst-hud` | BST | `allowed` guard in the delayed load of `shared/entry/bst.lua` `user_setup`, `run('unload', ...)` in `file_unload` |
-| `pettp` | GEO | `run('load', ...)` in `shared/entry/geo.lua` `user_setup`, `run('unload', ...)` in `file_unload` |
+| `rolltracker` | COR | `run('unload', ...)` in the `configs` step of `shared/entry/cor.lua` (`get_sets`); `file_unload` (`unload` step) sends `lua load rolltracker` when that unload went out (`windower._cor_rolltracker_off`) |
+| `bst-hud` | BST | `allowed` guard in the delayed load of `shared/entry/bst.lua` (`after_setup` step of `user_setup`), `run('unload', ...)` in its `unload` step (`file_unload`) |
+| `pettp` | GEO | `run('load', ...)` in the `after_states` step of `shared/entry/geo.lua` (`user_setup`); `file_unload` (`unload` step) sends `lua unload pettp` when that load went out (`windower._geo_pettp_loaded`) |
 | `AzureSets` | BLU | `allowed` guard in `BLUAzureSets.load` (`blu/functions/logic/azure_sets.lua`), before the `windower._blu_azuresets_loaded` flag is set, so `unload` (which needs that flag) does nothing either |
 
 ---

@@ -21,7 +21,7 @@
 ---   - Comprehensive equipment set organization
 ---
 --- Architecture Overview:
----   Main File (this) >> EntryKit.load_job_files >> Specialized Modules
+---   EntryKit.job >> EntryKit.load_job_files >> Specialized Modules
 ---
 --- Module Organization:
 ---   ├── <Character>/cor/sets/cor_sets.lua [Equipment Sets]
@@ -37,53 +37,32 @@
 ---   - Incoming chunk (0xDD/0xDF): Party member job detection for automatic job bonuses
 ---============================================================================
 
----============================================================================
--- INITIALIZATION
----============================================================================
+-- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
+-- (shared/utils/core/entry_kit.lua), with COR's roll tracking and the rolltracker addon it replaces
+local function roll_tracker()
+    local ok, RollTracker = pcall(require, 'shared/jobs/cor/functions/logic/roll_tracker')
+    return ok and RollTracker or nil
+end
 
--- Load lockstyle timing configuration
--- Where the character's files are (_common/, <job>/, saved/; older config/ and sets/)
-local CharPaths = require('shared/utils/core/char_paths')
--- The hooks every entry shares (job_update, subjob change, unload, keybind error)
-local EntryKit = require('shared/utils/core/entry_kit')
-
--- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
-local LockstyleConfig, UIConfig = EntryKit.load_configs('COR')
-
--- PartyTracker is brought up from get_sets(), see init_party_tracking() below
-
---- Bring up party tracking and Phantom Roll detection.
----
---- Called from get_sets() and NOT from user_setup(): Mote-Include runs
---- user_setup() from inside init_include(), which is halfway through
---- include('Mote-Include.lua') - long before the COR files (EntryKit.load_job_files) and
---- INIT_SYSTEMS.lua exist. Roll detection used to be the last thing
---- user_setup() registered, so anything that threw earlier in that function
---- took it down with it, and the only symptom was a Phantom Roll that
---- reported nothing at all.
+--- PartyTracker and roll detection, from get_sets(): every dependency it needs exists by then.
 local function init_party_tracking()
     local pt_ok, PartyTracker = pcall(require, 'shared/jobs/cor/functions/logic/party_tracker')
     if not pt_ok then PartyTracker = nil end
-
     local mf_ok, MF = pcall(require, 'shared/utils/messages/message_formatter')
     if not mf_ok then MF = nil end
-
     if not PartyTracker then
         if MF then
             MF.show_error('[COR] PartyTracker failed to load - no roll detection')
         end
         return
     end
-
     local init_ok, init_err = pcall(PartyTracker.init)
     if init_ok then
         return
     end
-
     if MF then
         MF.show_error('[COR] PartyTracker.init() failed: ' .. tostring(init_err))
     end
-
     -- init() unregisters the previous handler before it rebuilds anything, so a
     -- throw partway through leaves NO roll detection at all. The party job cache
     -- is a nicety - the roll report is the point - so re-arm the listener alone.
@@ -93,179 +72,7 @@ local function init_party_tracking()
     end
 end
 
---- GearSwap entry hook: cleans old COR event handlers, loads Mote-Include,
---- the shared systems, the COR modules and party/roll tracking.
---- Called by GearSwap each time this job file is loaded.
---- @return void
-function get_sets()
-    -- PERFORMANCE PROFILING (enable with: //gs c perf start)
-    local Profiler = require('shared/utils/debug/performance_profiler')
-    Profiler.start('get_sets')
-
-    -- Old events need no cleanup here: GearSwap unregisters every event of the
-    -- previous job file at load (refresh.lua), and _G is a new environment.
-    -- Clear pending roll state
-    _G.cor_pending_roll_value = nil
-
-    -- ============================================
-    -- CLEANUP OLD COR ROLLTRACKER STATE
-    -- ============================================
-    -- Clear RollTracker state in case we're reloading COR after playing another job
-    -- This ensures clean slate for roll tracking
-    local rt_success, RollTracker = pcall(require, 'shared/jobs/cor/functions/logic/roll_tracker')
-    if rt_success and RollTracker and RollTracker.cleanup then
-        RollTracker.cleanup()
-    end
-
-    mote_include_version = 2
-    include('Mote-Include.lua')
-    Profiler.mark('After Mote-Include')
-    -- the shared systems, the data, the spell / ability / weaponskill messages
-    EntryKit.after_mote(Profiler)
-
-    _G.LockstyleConfig = LockstyleConfig
-    _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
-
-    -- COR-specific configs
-    _G.CORTPConfig = require(CharPaths.module('job', 'COR_TP_CONFIG', 'COR'))
-
-    -- Cancel any pending operations from previous job (including ALL job lockstyles)
-    local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    if jcm_success and JobChangeManager then
-        JobChangeManager.cancel_all()
-    end
-
-    -- Unload external rolltracker addon (prevents conflict with integrated roll tracker)
-    -- Will be reloaded in file_unload() once the game is off COR
-    -- (both skipped with rolltracker = false in _common/tools/ADDONS_CONFIG.lua).
-    -- The flag lives on `windower`, which outlives the job sandbox: a subjob
-    -- change or //gs reload of COR sends neither the load nor the unload again
-    -- (same pattern as BLU, shared/jobs/blu/functions/logic/azure_sets.lua).
-    if not windower._cor_rolltracker_off then
-        windower._cor_rolltracker_off = require('shared/utils/core/job_addons').run('unload', 'rolltracker')
-    end
-
-    -- the job's hook files, lockstyle and macro book (EntryKit.load_job_files)
-    EntryKit.load_job_files('COR')
-    Profiler.mark('After cor files')
-
-    -- Register COR lockstyle cancel function
-    if jcm_success and JobChangeManager and cancel_cor_lockstyle_operations then
-        JobChangeManager.register_lockstyle_cancel("COR", cancel_cor_lockstyle_operations)
-    end
-
-    -- Party tracking + roll detection. Here, after the COR files, because
-    -- every dependency it needs exists by this point in get_sets().
-    init_party_tracking()
-
-    -- Initial macrobook/lockstyle are triggered from user_setup();
-    -- subjob changes go through JobChangeManager (job_sub_job_change).
-
-    Profiler.finish()
-end
-
----============================================================================
--- JOB CHANGE HANDLING
----============================================================================
-
---- Handle sub job change events (called by Mote-Include)
---- Coordinates lockstyle, macros, keybinds, and UI reload via JobChangeManager
---- @param newSubjob string New subjob
---- @param oldSubjob string Old subjob
---- @return void
-function job_sub_job_change(newSubjob, oldSubjob)
-    EntryKit.sub_job_change('COR', newSubjob)
-end
-
----============================================================================
--- USER SETUP
----============================================================================
-
---- Configure states, keybinds, UI and macrobook/lockstyle.
---- Called by Mote-Include from init_include() (inside include('Mote-Include.lua'),
---- before init_gear_sets) and again on every subjob change, before job_sub_job_change().
---- @return void
-function user_setup()
-    -- ==========================================================================
-    -- STATE DEFINITIONS (Loaded from COR_STATES.lua)
-    -- ==========================================================================
-    local CORStates = require(CharPaths.module('job', 'COR_STATES', 'COR'))
-    CORStates.configure()
-
-    -- ==========================================================================
-    -- KEYBIND LOADING (Always executed after reload)
-    -- ==========================================================================
-    local success, keybinds = pcall(require, CharPaths.module('job', 'COR_KEYBINDS', 'COR'))
-    if success and keybinds then
-        CORKeybinds = keybinds
-        CORKeybinds.bind_all()
-    else
-        EntryKit.keybind_error('COR', keybinds)
-    end
-
-    -- ==========================================================================
-    -- UI INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    local ui_success, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
-    if ui_success and KeybindUI then
-        local init_delay = (_G.UIConfig and _G.UIConfig.init_delay) or 5.0
-        KeybindUI.smart_init("COR", init_delay)
-    end
-
-    -- ==========================================================================
-    -- JOB CHANGE MANAGER INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    if jcm_success and JobChangeManager then
-        -- Initialize with current job state (the macro book and lockstyle are
-        -- chosen once, below)
-        JobChangeManager.initialize()
-    end
-
-    -- ==========================================================================
-    -- DUALBOX IPC (covers main job change - job_sub_job_change is subjob-only)
-    -- The require() triggers dualbox_manager auto-init which schedules the
-    -- correct IPC call once per gs reload (request_alt_job for MAIN role,
-    -- send_job_update for ALT role). Do NOT call them explicitly here.
-    -- ==========================================================================
-    pcall(require, 'shared/utils/dualbox/dualbox_manager')
-
-    EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)
-end
-
----============================================================================
---- STATE UPDATE HOOK
----============================================================================
-
---- Called by Mote-Include after state changes
---- Updates the UI to reflect current state values
---- @param cmdParams table Parameters passed to Mote's handle_update
---- @param eventArgs table Mote event arguments (unused)
---- @return void
-function job_update(cmdParams, eventArgs)
-    EntryKit.update_hud('COR')
-end
-
----============================================================================
--- GEAR SET INITIALIZATION
----============================================================================
-
---- Load the COR equipment sets.
---- Called by Mote-Include at the end of init_include(), after user_setup().
---- @return void
-function init_gear_sets()
-    include(CharPaths.relative('sets', 'cor_sets.lua', 'COR'))
-end
-
----============================================================================
--- CLEANUP
----============================================================================
-
---- Load rolltracker back once the game is off COR (COR unloads it on load to
---- prevent conflicts with the integrated tracker). If the user doesn't have
---- rolltracker, this fails silently.
---- @param next_file string|nil See file_unload
---- @return void
+--- The rolltracker addon comes back once the game is off COR.
 local function release_rolltracker(next_file)
     if not windower._cor_rolltracker_off then return end
     local function reload_rolltracker()
@@ -286,30 +93,34 @@ local function release_rolltracker(next_file)
     end, 2)
 end
 
---- Called by GearSwap when this job file is unloaded (job change, reload).
---- Removes roll/party tracking, reloads the rolltracker addon, cancels
---- pending job-change operations and unbinds keys.
---- @param next_file string|nil The job file being unloaded, as GearSwap passes it (refresh.lua
----   user_pcall2('file_unload', current_file)); nil when the GearSwap addon itself is unloaded
----   (gearswap.lua): only that nil is read here
---- @return void
-function file_unload(next_file)
-    -- Cleanup roll detection handler (PartyTracker.init_roll_listener, from get_sets)
-    pcall(function() require('shared/utils/core/action_listener').off('cor_roll') end)
-
-    -- Cleanup RollTracker (clear all roll state and globals)
-    local rt_success, RollTracker = pcall(require, 'shared/jobs/cor/functions/logic/roll_tracker')
-    if rt_success and RollTracker and RollTracker.cleanup then
-        RollTracker.cleanup()
-    end
-
-    -- Cleanup PartyTracker (unregister event handlers and clear state)
-    local pt_ok, PartyTracker = pcall(require, 'shared/jobs/cor/functions/logic/party_tracker')
-    if pt_ok and PartyTracker and PartyTracker.cleanup then
-        PartyTracker.cleanup()
-    end
-
-    release_rolltracker(next_file)
-
-    EntryKit.unload(CORKeybinds)
-end
+require('shared/utils/core/entry_kit').job('COR', {
+    -- A clean slate for roll tracking (COR loaded again after another job). Old events need no cleanup: GearSwap
+    -- unregisters every event of the previous job file at load (refresh.lua), and _G is a new environment.
+    before_mote = function()
+        _G.cor_pending_roll_value = nil
+        local RollTracker = roll_tracker()
+        if RollTracker and RollTracker.cleanup then RollTracker.cleanup() end
+    end,
+    -- The rolltracker addon would conflict with the integrated roll tracker: unloaded here, loaded again by
+    -- file_unload once the game is off COR (both skipped with rolltracker = false in
+    -- _common/tools/ADDONS_CONFIG.lua). The flag lives on `windower`, which outlives the job sandbox: a subjob
+    -- change or //gs reload of COR sends neither the load nor the unload again (same pattern as BLU,
+    -- shared/jobs/blu/functions/logic/azure_sets.lua).
+    configs = function()
+        if not windower._cor_rolltracker_off then
+            windower._cor_rolltracker_off = require('shared/utils/core/job_addons').run('unload', 'rolltracker')
+        end
+    end,
+    after_load = init_party_tracking,
+    unload = function(next_file)
+        -- the roll detection handler (PartyTracker.init_roll_listener, from get_sets)
+        pcall(function() require('shared/utils/core/action_listener').off('cor_roll') end)
+        -- every roll state and global
+        local RollTracker = roll_tracker()
+        if RollTracker and RollTracker.cleanup then RollTracker.cleanup() end
+        -- PartyTracker's event handlers and state
+        local pt_ok, PartyTracker = pcall(require, 'shared/jobs/cor/functions/logic/party_tracker')
+        if pt_ok and PartyTracker and PartyTracker.cleanup then PartyTracker.cleanup() end
+        release_rolltracker(next_file)
+    end,
+})

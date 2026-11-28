@@ -33,7 +33,7 @@ function, not a line number.
 
 | Path | Role |
 |------|------|
-| `shared/entry/blm.lua` (244 lines) | Entry point (the same for every character; `<Char>_BLM.lua` and its template `_master/entry/Tetsouo_BLM.lua` are one `include` of it): config preload at file level, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD refresh only), `init_gear_sets`, `file_unload`; the hooks every entry shares come from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/blm.lua` (39 lines) | Entry point (the same for every character; `<Char>_BLM.lua` and its template `_master/entry/Tetsouo_BLM.lua` are one `include` of it): one line, `require('shared/utils/core/entry_kit').job('BLM')` (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`; BLM adds no step) |
 | `shared/jobs/blm/functions/blm_functions.lua` (218 lines) | What BLM defines besides its hook files, loaded last of the job files (`JOB_FILES` `own`, `shared/utils/core/entry_kit.lua`): lazy logic loaders, globals `BuffSelf` (calls the common `BuffCommand.apply()`), `refine_various_spells`, `checkArts`, `CastStorm` |
 | `shared/jobs/blm/functions/BLM_PRECAST.lua` | `job_precast` (guard, `check_recast_or_refine`, `checkArts`, WS) / `job_post_precast` (TP gear) |
 | `shared/jobs/blm/functions/BLM_MIDCAST.lua` | `job_midcast` (empty) / `job_post_midcast`: builds a context and dispatches to the router |
@@ -82,7 +82,8 @@ through `CharPaths.relative`. No other overlay has BLM files.
 
 ### Load sequence
 
-GearSwap runs the entry file chunk, then calls `get_sets()`. Mote-Include runs
+GearSwap runs the entry file chunk (`EntryKit.job('BLM')`, which defines the
+six hooks), then calls `get_sets()`. Mote-Include runs
 `init_include()` while it is being included, and that calls `user_setup()` and
 `init_gear_sets()`: both run **before** `INIT_SYSTEMS` and before any BLM hook
 file exists.
@@ -90,22 +91,22 @@ file exists.
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as shared/entry/blm.lua
+    participant E as shared/entry/blm.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
-    GS->>E: file chunk: LOCKSTYLE_CONFIG, UIConfig (ConfigLoader), REGION_CONFIG
+    GS->>E: file chunk: LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig (ConfigLoader), JCM, UI_MANAGER
     GS->>E: get_sets()
     E->>M: include('Mote-Include.lua')
     M->>E: user_setup(): states, keybinds (+ show_intro), HUD, JobChangeManager, EntryKit.macro_and_lockstyle, dualbox_manager
     M->>E: init_gear_sets(): include('blm/sets/blm_sets.lua')
     E->>E: INIT_SYSTEMS, data_loader, spell / ability / WS message hooks
-    E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, require BLM_TP_CONFIG
+    E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.BLMTPConfig
     E->>E: EntryKit.load_job("BLM"): JobChangeManager.cancel_all()
     E->>F: load_job_files('BLM') (message_buffs, 8 hook files, blm_functions.lua)
     E->>E: JobChangeManager.register_lockstyle_cancel("BLM", ...)
 ```
 
-`user_setup()`:
+`user_setup()` (`EntryKit.job`, `shared/utils/core/entry_kit.lua`):
 
 1. `BLMStates.configure()` creates every state (all values reset on every load
    and every subjob change).
@@ -115,7 +116,8 @@ sequenceDiagram
    the global `BLMKeybinds`, then `bind_all()`, which validates, binds and
    calls `show_intro()`. A failed require prints the Lua error
    (`EntryKit.keybind_error`).
-3. `KeybindUI.smart_init("BLM", UIConfig.init_delay)`.
+3. `KeybindUI.smart_init("BLM", UIConfig.init_delay)` (`[BLM] Failed to load
+   UI_MANAGER` when it did not load).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
    (`shared/utils/core/entry_kit.lua`). `select_default_macro_book` and
@@ -461,7 +463,7 @@ set's mode child, so Comet and Meteor in Magic Burst mode wear `MagicBurst`
 - Module state: `TimingGuards` (last replacement, per-key cast times, last
   announce), `StormManager` last cast time, lazy-load locals. All live in the
   sandbox and die on `gs reload` (the `require` cache is on the sandbox `_G`).
-  `ModuleCache` is installed by `config_loader.lua`, which the entry requires
+  `ModuleCache` is installed by `config_loader.lua`, which `EntryKit.job` requires
   at file level, so modules required inside `user_setup` are cached too.
 - `_G` written: the Mote hooks (`job_precast`, `job_post_precast`,
   `job_midcast`, `job_post_midcast`, `job_aftercast`, `job_status_change`,

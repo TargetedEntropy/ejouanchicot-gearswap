@@ -45,6 +45,9 @@ local JCM = {
 }
 package.loaded['shared/utils/core/job_change_manager'] = JCM
 
+-- char_paths, which entry_kit requires first: a stub, filled in below (section EntryKit.job)
+local CharPathsStub = {}
+package.loaded['shared/utils/core/char_paths'] = CharPathsStub
 local EntryKit = require('shared/utils/core/entry_kit')
 
 -- 1. keybinds failed: the two functions do not exist during user_setup
@@ -134,5 +137,73 @@ local war = EntryKit.job_files('WAR')
 check('WAR: the buff messages first', war[1], '../shared/utils/messages/formatters/magic/message_buffs.lua')
 check('WAR: MOVEMENT after COMMANDS', war[#war], '../shared/jobs/war/functions/WAR_MOVEMENT.lua')
 check('BRD: no buff messages', EntryKit.job_files('BRD')[1], '../shared/jobs/brd/functions/BRD_PRECAST.lua')
+
+-- EntryKit.job: the six hooks in their order, with a job's steps at their places
+local trace = {}
+local function log(what) trace[#trace + 1] = what end
+local function stub(name, t) package.loaded[name] = t return t end
+CharPathsStub.module = function(kind, name) return 'cfg/' .. name end
+CharPathsStub.relative = function(kind, file) return 'sets/' .. file end
+CharPathsStub.name = function() return 'Tester' end
+stub('cfg/LOCKSTYLE_CONFIG', {initial_load_delay = 8})
+stub('cfg/RECAST_CONFIG', {recast = true})
+stub('cfg/TST_TP_CONFIG', {tp = true})
+stub('cfg/TST_STATES', {configure = function() log('states') end})
+stub('cfg/TST_KEYBINDS', {bind_all = function() log('bind') end, unbind_all = function() log('unbind') end})
+stub('shared/utils/config/config_loader', {load_ui_config = function() return {init_delay = 3} end})
+stub('shared/utils/ui/UI_MANAGER', {smart_init = function(job, delay) log('hud ' .. job .. ' ' .. delay) end,
+    update = function() log('hud update') end})
+stub('shared/utils/debug/performance_profiler', {start = function() end, mark = function() end, finish = function() end,
+    create_timer = function() return function() end end})
+stub('shared/utils/data/data_loader', {})
+stub('shared/utils/lockstyle/lockstyle_manager', {install = function(job) log('lockstyle ' .. job) end})
+stub('shared/utils/macrobook/macrobook_manager', {install = function() end})
+stub('shared/utils/dualbox/dualbox_manager', {})
+JCM.initialize = function() log('jcm') end
+JCM.cancel_all = function() log('cancel') end
+JCM.register_lockstyle_cancel = function() end
+JCM.on_job_change = function(main, sub) log('change ' .. sub) end
+include = function(file)
+    if file == 'Mote-Include.lua' then
+        log('mote')
+        user_setup()
+        init_gear_sets()
+    elseif file:find('sets/') then
+        log('sets ' .. file)
+    elseif file:find('/jobs/tst/') then
+        log('file ' .. file:match('([^/]+)%.lua$'))
+    end
+end
+EntryKit.macro_and_lockstyle = function() log('macro') end
+local steps = {}
+for _, k in ipairs({'before_mote', 'configs', 'after_load', 'after_sets', 'after_states', 'after_ui', 'after_setup',
+        'update', 'unload'}) do
+    steps[k] = function(arg) log(k .. (arg ~= nil and (' ' .. tostring(arg == 'next.lua' and arg or type(arg))) or '')) end
+end
+EntryKit.job('TST', steps)
+check('get_sets defined', type(get_sets), 'function')
+for _, n in ipairs({'init_gear_sets', 'user_setup', 'job_sub_job_change', 'job_update', 'file_unload'}) do
+    check(n .. ' defined', type(_G[n]), 'function')
+end
+get_sets()
+local order = table.concat(trace, ', ')
+check('get_sets order', order:match('^(.-), states'), 'before_mote, mote')
+T.ok('user_setup: states, its step, keys, HUD, after_ui, JobChangeManager, macro book, after_setup',
+    order:find('states, after_states, bind, hud TST 3, after_ui table, jcm, macro, after_setup', 1, true), order)
+T.ok('init_gear_sets after user_setup: the sets, then after_sets', order:find('after_setup, sets sets/tst_sets.lua, after_sets', 1, true), order)
+T.ok('then the common configs, configs(), the job\'s files, after_load',
+    order:find('after_sets, configs, cancel, lockstyle TST, file TST_PRECAST', 1, true) and order:find('after_load$'), order)
+check('the common configs', _G.RECAST_CONFIG and _G.TSTTPConfig and _G.TSTTPConfig.tp, true)
+check('the keybind module', _G.TSTKeybinds ~= nil, true)
+trace = {}
+job_update()
+check('job_update: the step, then the HUD', table.concat(trace, ', '), 'update, hud update')
+trace = {}
+job_sub_job_change('NIN', 'SAM')
+check('job_sub_job_change', table.concat(trace, ', '), 'change NIN')
+trace = {}
+file_unload('next.lua')
+check('file_unload: the job\'s releases first, then the job change cancelled and the keys', table.concat(trace, ', '),
+    'unload next.lua, cancel, unbind')
 
 T.done()

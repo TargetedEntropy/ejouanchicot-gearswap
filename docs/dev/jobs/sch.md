@@ -32,7 +32,7 @@ What SCH adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/sch.lua` | 140 | Entry (the same for every character; `<Char>_SCH.lua` and its template `_master/entry/Tetsouo_SCH.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
+| `shared/entry/sch.lua` | 29 | Entry (the same for every character; `<Char>_SCH.lua` and its template `_master/entry/Tetsouo_SCH.lua` are one `include` of it): one line, `require('shared/utils/core/entry_kit').job('SCH')` (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`; SCH adds no step) |
 | `shared/jobs/sch/functions/SCH_PRECAST.lua` | 110 | `job_precast` (guard, tier refiner or cooldown, stratagem charges, WS handler) / `job_post_precast` (TP gear, grimoire layers) |
 | `shared/jobs/sch/functions/SCH_MIDCAST.lua` | 134 | `job_midcast` (empty) / `job_post_midcast` (MidcastManager per skill, grimoire layers) |
 | `shared/jobs/sch/functions/SCH_AFTERCAST.lua` | 21 | `LifecycleManager.aftercast()` |
@@ -77,16 +77,15 @@ exemptions in `cooldown_checker.lua`.
 Same shape as PUP / BLU ([core lifecycle](../systems/core-lifecycle.md#how-a-job-file-boots)).
 `user_setup()`: `SCHStates.configure()`, `SCH_KEYBINDS` into the global
 `SCHKeybinds` and `bind_all()` (a failed require prints
-`[SCH] Keybinds failed to load: <error>`), `KeybindUI.smart_init("SCH")`,
+`[SCH] Keybinds failed to load: <error>`), `KeybindUI.smart_init("SCH", UIConfig.init_delay)`,
 `JobChangeManager.initialize()`, `EntryKit.macro_and_lockstyle` (macro book
 0.2 s later, once `EntryKit.load_job_files` has run, lockstyle after `initial_load_delay`),
-`dualbox_manager`. `get_sets()` sets `_G.LockstyleConfig`,
-`_G.RECAST_CONFIG`, `_G.SCHTPConfig`; then `EntryKit.load_job` cancels pending job-change work,
+`dualbox_manager`. `get_sets()` runs `EntryKit.after_mote`, sets
+`_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`, `_G.SCHTPConfig`; then `EntryKit.load_job` cancels pending job-change work,
 loads the job files and registers `cancel_sch_lockstyle_operations`. `job_update`
 repaints the HUD. `file_unload`: `JobChangeManager.cancel_all()`, then
-`SCHKeybinds.unbind_all()`. These hooks, the keybind error and
-`job_sub_job_change` are the shared `EntryKit` calls
-(`shared/utils/core/entry_kit.lua`).
+`SCHKeybinds.unbind_all()`. All six hooks are defined by
+`EntryKit.job('SCH')` (`shared/utils/core/entry_kit.lua`); SCH adds no step.
 
 ### Arts
 

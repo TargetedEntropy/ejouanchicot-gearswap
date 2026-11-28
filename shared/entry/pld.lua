@@ -15,7 +15,7 @@
 ---   • UI + Keybind system
 ---
 --- Architecture:
----   Main File >> EntryKit.load_job_files >> Hooks + 5 Logic Modules
+---   EntryKit.job >> EntryKit.load_job_files >> Hooks + 5 Logic Modules
 ---
 --- Modules:
 ---   • Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
@@ -29,194 +29,49 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---============================================================================
 
----============================================================================
---- INITIALIZATION
----============================================================================
-
--- Load global configurations with fallbacks
--- Where the character's files are (_common/, <job>/, saved/; older config/ and sets/)
+-- get_sets, init_gear_sets, user_setup, job_sub_job_change, job_update and file_unload: the same for every job
+-- (shared/utils/core/entry_kit.lua), with PLD's Blue Magic configuration, weaponskill slots and Ampulla lock. PLD_TP_CONFIG.lua
+-- also sets _G.PLDTPConfig itself.
 local CharPaths = require('shared/utils/core/char_paths')
--- The hooks every entry shares (job_update, subjob change, unload, keybind error)
-local EntryKit = require('shared/utils/core/entry_kit')
 
--- the lockstyle delays, the region colours, the HUD settings (EntryKit.load_configs)
-local LockstyleConfig, UIConfig = EntryKit.load_configs('PLD')
+local function ampulla_lock()
+    local ok, AmpullaLock = pcall(require, 'shared/utils/equipment/ampulla_lock')
+    return ok and AmpullaLock or nil
+end
 
---- GearSwap entry hook: loads Mote-Include, the shared systems and the PLD modules.
---- Called by GearSwap each time this job file is loaded.
---- @return void
-function get_sets()
-    -- PERFORMANCE PROFILING (enable with: //gs c perf start)
-    local Profiler = require('shared/utils/debug/performance_profiler')
-    Profiler.start('get_sets')
-
-    mote_include_version = 2
-    include('Mote-Include.lua')
-    Profiler.mark('After Mote-Include')
-    -- the shared systems, the data, the spell / ability / weaponskill messages
-    EntryKit.after_mote(Profiler)
-
-    _G.LockstyleConfig = LockstyleConfig
-    _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
-
-    -- PLD-specific configs
-    -- Note: PLD_TP_CONFIG.lua exports _G.PLDTPConfig automatically
-    require(CharPaths.module('job', 'PLD_TP_CONFIG', 'PLD'))
-    _G.BluMagicConfig = require(CharPaths.module('job', 'PLD_BLU_MAGIC', 'PLD'))
-
-    -- Cancel any pending operations from previous job (including ALL job lockstyles)
-    local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    if jcm_success and JobChangeManager then
-        JobChangeManager.cancel_all()
-    end
-
-    -- the job's hook files, lockstyle and macro book (EntryKit.load_job_files)
-    EntryKit.load_job_files('PLD')
-    Profiler.mark('After pld files')
-
-    -- Refresh the slots now set_builder can be loaded: PLDStates created them
-    -- during user_setup (the HUD needs them by then) with whatever weapon it
-    -- could resolve that early.
+local function rebuild_ws_slots()
     if _G.pld_rebuild_ws_slots then
         _G.pld_rebuild_ws_slots()
     end
-    -- Keybinds loaded via require() in user_setup() for better control
-
-    -- Register PLD lockstyle cancel function
-    if jcm_success and JobChangeManager and cancel_pld_lockstyle_operations then
-        JobChangeManager.register_lockstyle_cancel("PLD", cancel_pld_lockstyle_operations)
-    end
-
-    -- Initial macrobook/lockstyle are triggered from user_setup();
-    -- subjob changes go through JobChangeManager (job_sub_job_change).
-
-    Profiler.finish()
 end
 
----============================================================================
---- JOB CHANGE HANDLING
----============================================================================
-
---- Handle subjob change events
---- Coordinates lockstyle, macros, keybinds, and UI reload via JobChangeManager.
----
---- @param newSubjob string New subjob code
---- @param oldSubjob string Old subjob code
---- @return void
-function job_sub_job_change(newSubjob, oldSubjob)
-    EntryKit.sub_job_change('PLD', newSubjob)
-end
-
----============================================================================
---- SETUP FUNCTIONS
----============================================================================
-
---- Configure states, keybinds, UI and the initial macrobook/lockstyle.
---- Called by Mote-Include from init_include() (inside include('Mote-Include.lua'),
---- before init_gear_sets) and again on every subjob change, before job_sub_job_change().
---- @return void
-function user_setup()
-    -- ==========================================================================
-    -- STATE DEFINITIONS (Loaded from PLD_STATES.lua)
-    -- ==========================================================================
-
-    _G.PLDWSConfig = CharPaths.optional('job', 'PLD_WS_CONFIG', 'PLD')
-
-    local PLDStates = require(CharPaths.module('job', 'PLD_STATES', 'PLD'))
-    PLDStates.configure()
-
-    -- Fill state.WS1/WS2 for the weapon in hand. Reached on a subjob change,
-    -- which re-runs user_setup() in a sandbox where the job modules are
-    -- already loaded; on a cold load the function does not exist yet and
-    -- get_sets() does it instead, right after including them.
-    if _G.pld_rebuild_ws_slots then
-        _G.pld_rebuild_ws_slots()
-    end
-
-    -- configure() has just put HybridMode back to its default, so any ammo
-    -- lock still held by the sandbox belongs to a stance that is no longer
-    -- selected. GearSwap slot locks outlive the job file; nothing else would
-    -- ever give the slot back.
-    local al_ok, AmpullaLock = pcall(require, 'shared/utils/equipment/ampulla_lock')
-    if al_ok and AmpullaLock then
-        AmpullaLock.apply(state.HybridMode and state.HybridMode.value)
-    end
-
-    -- ==========================================================================
-    -- KEYBINDS LOADING (Always executed after reload)
-    -- ==========================================================================
-    local success, keybinds = pcall(require, CharPaths.module('job', 'PLD_KEYBINDS', 'PLD'))
-    if success and keybinds then
-        PLDKeybinds = keybinds
-        PLDKeybinds.bind_all()
-    else
-        EntryKit.keybind_error('PLD', keybinds)
-    end
-
-    -- ==========================================================================
-    -- UI INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    local ui_success, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
-    if ui_success and KeybindUI then
-        local init_delay = (_G.UIConfig and _G.UIConfig.init_delay) or 5.0
-        KeybindUI.smart_init("PLD", init_delay)
-    end
-
-    -- ==========================================================================
-    -- JOB CHANGE MANAGER INITIALIZATION (Always executed after reload)
-    -- ==========================================================================
-    local jcm_success, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
-    if jcm_success and JobChangeManager then
-        -- Initialize with current job state
-        JobChangeManager.initialize()
-
-        EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)
-    end
-
-    -- ==========================================================================
-    -- DUALBOX IPC (covers main job change - job_sub_job_change is subjob-only)
-    -- The require() triggers dualbox_manager auto-init which schedules the
-    -- correct IPC call once per gs reload (request_alt_job for MAIN role,
-    -- send_job_update for ALT role). Do NOT call them explicitly here.
-    -- ==========================================================================
-    pcall(require, 'shared/utils/dualbox/dualbox_manager')
-end
-
----============================================================================
---- STATE UPDATE HOOK
----============================================================================
-
---- Called by Mote-Include after state changes
---- Updates the UI to reflect current state values
---- @param cmdParams table Parameters passed to Mote's handle_update
---- @param eventArgs table Mote event arguments (unused)
---- @return void
-function job_update(cmdParams, eventArgs)
-    EntryKit.update_hud('PLD')
-end
-
---- Load the PLD equipment sets.
---- Called by Mote-Include at the end of init_include(), after user_setup().
---- @return void
-function init_gear_sets()
-    include(CharPaths.relative('sets', 'pld_sets.lua', 'PLD'))
-end
-
---- Called by GearSwap when this job file is unloaded (job change, reload).
---- Releases the ammo lock first, then cancels pending job-change operations
---- and unbinds the job keys.
---- @return void
-function file_unload()
-    -- Give the ammo slot back before the next job file loads: a GearSwap slot
-    -- lock survives a job change, and nothing on the other side knows it.
-    -- First, before anything else in here can throw: GearSwap wraps the whole
-    -- of file_unload in a single pcall (engine flow.lua:339-348), so an error
-    -- in the cleanup below would skip this and leak the slot lock into the
-    -- next job, which has no way to know it exists.
-    local al_ok, AmpullaLock = pcall(require, 'shared/utils/equipment/ampulla_lock')
-    if al_ok and AmpullaLock then
-        AmpullaLock.release()
-    end
-
-    EntryKit.unload(PLDKeybinds)
-end
+require('shared/utils/core/entry_kit').job('PLD', {
+    -- before user_setup: PLDStates builds state.WS1/WS2 from it
+    before_mote = function()
+        _G.PLDWSConfig = CharPaths.optional('job', 'PLD_WS_CONFIG', 'PLD')
+    end,
+    configs = function()
+        _G.BluMagicConfig = require(CharPaths.module('job', 'PLD_BLU_MAGIC', 'PLD'))
+    end,
+    -- Refresh the slots now set_builder can be loaded: PLDStates created them during user_setup (the HUD needs them
+    -- by then) with whatever weapon it could resolve that early.
+    after_load = rebuild_ws_slots,
+    after_states = function()
+        -- Fill state.WS1/WS2 for the weapon in hand. Reached on a subjob change, which re-runs user_setup() in a
+        -- sandbox where the job modules are already loaded; on a cold load the function does not exist yet and
+        -- get_sets() does it instead (after_load).
+        rebuild_ws_slots()
+        -- configure() has just put HybridMode back to its default, so any ammo lock still held by the sandbox
+        -- belongs to a stance that is no longer selected. GearSwap slot locks outlive the job file; nothing else
+        -- would ever give the slot back.
+        local AmpullaLock = ampulla_lock()
+        if AmpullaLock then AmpullaLock.apply(state.HybridMode and state.HybridMode.value) end
+    end,
+    -- Give the ammo slot back before the next job file loads: a GearSwap slot lock survives a job change, and
+    -- nothing on the other side knows it. First in file_unload: GearSwap wraps the whole of it in a single pcall
+    -- (engine flow.lua:339-348), so an error after it would leak the slot lock into the next job.
+    unload = function()
+        local AmpullaLock = ampulla_lock()
+        if AmpullaLock then AmpullaLock.release() end
+    end,
+})

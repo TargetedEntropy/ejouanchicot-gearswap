@@ -517,7 +517,7 @@ The coding standard, as reviews enforce it:
 | Path | Role |
 |---|---|
 | `data/<Char>/<Char>_<JOB>.lua` (template `_master/entry/Tetsouo_<JOB>.lua`, 15 lines) | Character entry, the file GearSwap opens: a header and one statement, `include('../shared/entry/<job>.lua')` |
-| `shared/entry/<job>.lua` | Entry code, the same for every character: a loader (`get_sets`, `user_setup`, `init_gear_sets`, `job_sub_job_change`, `job_update`, `file_unload`) that finds the character's files through `shared/utils/core/char_paths.lua`; the parts every entry writes the same way are calls to `shared/utils/core/entry_kit.lua` |
+| `shared/entry/<job>.lua` | Entry code, the same for every character: one `EntryKit.job('<JOB>', spec)` call (`shared/utils/core/entry_kit.lua`), which defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload` and finds the character's files through `shared/utils/core/char_paths.lua`; the spec holds only the job's own steps |
 | `shared/jobs/<job>/functions/<JOB>_PRECAST.lua` ... `_COMMANDS.lua` | 8 hook modules (PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS, COMMANDS), plus `_PET_MIDCAST` on BST/DRG/PUP/SMN and `_MOVEMENT` on BRD/COR/WAR. `EntryKit.load_job_files` (`shared/utils/core/entry_kit.lua`) includes them; its `JOB_FILES` table lists each job's extras |
 | `shared/jobs/<job>/functions/<job>_functions.lua` | BLM and THF only: what the job defines besides its hook files, loaded after them (`JOB_FILES` `own`) |
 | `shared/jobs/<job>/functions/logic/` | Job logic called by the hook modules |
@@ -589,19 +589,25 @@ The files to create or touch:
       differs from the default (`message_buffs.lua` plus the 8 hook modules):
       `buff_messages = false`, `pet_midcast`, `movement`, or `own` for a
       `<job>_functions.lua`.
-- [ ] `shared/entry/<job>.lua`: copy a similar shared entry; reach every
-      character file through `CharPaths` (`CharPaths.module('job',
-      '<JOB>_STATES', '<JOB>')`, `CharPaths.relative('sets',
-      '<job>_sets.lua', '<JOB>')`, `CharPaths.name()`), never a hard-coded
-      character name; require `char_paths` first (it installs the
-      require cache), then `config_loader`, before the other shared
-      modules: `EntryKit.load_configs('<JOB>')` at the chunk level,
-      `EntryKit.after_mote(Profiler)` right after Mote-Include,
-      `EntryKit.load_job('<JOB>', Profiler)` for the job files.
+- [ ] `shared/entry/<job>.lua`: one `EntryKit.job('<JOB>', spec)` call;
+      copy a similar entry (`shared/entry/sam.lua` when the job adds
+      nothing: `require('shared/utils/core/entry_kit').job('<JOB>')`;
+      `war.lua` for a slot lock, `brd.lua` / `bst.lua` for configs `user_setup`
+      reads). Put only the job's own steps in the spec (`before_mote`,
+      `early_configs`, `tp_config = false`, `configs`, `after_load`,
+      `after_sets`, `after_states`, `keybinds_delay`, `after_ui`,
+      `after_setup`, `update`, `unload`; the list is the header of
+      `EntryKit.job`); a slot lock is released in `unload`, which runs
+      first. A step reaches character files through `CharPaths`
+      (`CharPaths.module('job', '<JOB>_..._CONFIG', '<JOB>')`), never a
+      hard-coded character name; require `char_paths` before other shared
+      modules (it installs the require cache).
 - [ ] `_master/entry/Tetsouo_<JOB>.lua`: copy another one-line entry and
       change the job (`include('../shared/entry/<job>.lua')`).
 - [ ] `_master/config/<job>/`: **every** file the shared entry requires
-      without `pcall` must exist (PUP did not load until 2026-09-29 for that
+      without `pcall` must exist (`EntryKit.job`: `<JOB>_STATES`,
+      `<JOB>_TP_CONFIG` unless `tp_config = false`; `RECAST_CONFIG` in
+      `_common/`; plus what the job's steps require) (PUP did not load until 2026-09-29 for that
       reason: its entry required files that did not exist).
 - [ ] `shared/data/alt/<JOB>_ALT_COMMANDS.lua` if the job should answer
       dual-box alt commands.

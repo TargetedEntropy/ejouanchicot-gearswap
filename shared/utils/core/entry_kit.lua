@@ -13,6 +13,10 @@
 --- @date    Created: 2026-10-15
 ---============================================================================
 
+-- First: char_paths installs the require cache (ModuleCache), so that every module required from here on is
+-- loaded once per sandbox. A one-line entry requires this file before anything else.
+require('shared/utils/core/char_paths')
+
 local EntryKit = {}
 
 -- after user_setup(), get_sets() has loaded the job's files by then (load_job)
@@ -249,6 +253,130 @@ function EntryKit.macro_and_lockstyle(lockstyle_delay)
             coroutine.schedule(select_default_lockstyle, lockstyle_delay)
         end
     end, 'macro book')
+end
+
+--- A job's whole entry (shared/entry/<job>.lua): get_sets, init_gear_sets,
+--- user_setup, job_sub_job_change, job_update and file_unload, defined as the
+--- sandbox's globals in the order every job used to write them out. A job hands
+--- in only the steps it adds, each at a fixed point:
+---
+---   get_sets          Profiler, before_mote(), [early configs], Mote-Include,
+---                     after_mote, [configs], configs(), load_job, after_load()
+---   init_gear_sets    the character's <job>_sets.lua, after_sets()
+---   user_setup        <JOB>_STATES.configure(), after_states(), keybinds
+---                     (keybinds_delay s later when set), HUD, after_ui(),
+---                     JobChangeManager + first macro book / lockstyle,
+---                     after_setup(), dual-box manager
+---   job_update        update(), then the HUD (it shows what update() changed)
+---   file_unload       unload(next_file), then EntryKit.unload
+---
+--- The common configs are _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG and
+--- _G.<JOB>TPConfig (none with tp_config = false). They are set right after
+--- Mote-Include, or before it with early_configs = true, for a job whose
+--- user_setup reads them (BRD, BST). The keybind module is _G.<JOB>Keybinds.
+--- @param job string The job's code ('WAR')
+--- @param spec table|nil The job's steps (see above)
+--- @return table LockstyleConfig, table UIConfig (EntryKit.load_configs)
+function EntryKit.job(job, spec)
+    spec = spec or {}
+    local jl = job:lower()
+    local CharPaths = require('shared/utils/core/char_paths')
+    local LockstyleConfig, UIConfig = EntryKit.load_configs(job)
+    -- after load_configs: UI_MANAGER reads _G.UIConfig when it loads
+    local jcm_ok, JobChangeManager = pcall(require, 'shared/utils/core/job_change_manager')
+    local ui_ok, KeybindUI = pcall(require, 'shared/utils/ui/UI_MANAGER')
+
+    local function common_configs()
+        _G.LockstyleConfig = LockstyleConfig
+        _G.UIConfig = UIConfig
+        _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
+        if spec.tp_config ~= false then
+            _G[job .. 'TPConfig'] = require(CharPaths.module('job', job .. '_TP_CONFIG', job))
+        end
+    end
+
+    _G.get_sets = function()
+        local Profiler = require('shared/utils/debug/performance_profiler')
+        Profiler.start('get_sets')
+        if spec.before_mote then spec.before_mote() end
+        if spec.early_configs then common_configs() end
+        _G.mote_include_version = 2
+        include('Mote-Include.lua')
+        Profiler.mark('After Mote-Include')
+        -- the shared systems, the data, the spell / ability / weaponskill messages
+        EntryKit.after_mote(Profiler)
+        if not spec.early_configs then common_configs() end
+        if spec.configs then spec.configs() end
+        Profiler.mark('After configs')
+        -- what the last job scheduled is cancelled, the job's files loaded, its lockstyle cancel registered
+        EntryKit.load_job(job, Profiler)
+        if spec.after_load then spec.after_load() end
+        Profiler.finish()
+    end
+
+    -- Mote, at the end of init_include(), after user_setup()
+    _G.init_gear_sets = function()
+        include(CharPaths.relative('sets', jl .. '_sets.lua', job))
+        if spec.after_sets then spec.after_sets() end
+    end
+
+    local function bind_keys()
+        local ok, keybinds = pcall(require, CharPaths.module('job', job .. '_KEYBINDS', job))
+        if ok and keybinds then
+            _G[job .. 'Keybinds'] = keybinds
+            keybinds.bind_all()
+        else
+            EntryKit.keybind_error(job, keybinds)
+        end
+    end
+
+    -- Mote, from init_include() (inside include('Mote-Include.lua'), before
+    -- init_gear_sets) and again on every subjob change, before job_sub_job_change()
+    _G.user_setup = function()
+        require(CharPaths.module('job', job .. '_STATES', job)).configure()
+        if spec.after_states then spec.after_states() end
+        if spec.keybinds_delay then
+            coroutine.schedule(bind_keys, spec.keybinds_delay)
+        else
+            bind_keys()
+        end
+        if ui_ok and KeybindUI then
+            KeybindUI.smart_init(job, UIConfig.init_delay)
+        else
+            local mf_ok, MessageFormatter = pcall(require, 'shared/utils/messages/message_formatter')
+            if mf_ok and MessageFormatter then
+                MessageFormatter.show_error('[' .. job .. '] Failed to load UI_MANAGER')
+            end
+        end
+        if spec.after_ui then spec.after_ui(KeybindUI) end
+        if jcm_ok and JobChangeManager then
+            JobChangeManager.initialize()
+            EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)
+        end
+        if spec.after_setup then spec.after_setup() end
+        -- the require() starts dualbox_manager (once per gs reload): request_alt_job as MAIN,
+        -- send_job_update as ALT. Covers a main job change: job_sub_job_change is subjob-only.
+        pcall(require, 'shared/utils/dualbox/dualbox_manager')
+    end
+
+    _G.job_sub_job_change = function(new_subjob)
+        EntryKit.sub_job_change(job, new_subjob)
+    end
+
+    -- Mote, after every cycle / set / toggle and gs c update
+    _G.job_update = function()
+        if spec.update then spec.update() end
+        EntryKit.update_hud(job)
+    end
+
+    -- GearSwap, when this job file is unloaded (job change, reload): the job's own
+    -- releases first (EntryKit.unload's note)
+    _G.file_unload = function(next_file)
+        if spec.unload then spec.unload(next_file) end
+        EntryKit.unload(rawget(_G, job .. 'Keybinds'))
+    end
+
+    return LockstyleConfig, UIConfig
 end
 
 return EntryKit

@@ -37,7 +37,7 @@ drift.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/run.lua` | 179 | Entry point (the same for every character; `<Char>_RUN.lua` and its template `_master/entry/Tetsouo_RUN.lua` are one `include` of it): same shape as PLD; BLU and TP configs loaded in `get_sets`; keybinds deferred 0.5 s; initial macro book / lockstyle deferred 0.2 s (`EntryKit.macro_and_lockstyle`, `shared/utils/core/entry_kit.lua`) |
+| `shared/entry/run.lua` | 42 | Entry point (the same for every character; `<Char>_RUN.lua` and its template `_master/entry/Tetsouo_RUN.lua` are one `include` of it): one `EntryKit.job('RUN', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with RUN's steps: `configs` (`_G.BluMagicConfig` from `RUN_BLU_MAGIC`), `keybinds_delay = 0.5`; the TP config is the common one, and the initial macro book / lockstyle is deferred 0.2 s (`EntryKit.macro_and_lockstyle`) |
 | `shared/jobs/run/functions/RUN_PRECAST.lua` | 105 | `job_precast` (guard, cooldown, WS) / `job_post_precast` (TP gear, self-cure FC, precast debug display) |
 | `shared/jobs/run/functions/RUN_MIDCAST.lua` | 157 | `job_midcast` (Cure to Cure IV) / `job_post_midcast` (dispatch) |
 | `shared/jobs/run/functions/RUN_AFTERCAST.lua` | 38 | `LifecycleManager.aftercast()`, empty `job_post_aftercast` |
@@ -73,16 +73,17 @@ three comment lines of `RUN_MACROBOOK.lua` apart; no `RUN_REFILL.lua`); none und
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as shared/entry/run.lua
+    participant E as shared/entry/run.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
-    GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG)
+    GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG; JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
-    M->>E: user_setup(): states, schedule keybinds +0.5 s, UI, JCM, EntryKit.macro_and_lockstyle (+0.2 s), dualbox
+    M->>E: user_setup(): states, schedule keybinds +0.5 s (keybinds_delay), UI, JCM, EntryKit.macro_and_lockstyle (+0.2 s), dualbox
     M->>E: init_gear_sets() -> include run/sets/run_sets.lua
-    E->>E: INIT_SYSTEMS, data_loader, message hooks
-    E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, _G.BluMagicConfig = RUN_BLU_MAGIC, require RUN_TP_CONFIG (sets _G.RUNTPConfig)
+    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, require RUN_TP_CONFIG (sets _G.RUNTPConfig)
+    E->>E: configs: _G.BluMagicConfig = RUN_BLU_MAGIC
     E->>E: EntryKit.load_job("RUN"): JobChangeManager.cancel_all()
     E->>F: load_job_files('RUN')
     E->>E: register_lockstyle_cancel("RUN", ...)
@@ -90,14 +91,15 @@ sequenceDiagram
     Note over E: +0.5 s: RUNKeybinds.bind_all()
 ```
 
-`user_setup()` (`shared/entry/run.lua`):
+`user_setup()` (`EntryKit.job`, `shared/utils/core/entry_kit.lua`):
 
 1. `RUNStates.configure()`.
-2. Keybinds in a `coroutine.schedule(..., 0.5)`: `require` into the global
+2. Keybinds in a `coroutine.schedule(..., 0.5)` (`keybinds_delay = 0.5`): `require` into the global
    `RUNKeybinds`, `bind_all()`; a failed `require` prints
    `[RUN] Keybinds failed to load: <error>` (`EntryKit.keybind_error`). Why they
    are deferred is not recorded.
-3. `KeybindUI.smart_init("RUN", UIConfig.init_delay)`.
+3. `KeybindUI.smart_init("RUN", UIConfig.init_delay)` (`[RUN] Failed to load
+   UI_MANAGER` when it did not load).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
    (`shared/utils/core/entry_kit.lua`), as on every job. At `user_setup` time
@@ -109,8 +111,6 @@ sequenceDiagram
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`; a dual-box alt job
    update that brings a new job or subjob later calls `select_default_macro_book()`
    (`dualbox_manager.lua` `receive_alt_job`).
-6. A commented-out WarpInit block (`WarpInit.init()` runs for every job from
-   `INIT_SYSTEMS`).
 
 `file_unload` is `EntryKit.unload(RUNKeybinds)`: it cancels pending
 JobChangeManager operations and calls `RUNKeybinds.unbind_all()` when the

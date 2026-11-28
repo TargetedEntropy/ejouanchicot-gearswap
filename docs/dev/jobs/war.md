@@ -48,7 +48,7 @@ numbers are avoided because they drift.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/war.lua` | 222 | Entry point (the same for every character; `<Char>_WAR.lua` and its template `_master/entry/Tetsouo_WAR.lua` are one `include` of it): config preload, `get_sets`, `init_gear_sets` + `sync_weapon_with_hand`, `job_sub_job_change`, `user_setup` (+ `AmpullaLock.apply`), `job_update`, `file_unload` (+ `AmpullaLock.release`); shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/war.lua` | 76 | Entry point (the same for every character; `<Char>_WAR.lua` and its template `_master/entry/Tetsouo_WAR.lua` are one `include` of it): one `EntryKit.job('WAR', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with WAR's steps: `before_mote` sets `_G.WARWSConfig`, `after_sets` = the local `sync_weapon_with_hand`, `after_states` `AmpullaLock.apply`, `unload` `AmpullaLock.release` |
 | `shared/jobs/war/functions/WAR_PRECAST.lua` | 43 | `job_precast` / `job_post_precast`: guard, cooldown, WS handler (which runs AutoJump), TP gear |
 | `shared/jobs/war/functions/WAR_MIDCAST.lua` | 74 | `job_midcast` (empty) / `job_post_midcast`: Healing and Enhancing routed to `MidcastManager` |
 | `shared/jobs/war/functions/WAR_AFTERCAST.lua` | 37 | `job_aftercast`: empty |
@@ -105,16 +105,16 @@ exist, and before any gear set exists.
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as shared/entry/war.lua
+    participant E as shared/entry/war.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
     GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig, JCM, UI_MANAGER)
     GS->>E: get_sets()
-    E->>E: _G.WARWSConfig = CharPaths.optional WAR_WS_CONFIG
+    E->>E: before_mote: _G.WARWSConfig = CharPaths.optional WAR_WS_CONFIG
     E->>M: include Mote-Include
-    M->>E: user_setup(): states + WS slots, AmpullaLock.apply, keybinds, UI, JCM, macrobook/lockstyle, dualbox
-    M->>E: init_gear_sets() -> include war/sets/war_sets.lua, then sync_weapon_with_hand()
-    E->>E: INIT_SYSTEMS, data_loader, message hooks
+    M->>E: user_setup(): states + WS slots, after_states AmpullaLock.apply, keybinds, UI, JCM, macrobook/lockstyle, dualbox
+    M->>E: init_gear_sets() -> include war/sets/war_sets.lua, then after_sets sync_weapon_with_hand()
+    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.WARTPConfig
     E->>E: EntryKit.load_job("WAR"): JobChangeManager.cancel_all()
     E->>F: load_job_files('WAR')
@@ -126,12 +126,12 @@ sequenceDiagram
 slot states from it. Loaded with the other configs it would still be nil, and every
 slot would show `N/A`.
 
-`user_setup()` (`shared/entry/war.lua`):
+`user_setup()` (defined by `EntryKit.job`, `shared/utils/core/entry_kit.lua`; WAR adds step 2 as `after_states`):
 
 1. `WARStates.configure()` creates every state (see [Mote states](#mote-states)),
    including `WSSlots.sync(state.MainWeapon, _G.WARWSConfig)`. At this point the
    weapon sets do not exist, so the sync only builds the slots for the default
-   weapon; `sync_weapon_with_hand()` redoes it once the sets are loaded (below).
+   weapon; `sync_weapon_with_hand()` (a local of `war.lua`, WAR's `after_sets`) redoes it once the sets are loaded (below).
 2. `AmpullaLock.apply(state.HybridMode.value)`: `configure()` has just reset
    `HybridMode`, so an ammo lock left by a Hoxne stance of the previous load is
    released here.
@@ -154,9 +154,9 @@ slot would show `N/A`.
 `WAR_ENGAGED`, `WAR_STATUS`, `WAR_BUFFS`, `WAR_COMMANDS`, `WAR_MOVEMENT` (WAR's
 `JOB_FILES` entry, `movement`), and requires `dualbox_manager`.
 
-`file_unload` releases the ammo lock **first** (GearSwap runs `file_unload` in a
+`file_unload` runs WAR's `unload` step first, which releases the ammo lock (GearSwap runs `file_unload` in a
 single `pcall`), then `EntryKit.unload(WARKeybinds)`: `JobChangeManager.cancel_all()`,
-then `WARKeybinds.unbind_all()`. `job_update` is `EntryKit.update_hud('WAR')` and
+then `WARKeybinds.unbind_all()`. `job_update` is `EntryKit.update_hud('WAR')` (WAR has no `update` step) and
 `job_sub_job_change` is `EntryKit.sub_job_change('WAR', newSubjob)`.
 
 ### Precast
@@ -229,7 +229,7 @@ hold any weaponskill of the weapon.
   Before 2026-09-28 it was a plain string compare, so a table entry was never
   recognised and the mode fell back to its first option. Inside `user_setup()` no weapon set exists
   yet, so detection fails and the state keeps its first option. `init_gear_sets()`
-  therefore calls `sync_weapon_with_hand()` right after the set file: it runs the
+  therefore calls `sync_weapon_with_hand()` (a local of `war.lua`, passed as `after_sets`) right after the set file: it runs the
   same sync with the sets present, then repaints the HUD when `MainWeapon` changed.
   Before that function existed, every reload left `MainWeapon` on `Ukonvasara` and
   the next idle/engaged update swapped the weapon.
@@ -501,7 +501,7 @@ through a loop). The player-facing list is [war/sets.md](../../user/jobs/war/set
   `job_post_midcast`, `job_aftercast`, `customize_idle_set`, `customize_melee_set`,
   `job_status_change`, `job_buff_change`, `job_self_command`, `job_state_change`),
   `buff_war`, `buff_sam_sub`, `build_tp`, `toggle_retaliation_debug`,
-  `get_retaliation_status`, `sync_weapon_with_hand`,
+  `get_retaliation_status`,
   `select_default_lockstyle`, `cancel_war_lockstyle_operations`,
   `select_default_macro_book`, `WARKeybinds`, `WARWSConfig`, `WARTPConfig`,
   `LockstyleConfig`, `UIConfig`, `RECAST_CONFIG`, `RegionConfig`,
@@ -557,8 +557,8 @@ through a loop). The player-facing list is [war/sets.md](../../user/jobs/war/set
 
 - `user_setup()` runs before the hook files **and before the sets**; anything in
   `WARStates.configure()` that reads `sets` sees only skeletons. Work that needs the
-  sets goes in `init_gear_sets()`, after the include (as `sync_weapon_with_hand()`
-  does).
+  sets goes in `init_gear_sets()`, after the include: an `after_sets` step (as `sync_weapon_with_hand()`
+  is).
 - `ws_slots` is required from `user_setup()` before `INIT_SYSTEMS` installs
   ModuleCache, so the later require in `WAR_COMMANDS` may load a second copy. The
   module is stateless, so this is harmless.

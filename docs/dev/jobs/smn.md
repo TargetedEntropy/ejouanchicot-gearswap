@@ -67,7 +67,7 @@ clone of any other character printed
 
 | Path | Role |
 |------|------|
-| `shared/entry/smn.lua` (188 lines; every character's `<Char>_SMN.lua` and the template `_master/entry/Tetsouo_SMN.lua` are one `include` of it) | Entry: config preload, `get_sets`, `init_gear_sets`, `job_sub_job_change`, `user_setup` (Carbuncle auto-summon), `job_update` (HUD only), `file_unload` (stops the skill-up loop); shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/smn.lua` (41 lines; every character's `<Char>_SMN.lua` and the template `_master/entry/Tetsouo_SMN.lua` are one `include` of it) | Entry: one `EntryKit.job('SMN', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with SMN's steps: `tp_config = false`, `after_setup` (Carbuncle auto-summon), `unload` (stops the skill-up loop) |
 | `shared/jobs/smn/functions/SMN_PRECAST.lua` | Guard, cooldown, WS; empty Blood Pact branch; `job_post_precast` (TP gear) |
 | `shared/jobs/smn/functions/SMN_MIDCAST.lua` | `job_post_midcast`: Blood Pact set via the classifier, else `JOB_POST_MIDCAST_HANDLERS` by skill |
 | `shared/jobs/smn/functions/SMN_PET_MIDCAST.lua` | `job_pet_midcast(spell, action, spellMap, eventArgs)`: re-equips the classified Blood Pact set and marks the event handled |
@@ -95,7 +95,7 @@ SMN prints through `MessageFormatter.show_info/show_success/show_error/show_debu
 
 ### Load sequence
 
-The entry chunk loads `LOCKSTYLE_CONFIG`, `REGION_CONFIG` and the UI config,
+The entry chunk (`EntryKit.job`) loads `LOCKSTYLE_CONFIG`, `REGION_CONFIG` and the UI config,
 **and requires `JobChangeManager` and `UI_MANAGER` at file level**, after
 `config_loader` (whose first statement installs `ModuleCache`), so those two
 are the cached instances
@@ -107,7 +107,7 @@ the message hooks, sets `_G.LockstyleConfig`, `_G.UIConfig`,
 `EntryKit.load_job_files('SMN')` (lockstyle and macro book install,
 `message_buffs.lua`, the 8 hook files with `SMN_PET_MIDCAST` after
 `SMN_MIDCAST`, `dualbox_manager`) and the lockstyle cancel registration. It also marks each step for
-`//gs c perf`. There is no TP config.
+`//gs c perf`. There is no TP config (`tp_config = false`).
 
 `user_setup()`:
 
@@ -116,13 +116,14 @@ the message hooks, sets `_G.LockstyleConfig`, `_G.UIConfig`,
    plus the character's common keys), which calls `show_intro()`. A failed
    require prints `[SMN] Keybinds failed to load: <error>`
    (`EntryKit.keybind_error`).
-3. `KeybindUI.smart_init("SMN", UIConfig.init_delay)`.
+3. `KeybindUI.smart_init("SMN", UIConfig.init_delay)` (`[SMN] Failed to load
+   UI_MANAGER` when it did not load).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
    (`shared/utils/core/entry_kit.lua`): `EntryKit.load_job_files` has not run yet, so it
    waits 0.2 s for `select_default_macro_book` / `select_default_lockstyle`,
    sets the macro book, and schedules the lockstyle after 8 s.
-5. A task `initial_load_delay + 2` s later (10 s, `LoadGate.defer(..., 'smn summon')`: dropped when a newer load came first): if the main job is
+5. `after_setup`: a task `initial_load_delay + 2` s later (10 s, `LoadGate.defer(..., 'smn summon')`: dropped when a newer load came first): if the main job is
    still SMN, the player is not `Dead` and `get_mob_by_target('pet')` finds
    nothing, `input /ma "Carbuncle" <me>`.
 6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.

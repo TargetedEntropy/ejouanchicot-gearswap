@@ -45,7 +45,7 @@ idle overlays of `logic/set_builder.lua` re-read on 2026-09-29.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/bst.lua` | 324 | Entry point (the same for every character; `<Char>_BST.lua` and its template `_master/entry/Tetsouo_BST.lua` are one `include` of it): config preload, `get_sets`, `user_setup`, `job_update`, `init_gear_sets`, `job_sub_job_change`, `prerender` pet monitor (`start_pet_monitoring` / `stop_pet_monitoring`), `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/entry/bst.lua` | 159 | Entry point (the same for every character; `<Char>_BST.lua` and its template `_master/entry/Tetsouo_BST.lua` are one `include` of it): the `prerender` pet monitor (`start_pet_monitoring` / `stop_pet_monitoring`), then one `EntryKit.job('BST', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with BST's steps: `early_configs`, `before_mote` (pet and ecosystem data), `after_states` (`EcosystemManager.initialize`), `after_ui` (`_G.KeybindUI`), `after_setup` (bst-hud reload, monitor start), `unload` (monitor stop, bst-hud unload, globals cleared) |
 | `shared/jobs/bst/functions/BST_PRECAST.lua` | 160 | `job_precast` / `job_post_precast`; locals `ready_move_info`, `equip_for_summon`, `equip_broth`, `prepare_ready_move` |
 | `shared/jobs/bst/functions/BST_MIDCAST.lua` | 204 | `job_midcast` (early returns, no `handled`) / `job_post_midcast` (subjob magic through `MidcastManager`, table `JOB_POST_MIDCAST_HANDLERS`) |
 | `shared/jobs/bst/functions/BST_AFTERCAST.lua` | 127 | `job_aftercast`: pet damage set for Ready moves that were not interrupted (held by `ReadyHold`), delayed `start_pet_monitoring`; `job_pet_aftercast` lets the hold go |
@@ -97,26 +97,27 @@ environment model.
 ```mermaid
 sequenceDiagram
     participant GS as GearSwap
-    participant E as <Char>_BST.lua
+    participant E as shared/entry/bst.lua (EntryKit.job)
     participant M as Mote-Include
     participant F as EntryKit.load_job_files
-    GS->>E: run chunk (LOCKSTYLE_CONFIG, config_loader + UIConfig, JCM, UI_MANAGER, REGION_CONFIG; defines the monitor functions)
+    GS->>E: run chunk (defines the monitor functions; EntryKit.load_configs: LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig; JCM, UI_MANAGER)
     GS->>E: get_sets()
-    E->>E: _G.LockstyleConfig/UIConfig/RECAST_CONFIG/BSTBeastPetData/BSTTPConfig (plain require)
+    E->>E: before_mote: _G.BSTBeastPetData (plain require), BSTEcosystemData
+    E->>E: early_configs: _G.LockstyleConfig/UIConfig/RECAST_CONFIG/BSTTPConfig (plain require)
     E->>M: include Mote-Include
     M->>E: user_setup() (states, ecosystem, keybinds, UI, JCM + EntryKit.macro_and_lockstyle, HUD reload, monitor start, dualbox require)
     M->>E: init_gear_sets() -> include sets file
-    E->>E: INIT_SYSTEMS (AutoMove +0.5 s, hooks), data_loader, message hooks
+    E->>E: EntryKit.after_mote: INIT_SYSTEMS (AutoMove +0.5 s, hooks), data_loader, message hooks
     E->>E: EntryKit.load_job("BST"): JobChangeManager.cancel_all()
     E->>F: load_job_files('BST')
     F->>F: lockstyle + macro book install, message_buffs + 9 hook files, require dualbox_manager
     E->>E: register_lockstyle_cancel("BST", cancel_bst_lockstyle_operations)
 ```
 
-`user_setup()`:
+`user_setup()` (`EntryKit.job`; BST's steps named by spec key):
 
 1. `BSTStates.configure()` creates every state (see [Mote states](#mote-states)).
-2. `EcosystemManager.initialize()` builds `state.species` and `state.ammoSet`
+2. `after_states`: `EcosystemManager.initialize()` builds `state.species` and `state.ammoSet`
    from `state.Ecosystem` and schedules `equip_pet_broth()` 0.2 s later. It
    must run before the HUD so `species` exists when the HUD first reads it.
 3. `pcall(require, CharPaths.module('job', 'BST_KEYBINDS', 'BST'))`
@@ -124,19 +125,20 @@ sequenceDiagram
    then `bind_all()` (7 BST binds, the optional-state entries, `_CUSTOM` keys,
    common keys, then `show_intro()`). A failed require shows the Lua error
    (`EntryKit.keybind_error`, `shared/utils/core/entry_kit.lua`).
-4. `KeybindUI.smart_init("BST", UIConfig.init_delay)`; `_G.KeybindUI` exported
+4. `KeybindUI.smart_init("BST", UIConfig.init_delay)` (`[BST] Failed to load
+   UI_MANAGER` when it did not load); `after_ui` exports `_G.KeybindUI`
    (read by `ecosystem_manager`).
 5. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`: 0.2 s
    later (`LoadGate.defer`), once `EntryKit.load_job_files` has defined
    `select_default_macro_book` / `select_default_lockstyle`, the macro book,
    then the lockstyle after 8 s.
-6. BST-HUD: bumps `_G.bst_hud_load_id`, then after 2 s sends
+6. `after_setup`, BST-HUD: bumps `_G.bst_hud_load_id`, then after 2 s sends
    `lua unload bst-hud` and after 1.5 s more `lua load bst-hud`, each step
    guarded by the counter and `player.main_job == 'BST'`, and first by
    `JobAddons.allowed('bst-hud')` (checked when the 2 s timer fires). `file_unload`
    sends the unload through `JobAddons.run('unload', 'bst-hud')`.
-7. Pet monitor start after 3 s, guarded by the main job and
+7. `after_setup`, pet monitor start after 3 s, guarded by the main job and
    `_G.start_pet_monitoring`.
 8. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`: the module's
    auto-init schedules the job exchange once per load (`request_alt_job` as
