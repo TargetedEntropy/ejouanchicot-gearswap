@@ -103,7 +103,7 @@ job_precast, job_post_precast = PrecastPipeline.hooks('DNC', {
         if spell.action_type == 'Magic' and (spell.english == 'Utsusemi: Ni' or spell.english == 'Utsusemi: Ichi') then
             return
         end
-        PrecastPipeline.cooldown(spell, eventArgs)
+        PrecastPipeline.cooldown(spell, action, spellMap, eventArgs)
     end,
     after_cooldown = function(spell, action, spellMap, eventArgs)
         if spell.type == 'Samba' and MessageFormatter then

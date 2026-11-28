@@ -51,7 +51,7 @@ function; line numbers are given only where no function name fits.
 | `shared/jobs/cor/functions/COR_ENGAGED.lua` | 41 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/cor/functions/COR_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/cor/functions/COR_BUFFS.lua` | 40 | `job_buff_change = LifecycleManager.buff_change(retire_lost_roll)` |
-| `shared/jobs/cor/functions/COR_COMMANDS.lua` | 230 | `job_self_command` router, `use_selected_ability` (`shot`, `roll1`, `roll2`), `job_state_change = LifecycleManager.state_change(on_state_change)` |
+| `shared/jobs/cor/functions/COR_COMMANDS.lua` | 225 | `job_self_command` router, `use_selected_ability` (`shot`, `roll1`, `roll2`), `job_state_change = LifecycleManager.state_change(on_state_change)` |
 | `shared/jobs/cor/functions/COR_MOVEMENT.lua` | 34 | `job_handle_equipping_gear` -> `RollHold.hold_update` |
 | `shared/jobs/cor/functions/logic/party_tracker.lua` | 305 | `init_roll_listener` (`ActionListener` key `cor_roll`), `init` (raw `incoming chunk` `0xDD`/`0xDF`), `members_for_display`, `cleanup` |
 | `shared/jobs/cor/functions/logic/roll_tracker.lua` | 580 | Roll state, `sync_with_buffs`, Crooked, bonus, bust, `cleanup`; re-exports the `roll_party` and `roll_display` functions on `RollTracker` and calls them through it |

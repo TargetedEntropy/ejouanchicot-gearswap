@@ -58,9 +58,9 @@ local function check_recast_or_refine(spell, action, spellMap, eventArgs)
     if tiers then
         TierRefiner.refine(spell, eventArgs, tiers)
     elseif spell.action_type == 'Ability' then
-        PrecastPipeline.ability_cooldown(spell, eventArgs)
+        PrecastPipeline.ability_cooldown(spell, action, spellMap, eventArgs)
     elseif spell.action_type == 'Magic' then
-        PrecastPipeline.spell_cooldown(spell, eventArgs)
+        PrecastPipeline.spell_cooldown(spell, action, spellMap, eventArgs)
     end
 end
 

@@ -45,16 +45,14 @@ job_self_command = JobCommands.router('PLD', {
     first = {
         -- the bare word runs the Blue Magic rotation (PLD/BLU); `aoe sneak|invi|erase` (/SCH) goes on to the
         -- common commands
-        aoe = function(cmdParams, eventArgs)
+        aoe = function(cmdParams)
             if cmdParams[2] then return false end
             AOEManager.execute_aoe()
-            eventArgs.handled = true
         end,
     },
     words = {
-        rune = function(cmdParams, eventArgs)
+        rune = function()
             RuneManager.execute_rune()
-            eventArgs.handled = true
         end,
     },
     other = JobCommands.ws_slots(true),  -- ws / ws1 / ws2: the weaponskill in that slot

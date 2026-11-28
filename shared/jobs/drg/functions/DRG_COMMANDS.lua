@@ -26,9 +26,8 @@ local JobCommands = require('shared/utils/core/job_commands')
 job_self_command = JobCommands.router('DRG', {
     first = {
         -- the first ready jump of DRGTPConfig.jumps, ahead of the common jump (/DRG only)
-        jump = function(cmdParams, eventArgs)
+        jump = function()
             require('shared/jobs/drg/functions/logic/jumps').execute()
-            eventArgs.handled = true
         end,
     },
 })

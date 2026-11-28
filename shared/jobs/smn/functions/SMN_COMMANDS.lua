@@ -282,17 +282,15 @@ job_self_command = JobCommands.router('SMN', {
     load = ensure_commands_loaded,
     words = {
         -- the Summoning Magic skillup loop
-        skillup = function(cmdParams, eventArgs, command)
+        skillup = function(cmdParams)
             local args = {}
             for i = 2, #cmdParams do table.insert(args, cmdParams[i]) end
             handle_skillup(args)
-            eventArgs.handled = true
         end,
         -- smn <subcommand> [args]
-        smn = function(cmdParams, eventArgs, command)
+        smn = function(cmdParams)
             if #cmdParams < 2 then
                 MessageFormatter.show_info('Usage: //gs c smn <summon|astralflow|astralconduit|apogee|siphon|manacede|favor|release|assault|retreat|bp> [args]')
-                eventArgs.handled = true
                 return
             end
 
@@ -302,24 +300,20 @@ job_self_command = JobCommands.router('SMN', {
 
             if sub == 'summon' then
                 handle_summon(rest)
-                eventArgs.handled = true
                 return
             end
 
             if sub == 'bp' then
                 handle_bp(rest)
-                eventArgs.handled = true
                 return
             end
 
             if JA_SHORTCUTS[sub] then
                 handle_ja_shortcut(sub)
-                eventArgs.handled = true
                 return
             end
 
             MessageFormatter.show_error('Unknown smn subcommand: ' .. sub)
-            eventArgs.handled = true
         end,
     },
 })

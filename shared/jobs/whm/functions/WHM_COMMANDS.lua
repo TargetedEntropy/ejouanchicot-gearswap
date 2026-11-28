@@ -35,7 +35,7 @@ local JobCommands = require('shared/utils/core/job_commands')
 job_self_command = JobCommands.router('WHM', {
     load = ensure_commands_loaded,
     words = {
-        afflatus = function(cmdParams, eventArgs)
+        afflatus = function()
             local stance = state.AfflatusMode.value
             if stance == 'Solace' or stance == 'Misery' then
                 send_command('input /ja "Afflatus ' .. stance .. '" <me>')
@@ -43,7 +43,6 @@ job_self_command = JobCommands.router('WHM', {
                     WHMMessageFormatter.show_afflatus_change(stance)
                 end
             end
-            eventArgs.handled = true
         end,
     },
 })

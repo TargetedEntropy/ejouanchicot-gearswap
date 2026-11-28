@@ -50,14 +50,12 @@ local function show_help()
     })
 end
 
-local function spell(cmdParams, eventArgs, command)
+local function spell(_, command)
     require('shared/jobs/sch/functions/logic/spell_commands').cast(command)
-    eventArgs.handled = true
 end
 
-local function stratagems(cmdParams, eventArgs)
+local function stratagems()
     require('shared/jobs/sch/functions/logic/spell_commands').show_stratagems()
-    eventArgs.handled = true
 end
 
 local JobCommands = require('shared/utils/core/job_commands')
@@ -70,9 +68,8 @@ job_self_command = JobCommands.router('SCH', {
     words = {
         nuke = spell, helix = spell, storm = spell,
         strat = stratagems, stratagems = stratagems,
-        schhelp = function(cmdParams, eventArgs)
+        schhelp = function()
             show_help()
-            eventArgs.handled = true
         end,
     },
 })

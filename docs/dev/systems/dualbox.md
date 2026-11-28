@@ -219,7 +219,7 @@ flowchart TD
   calls `AltCommands.execute(name, args)`.
 - The result: a job command, a common command and a Mote command all keep their names; a bare alt key
   works only for names nothing on the MAIN answers. `//gs c alt <name>` always reaches the alt. RDM's
-  cast-by-name catch-all leaves a name unhandled when `selfCommandMaps` answers it (`RDM_COMMANDS.lua:265-268`). See
+  cast-by-name catch-all leaves a name unhandled when `selfCommandMaps` answers it (`RDM_COMMANDS.lua:260-263`). See
   [commands and debug](commands-and-debug.md#4-alt-commands-and-name-shadowing) for the names that collide
   today.
 
@@ -740,7 +740,7 @@ Behaviour per event:
   `//gs c alt <name>`. `altcmds` lists the names `runs_locally` claims apart, but it cannot see
   job-specific commands, so a job command that shares an alt key is still listed in the bare form.
 - A job whose `job_self_command` marks every unknown name as handled would hide every alt key. Only RDM
-  has a catch-all, and it leaves names that `selfCommandMaps` answers unhandled (`RDM_COMMANDS.lua:265-268`).
+  has a catch-all, and it leaves names that `selfCommandMaps` answers unhandled (`RDM_COMMANDS.lua:260-263`).
 - `requestjob` is answered on either role, always past the de-dup window.
 - The de-dup window is keyed on the payload only and applies to the auto-init push; if both boxes
   initialise within the send latency, each can receive the other's job twice (push and reply).

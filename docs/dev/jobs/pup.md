@@ -42,7 +42,7 @@ What PUP adds on top of the shared pipeline:
 | `shared/jobs/pup/functions/PUP_ENGAGED.lua` | 31 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/pup/functions/PUP_STATUS.lua` | 55 | `job_status_change` (LifecycleManager), `job_pet_change`, `job_pet_status_change` |
 | `shared/jobs/pup/functions/PUP_BUFFS.lua` | 23 | `LifecycleManager.buff_change` + `refresh_after_buff` (Overdrive) |
-| `shared/jobs/pup/functions/PUP_COMMANDS.lua` | 86 | `job_self_command` router (+ `petmode`), `job_state_change = LifecycleManager.state_change()` |
+| `shared/jobs/pup/functions/PUP_COMMANDS.lua` | 85 | `job_self_command` router (+ `petmode`), `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/pup/functions/logic/automaton.lua` | 151 | Live reads: pet out / fighting / TP; head and frame; `refresh_mode` |
 | `shared/jobs/pup/functions/logic/pet_ws.lua` | 117 | `is_due`, `threshold`, the poll (`ensure_running`, `stop`) |
 | `shared/jobs/pup/functions/logic/set_builder.lua` | 187 | Idle and engaged: master base, town, pet layers, Overdrive, pet WS, Mote layers, weapon, movement |

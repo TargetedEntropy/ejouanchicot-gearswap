@@ -100,17 +100,16 @@ local ROLL_SHORTCUTS = {
     ave = "Avenger's Roll",
     naturalist = "Naturalist's Roll",
     nat = "Naturalist's Roll"
-    }
+}
 
---- A roll word: handled, and only run when the roll tracker loaded.
+--- A roll word, only run when the roll tracker loaded (answered either way).
 local function with_tracker(fn)
-    return function(cmdParams, eventArgs)
-    eventArgs.handled = true
-    if not RollTracker then
-        MessageFormatter.show_error('RollTracker not loaded')
-        return
-    end
-    fn(cmdParams)
+    return function(cmdParams)
+        if not RollTracker then
+            MessageFormatter.show_error('RollTracker not loaded')
+            return
+        end
+        fn(cmdParams)
     end
 end
 
@@ -138,8 +137,7 @@ end)
 -- the Double-Up window
 local double_up = with_tracker(function() RollTracker.display_double_up_status() end)
 
-local function selected_ability(cmdParams, eventArgs, command)
-    eventArgs.handled = true
+local function selected_ability(_, command)
     use_selected_ability(SELECTED_ABILITY_COMMANDS[command])
 end
 
@@ -164,20 +162,17 @@ job_self_command = JobCommands.router('COR', {
         MessageFormatter.show_rolls_cleared()
     end),
     -- Compare the roll gear sent with the gear worn when the roll goes off
-    rolldebug = function(cmdParams, eventArgs)
-        eventArgs.handled = true
+    rolldebug = function()
         local on = require('shared/jobs/cor/functions/logic/roll_debug').toggle()
         MessageFormatter.show_info('Roll debug: ' .. (on and 'ON' or 'OFF'))
     end,
     -- The party members detected and their jobs
-    party = function(cmdParams, eventArgs)
-        eventArgs.handled = true
+    party = function()
         local pt_ok, PartyTracker = pcall(require, 'shared/jobs/cor/functions/logic/party_tracker')
         MessageFormatter.show_party_members(pt_ok and PartyTracker and PartyTracker.members_for_display() or {})
     end,
     -- Clear the party job cache (a member changed job)
-    clearparty = function(cmdParams, eventArgs)
-        eventArgs.handled = true
+    clearparty = function()
         if _G.cor_party_jobs then
             for k in pairs(_G.cor_party_jobs) do _G.cor_party_jobs[k] = nil end
             MessageFormatter.show_info('Party job cache cleared - will refresh automatically')

@@ -57,9 +57,8 @@ local JobCommands = require('shared/utils/core/job_commands')
 
 job_self_command = JobCommands.router('PUP', {
     words = {
-        petmode = function(cmdParams, eventArgs)
+        petmode = function(cmdParams)
             handle_petmode_command(cmdParams[2])
-            eventArgs.handled = true
         end,
     },
 })

@@ -124,7 +124,7 @@ job_precast, job_post_precast = PrecastPipeline.hooks('BST', {
     -- refuse a move the game allows; the game refuses it itself at 0 charges.
     cooldown = function(spell, action, spellMap, eventArgs)
         if spell.type ~= 'Monster' then
-            PrecastPipeline.cooldown(spell, eventArgs)
+            PrecastPipeline.cooldown(spell, action, spellMap, eventArgs)
         end
     end,
     after_ws = function(spell)

@@ -14,14 +14,17 @@
 ---
 ---   job_self_command = JobCommands.router('PLD', {
 ---       first = {aoe = fn},    -- words that win over a shared word of the same name (PLD / RUN 'aoe',
----                              -- DRG 'jump', BST 'debugprecast'); fn may return false to let the word through
+---                              -- DRG 'jump', BST 'debugprecast')
 ---       words = {rune = fn},   -- the job's own words, never a shared one (scripts/atelier/job_commands_test.lua)
----       other = fn,            -- a word no table names (a pattern: ws1..ws9), fn(command, cmdParams, eventArgs)
+---       other = fn,            -- a word no table names (a pattern: ws1..ws9)
 ---       load = fn,             -- the job's own modules, loaded at its first command
 ---   })
 ---
---- Each fn(cmdParams, eventArgs, command) sets eventArgs.handled itself, as
---- the job's branch did. A job with no word of its own: JobCommands.router('MNK').
+--- Each fn(cmdParams, command) answers the word: the router sets
+--- eventArgs.handled. A fn that returns false leaves the word unanswered: a
+--- `first` word goes on to the shared ones, any other to Mote (its own words,
+--- the dual-box alt's commands). A job with no word of its own:
+--- JobCommands.router('MNK').
 ---
 --- @file    shared/utils/core/job_commands.lua
 ---============================================================================
@@ -98,6 +101,13 @@ function JobCommands.shared(command, cmdParams, eventArgs, job)
     return false
 end
 
+--- fn answers the word unless it returns false.
+local function answer(fn, cmdParams, eventArgs, command)
+    if fn(cmdParams, command) == false then return false end
+    eventArgs.handled = true
+    return true
+end
+
 --- A job's whole job_self_command.
 --- @param job string The job's code
 --- @param spec table|nil {first, words, other, load} (see the header)
@@ -105,20 +115,15 @@ end
 function JobCommands.router(job, spec)
     spec = spec or {}
     local first, words, other = spec.first or {}, spec.words or {}, spec.other
-    JobCommands.specs[job] = spec
     return function(cmdParams, eventArgs)
         if not cmdParams[1] then return end
         if spec.load then spec.load() end
         local command = cmdParams[1]:lower()
         local fn = first[command]
-        if fn and fn(cmdParams, eventArgs, command) ~= false then return end
+        if fn and answer(fn, cmdParams, eventArgs, command) then return end
         if JobCommands.shared(command, cmdParams, eventArgs, job) then return end
-        fn = words[command]
-        if fn then
-            fn(cmdParams, eventArgs, command)
-        elseif other then
-            other(command, cmdParams, eventArgs)
-        end
+        fn = words[command] or other
+        if fn then answer(fn, cmdParams, eventArgs, command) end
     end
 end
 
@@ -127,18 +132,13 @@ end
 --- @param bare_is_first boolean|nil true: 'ws' alone is slot 1 (PLD)
 --- @return function other
 function JobCommands.ws_slots(bare_is_first)
-    return function(command, cmdParams, eventArgs)
+    return function(cmdParams, command)
         local slot = (bare_is_first and command == 'ws') and '1' or command:match('^ws([1-9])$')
-        if not slot then return end
+        if not slot then return false end
         local ok, WSSlots = pcall(require, 'shared/utils/weaponskill/ws_slots')
-        if ok and WSSlots then
-            WSSlots.cast(tonumber(slot))
-            eventArgs.handled = true
-        end
+        if not (ok and WSSlots) then return false end
+        WSSlots.cast(tonumber(slot))
     end
 end
-
---- What each job gave router() (the tests read it).
-JobCommands.specs = {}
 
 return JobCommands

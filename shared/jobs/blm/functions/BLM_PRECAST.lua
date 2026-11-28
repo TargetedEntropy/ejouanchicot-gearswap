@@ -87,7 +87,7 @@ end
 local function check_recast_or_refine(spell, action, spellMap, eventArgs)
     if spell.action_type == 'Ability' then
         if not has_charges(spell) then
-            PrecastPipeline.ability_cooldown(spell, eventArgs)
+            PrecastPipeline.ability_cooldown(spell, action, spellMap, eventArgs)
         end
 
     elseif spell.action_type == 'Magic' then
@@ -96,7 +96,7 @@ local function check_recast_or_refine(spell, action, spellMap, eventArgs)
                 refine_various_spells(spell, eventArgs)
             end
         else
-            PrecastPipeline.spell_cooldown(spell, eventArgs)
+            PrecastPipeline.spell_cooldown(spell, action, spellMap, eventArgs)
         end
     end
 end
