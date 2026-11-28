@@ -73,8 +73,9 @@ which since the require cache is installed by `char_paths` (the first file of th
 **once per load**:
 
 - Every shared entry requires it at the end of `user_setup()` (`EntryKit.job`, `shared/utils/core/entry_kit.lua:303`). That is the first `require` of the load, so it executes the body.
-- `load_job` requires it again after the job's hook files (`shared/utils/core/entry_kit.lua:122`); the job
-  COMMANDS files require it to deliver `altjobupdate` / `requestjob`. Both are cache hits.
+- The shared command words (`JobCommands.shared`) require it to deliver `altjobupdate` /
+  `requestjob`: a cache hit. (Until 2026-11-28 `load_job` required it again after the job's hook
+  files, always a cache hit since `user_setup()` comes first.)
 - On a subjob change Mote re-runs `user_setup()` in the old environment: also a cache hit, so the dying
   environment schedules no auto-init.
 
