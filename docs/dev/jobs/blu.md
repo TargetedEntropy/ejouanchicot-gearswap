@@ -1,8 +1,8 @@
 # BLU (Blue Mage) job
 
 The BLU job was added on 2026-09-26. It is a thin job built on the shared
-systems: 11 hook modules plus 5 logic modules under `shared/jobs/blu/functions/`
-(about 1 140 lines with the facade), a template entry point, ten config files,
+systems: 8 hook modules plus 5 logic modules under `shared/jobs/blu/functions/`
+(about 840 lines), a template entry point, ten config files,
 one sets file, and one character overlay. GearSwap loads it when the main job
 becomes BLU (the entry file `<Character>_BLU.lua`, one `include` of `shared/entry/blu.lua`, copied from
 `_master/entry/Tetsouo_BLU.lua` by the clone script). From then on Mote-Include
@@ -41,8 +41,7 @@ the sets files (structure and set names only).
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/blu.lua` | 152 | Entry (the same for every character; `<Char>_BLU.lua` and its template `_master/entry/Tetsouo_BLU.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ AzureSets load), `job_update` (HUD only), `init_gear_sets`, `file_unload` (+ AzureSets unload); shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/blu/functions/blu_functions.lua` | 64 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager`, debug line |
+| `shared/entry/blu.lua` | 153 | Entry (the same for every character; `<Char>_BLU.lua` and its template `_master/entry/Tetsouo_BLU.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ AzureSets load), `job_update` (HUD only), `init_gear_sets`, `file_unload` (+ AzureSets unload); shared hooks from `shared/utils/core/entry_kit.lua` |
 | `shared/jobs/blu/functions/BLU_PRECAST.lua` | 72 | `job_precast` (guard, cooldown, Unbridled Learning, Expiacion hold, WS handler) / `job_post_precast` (TP gear) |
 | `shared/jobs/blu/functions/BLU_MIDCAST.lua` | 163 | `job_midcast` (empty) / `job_post_midcast` (Blue Magic by category + overlays, other skills) / `job_get_spell_map` |
 | `shared/jobs/blu/functions/BLU_AFTERCAST.lua` | 21 | `job_aftercast = LifecycleManager.aftercast()` |
@@ -89,7 +88,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as <Character>_BLU.lua
     participant M as Mote-Include
-    participant F as blu_functions.lua
+    participant F as EntryKit.load_job_files
     GS->>E: run chunk (LOCKSTYLE_CONFIG, UI config, REGION_CONFIG)
     GS->>E: get_sets()
     E->>M: include Mote-Include
@@ -97,9 +96,9 @@ sequenceDiagram
     M->>E: init_gear_sets() -> include blu/sets/blu_sets.lua
     E->>E: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, _G.BLUTPConfig
-    E->>E: JobChangeManager.cancel_all()
-    E->>F: include blu_functions.lua
-    F->>F: include message_buffs + 11 hook files, require dualbox_manager
+    E->>E: EntryKit.load_job("BLU"): JobChangeManager.cancel_all()
+    E->>F: load_job_files('BLU')
+    F->>F: lockstyle + macro book install, message_buffs + 8 hook files, require dualbox_manager
     E->>E: register_lockstyle_cancel("BLU", ...)
 ```
 
@@ -109,23 +108,18 @@ sequenceDiagram
 2. `pcall(require, '<Character>/blu/keys/BLU_KEYBINDS')` into the global
    `BLUKeybinds`, then `bind_all()`; a failed require prints
    `[BLU] Keybinds failed to load: <error>` (`EntryKit.keybind_error`).
-   `bind_all` ends with `show_intro()`, which requires `BLU_MACROBOOK` and
-   `BLU_LOCKSTYLE`; neither returns the info the intro looks for.
+   `bind_all` ends with `show_intro()`.
 3. `KeybindUI.smart_init("BLU", init_delay)`; the HUD waits for
    `state.MainWeapon` (`ui_lifecycle.lua`).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once the facade has
+   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has
    defined them, the macro book, then the lockstyle after the delay.
 5. `BLUAzureSets.load()` (see [AzureSets](#azuresets)).
 6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
 `BLU_PRECAST` reads `_G.BLUTPConfig` on its first action
-(`ensure_modules_loaded`), after the entry set it. Including `BLU_LOCKSTYLE` /
-`BLU_MACROBOOK` from the facade after the intro's `require` runs each wrapper
-a second time, as on the other jobs: a second `MacrobookManager` instance, and
-for the lockstyle a second `create()` that shares the first one's context
-(`_G.__lockstyle_contexts`, one per job code in `lockstyle_manager.lua`).
+(`ensure_modules_loaded`), after the entry set it.
 
 ### Precast
 
@@ -584,9 +578,6 @@ Unbridled Learning, the Expiacion window, the AzureSets load and unload.
 
 ## Known issues
 
-- The lockstyle and macrobook wrappers each run twice (intro `require` +
-  facade `include`): two `MacrobookManager` instances; the two lockstyle
-  `create()` calls share one context.
 - The overlay's `@f` key sends `input /echo <recast="Fantod"> "Boost"; input /ma
   "Fantod" <me>`, copied as written; what the `/echo` part prints was not
   checked.

@@ -26,10 +26,9 @@
 ---   • Smart lockstyle/macrobook per subjob
 ---
 --- Architecture Overview:
----   Main File (this) >> dnc_functions.lua >> Hooks + 5 Logic Modules
+---   Main File (this) >> EntryKit.load_job_files >> Hooks + 5 Logic Modules
 ---
 --- Module Organization:
----   ├── functions/dnc_functions.lua        [Facade Loader]
 ---   ├── <Character>/dnc/sets/dnc_sets.lua [Equipment Sets]
 ---   ├── functions/DNC_*.lua                [Hook Modules]
 ---   └── functions/logic/*.lua              [5 Logic Modules]
@@ -103,8 +102,9 @@ function get_sets()
         end
     end
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('DNC', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('DNC', Profiler)
 
     -- Initial macrobook/lockstyle are triggered from user_setup();
     -- subjob changes go through JobChangeManager (job_sub_job_change).

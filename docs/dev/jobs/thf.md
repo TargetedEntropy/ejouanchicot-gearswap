@@ -1,7 +1,7 @@
 # THF (Thief) job
 
-The THF job area: 11 hook modules plus 5 logic modules under
-`shared/jobs/thf/functions/` (about 1 610 lines with the facade), an entry
+The THF job area: 8 hook modules, `thf_functions.lua` and 5 logic modules under
+`shared/jobs/thf/functions/` (about 1 220 lines), an entry
 point template, eight config files and one sets file. GearSwap loads it when
 the main job becomes THF (`<Character>_THF.lua`). From then on Mote-Include
 calls its hooks on every action (precast, midcast, aftercast), on status and
@@ -43,8 +43,8 @@ function; line numbers are deliberately not used.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/thf.lua` | 194 | Entry point (the same for every character; `<Char>_THF.lua` and its template `_master/entry/Tetsouo_THF.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ `RangeLock.sync_state`), `job_update`, `init_gear_sets`, `file_unload` (+ `RangeLock.release`, first); shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/thf/functions/thf_functions.lua` | 115 | Facade: includes `message_buffs` and the 11 hook files, calls `TreasureHunter.init()` (THF layer), requires `dualbox_manager` |
+| `shared/entry/thf.lua` | 195 | Entry point (the same for every character; `<Char>_THF.lua` and its template `_master/entry/Tetsouo_THF.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ `RangeLock.sync_state`), `job_update`, `init_gear_sets`, `file_unload` (+ `RangeLock.release`, first); shared hooks from `shared/utils/core/entry_kit.lua` |
+| `shared/jobs/thf/functions/thf_functions.lua` | 13 | What THF defines besides its hook files: calls `TreasureHunter.init()` (THF layer). Loaded last of the job files (`JOB_FILES` `own`, `shared/utils/core/entry_kit.lua`) |
 | `shared/jobs/thf/functions/THF_PRECAST.lua` | 79 | `job_precast` / `job_post_precast`: guard, cooldown, SA/TA pending flags, WS handler; post: SA/TA WS variant, then TP gear |
 | `shared/jobs/thf/functions/THF_MIDCAST.lua` | 94 | `job_midcast` (ranged lock via `RangeLock.engage`) / `job_post_midcast` (watchdog, MidcastManager for Ninjutsu, Healing, Enhancing) |
 | `shared/jobs/thf/functions/THF_AFTERCAST.lua` | 65 | `job_aftercast`: watchdog, SA/TA pending flags (lowered when refused), quiver auto-open |
@@ -94,7 +94,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as <Character>_THF.lua
     participant M as Mote-Include
-    participant F as thf_functions.lua
+    participant F as EntryKit.load_job_files
     GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG)
     GS->>E: get_sets()
     E->>M: include Mote-Include
@@ -102,9 +102,9 @@ sequenceDiagram
     M->>E: init_gear_sets() -> include sets file
     E->>E: INIT_SYSTEMS (hooks: belt, DW, TH, midcast fallback, custom, cast time, combat mode), data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, _G.THFTPConfig
-    E->>E: JobChangeManager.cancel_all()
-    E->>F: include thf_functions.lua
-    F->>F: message_buffs + 11 hook files, THF TreasureHunter.init(), require dualbox_manager
+    E->>E: EntryKit.load_job("THF"): JobChangeManager.cancel_all()
+    E->>F: load_job_files('THF')
+    F->>F: lockstyle + macro book install, message_buffs + 8 hook files, thf_functions.lua (TreasureHunter.init()), require dualbox_manager
     E->>E: register_lockstyle_cancel("THF", ...)
 ```
 
@@ -125,20 +125,18 @@ sequenceDiagram
    (`ui_lifecycle.lua` `are_states_ready`).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once the facade has
+   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has
    defined `select_default_macro_book` / `select_default_lockstyle`, the macro
-   book is set and the lockstyle scheduled after 8 s. The `KeybindManager`
-   intro also `require`s `THF_MACROBOOK.lua` and `THF_LOCKSTYLE.lua`; the
-   facade includes them again, which creates a second factory instance for
-   each.
+   book is set and the lockstyle scheduled after 8 s.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-The facade includes `message_buffs.lua`, `THF_PRECAST`, `THF_MIDCAST`,
-`THF_AFTERCAST`, `THF_IDLE`, `THF_ENGAGED`, `THF_STATUS`, `THF_BUFFS`,
-`THF_LOCKSTYLE`, `THF_MACROBOOK`, `THF_COMMANDS`, `THF_MOVEMENT`, then calls
-the THF `TreasureHunter.init()` (sets `_G._treasure_engaged_by_job` to the
-`SetBuilder.sata_th_layer` provider, then the shared `init`), requires `dualbox_manager` and prints a debug line. The other
-logic modules are required lazily by the hooks.
+`EntryKit.load_job_files('THF')` installs the lockstyle and macro book,
+includes `message_buffs.lua`, `THF_PRECAST`, `THF_MIDCAST`, `THF_AFTERCAST`,
+`THF_IDLE`, `THF_ENGAGED`, `THF_STATUS`, `THF_BUFFS`, `THF_COMMANDS`, then
+`thf_functions.lua` (THF's `JOB_FILES` entry, `own`), which calls the THF
+`TreasureHunter.init()` (sets `_G._treasure_engaged_by_job` to the
+`SetBuilder.sata_th_layer` provider, then the shared `init`), and requires
+`dualbox_manager`. The other logic modules are required lazily by the hooks.
 
 ### Precast
 
@@ -534,7 +532,7 @@ sub-set added under one (`sets.midcast.RA.X`) lands inside the other.
 - Events: `incoming chunk`, `target change`, `zone change`, raw events
   registered by the shared `TreasureHunter.init()`, plus its `ActionListener`
   subscription (`treasure_hunter`) for the action packets; GearSwap removes
-  them at the next load, and the facade registers them again.
+  them at the next load, and `thf_functions.lua` registers them again.
 - Coroutines: the 8 s lockstyle in `user_setup`; `gs c update` 0.1 s after
   SA/TA loss; the quiver check 1 s after a shot. FBC and Steal
   `wait` chains sit in the Windower command queue (they survive a reload).
@@ -669,6 +667,6 @@ sub-set added under one (`sets.midcast.RA.X`) lands inside the other.
 - Midcast routing is a no-op for the three routed skills (base sets absent);
   `sets.midcast.EnhancingMagic` uses a key nothing reads.
 - Fixed 2026-10-15: the initial macrobook/lockstyle no longer depend on the
-  `show_intro` side effect (`EntryKit.macro_and_lockstyle` waits for the facade).
+  `show_intro` side effect (`EntryKit.macro_and_lockstyle` waits for the job files).
 - `job_post_midcast` skeleton is duplicated with DNC.
 - `job_buff_change` re-implements `LifecycleManager.buff_change`.

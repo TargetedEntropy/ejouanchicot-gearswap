@@ -15,7 +15,7 @@
 ---   • UI + Keybind system
 ---
 --- Architecture:
----   Main File >> pld_functions.lua (facade) >> Hooks + 5 Logic Modules
+---   Main File >> EntryKit.load_job_files >> Hooks + 5 Logic Modules
 ---
 --- Modules:
 ---   • Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
@@ -70,9 +70,9 @@ function get_sets()
         JobChangeManager.cancel_all()
     end
 
-    -- Load job-specific functions (AutoMove loaded via INIT_SYSTEMS)
-    include('../shared/jobs/pld/functions/pld_functions.lua')
-    Profiler.mark('After pld_functions')
+    -- the job's hook files, lockstyle and macro book (EntryKit.load_job_files)
+    EntryKit.load_job_files('PLD')
+    Profiler.mark('After pld files')
 
     -- Refresh the slots now set_builder can be loaded: PLDStates created them
     -- during user_setup (the HUD needs them by then) with whatever weapon it

@@ -37,8 +37,7 @@ drift.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/run.lua` | 178 | Entry point (the same for every character; `<Char>_RUN.lua` and its template `_master/entry/Tetsouo_RUN.lua` are one `include` of it): same shape as PLD; BLU and TP configs loaded in `get_sets`; keybinds deferred 0.5 s; initial macro book / lockstyle deferred 0.2 s (`EntryKit.macro_and_lockstyle`, `shared/utils/core/entry_kit.lua`) |
-| `shared/jobs/run/functions/run_functions.lua` | 111 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager` |
+| `shared/entry/run.lua` | 179 | Entry point (the same for every character; `<Char>_RUN.lua` and its template `_master/entry/Tetsouo_RUN.lua` are one `include` of it): same shape as PLD; BLU and TP configs loaded in `get_sets`; keybinds deferred 0.5 s; initial macro book / lockstyle deferred 0.2 s (`EntryKit.macro_and_lockstyle`, `shared/utils/core/entry_kit.lua`) |
 | `shared/jobs/run/functions/RUN_PRECAST.lua` | 105 | `job_precast` (guard, cooldown, WS) / `job_post_precast` (TP gear, self-cure FC, precast debug display) |
 | `shared/jobs/run/functions/RUN_MIDCAST.lua` | 157 | `job_midcast` (Cure to Cure IV) / `job_post_midcast` (dispatch) |
 | `shared/jobs/run/functions/RUN_AFTERCAST.lua` | 38 | `LifecycleManager.aftercast()`, empty `job_post_aftercast` |
@@ -76,7 +75,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/run.lua
     participant M as Mote-Include
-    participant F as run_functions.lua
+    participant F as EntryKit.load_job_files
     GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG)
     GS->>E: get_sets()
     E->>M: include Mote-Include
@@ -84,8 +83,8 @@ sequenceDiagram
     M->>E: init_gear_sets() -> include run/sets/run_sets.lua
     E->>E: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, _G.BluMagicConfig = RUN_BLU_MAGIC, require RUN_TP_CONFIG (sets _G.RUNTPConfig)
-    E->>E: JobChangeManager.cancel_all()
-    E->>F: include run_functions.lua
+    E->>E: EntryKit.load_job("RUN"): JobChangeManager.cancel_all()
+    E->>F: load_job_files('RUN')
     E->>E: register_lockstyle_cancel("RUN", ...)
     Note over E: +0.2 s: select_default_macro_book(), lockstyle after 8 s
     Note over E: +0.5 s: RUNKeybinds.bind_all()
@@ -103,7 +102,7 @@ sequenceDiagram
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
    (`shared/utils/core/entry_kit.lua`), as on every job. At `user_setup` time
    nothing defines `select_default_macro_book` / `select_default_lockstyle`;
-   the facade defines them during the rest of `get_sets()`, and 0.2 s later
+   `EntryKit.load_job_files` defines them during the rest of `get_sets()`, and 0.2 s later
    (`LoadGate.defer`) the macro book is set and the lockstyle scheduled after
    `initial_load_delay` (8 s). Until 2026-10-15 RUN ran its own 0.2 s
    coroutine for this.
@@ -117,10 +116,10 @@ sequenceDiagram
 JobChangeManager operations and calls `RUNKeybinds.unbind_all()` when the
 global exists. RUN has no ammo lock to release.
 
-`run_functions.lua` includes `message_buffs.lua`, `RUN_PRECAST`, `RUN_MIDCAST`,
-`RUN_AFTERCAST`, `RUN_IDLE`, `RUN_ENGAGED`, `RUN_STATUS`, `RUN_BUFFS`,
-`RUN_LOCKSTYLE`, `RUN_MACROBOOK`, `RUN_COMMANDS`, `RUN_MOVEMENT`, then requires
-`dualbox_manager`.
+`EntryKit.load_job_files('RUN')` installs the lockstyle and macro book,
+includes `message_buffs.lua`, `RUN_PRECAST`, `RUN_MIDCAST`, `RUN_AFTERCAST`,
+`RUN_IDLE`, `RUN_ENGAGED`, `RUN_STATUS`, `RUN_BUFFS`, `RUN_COMMANDS`, then
+requires `dualbox_manager`.
 
 ### Precast
 

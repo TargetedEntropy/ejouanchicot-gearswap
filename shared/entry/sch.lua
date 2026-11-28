@@ -11,7 +11,7 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---
 --- Architecture:
----   Main File (this) >> sch_functions.lua >> Hooks >> Logic Modules
+---   Main File (this) >> EntryKit.load_job_files >> Hooks >> Logic Modules
 ---
 --- Hooks Modules:
 ---   SCH_PRECAST | SCH_MIDCAST | SCH_AFTERCAST | SCH_STATUS | SCH_BUFFS
@@ -58,8 +58,9 @@ function get_sets()
     -- SCH-specific configs
     _G.SCHTPConfig = require(CharPaths.module('job', 'SCH_TP_CONFIG', 'SCH'))
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('SCH', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('SCH', Profiler)
 
     Profiler.finish()
 end

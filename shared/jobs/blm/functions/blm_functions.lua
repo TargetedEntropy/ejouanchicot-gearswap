@@ -1,43 +1,17 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
----   BLM Functions Module - Facade Loader + Global Function Exports
+---   BLM Functions - what BLM defines besides its hook files
 ---  ═══════════════════════════════════════════════════════════════════════════
----   Central loading facade for all BLM job modules.
----   This file includes all specialized BLM modules and makes their functions
----   available to the main job file.
----
----   ADDITIONALLY: Exports key functions globally
+---   Loaded by EntryKit.load_job_files after the BLM hook files
+---   (shared/utils/core/entry_kit.lua, JOB_FILES `own`). Global functions the
+---   hooks call:
 ---   • BuffSelf() - Automated self-buffing
 ---   • refine_various_spells() - Spell tier downgrading
 ---   • checkArts() - Scholar subjob Dark Arts automation
 ---   • CastStorm() - Storm casting with Klimaform
 ---
----   Architecture:
----   • Hook modules (BLM_*.lua) provide GearSwap event handlers
----   • Logic modules (logic/*.lua) contain business logic, loaded via require()
----   • Global exports allow direct function calls in hooks (old system compatibility)
----
 ---   @file    shared/jobs/blm/functions/blm_functions.lua
 ---   @author  ejouanchicot
----   @version 2.0 (Added facade pattern + global exports)
----   @date    Created: 2025-10-15 | Updated: 2025-10-15
----   @requires All BLM_*.lua modules in functions directory
 ---  ═══════════════════════════════════════════════════════════════════════════
-
----  ═══════════════════════════════════════════════════════════════════════════
----   SECTION 1: PERFORMANCE PROFILER (Load first for timing)
----  ═══════════════════════════════════════════════════════════════════════════
--- TIMER() calls are no-ops unless //gs c perf start
-local Profiler = require('shared/utils/debug/performance_profiler')
-local TIMER = Profiler.create_timer('BLM')
-
----  ═══════════════════════════════════════════════════════════════════════════
----   SECTION 2: MESSAGE SYSTEM (Load first for caching by logic modules)
----  ═══════════════════════════════════════════════════════════════════════════
--- Message system (must load first for buff status display)
-
-include('../shared/utils/messages/formatters/magic/message_buffs.lua')
-TIMER('message_buffs')
-
 -- MessageFormatter lazy loaded (only needed for error messages in checkArts)
 local MessageFormatter = nil
 
@@ -49,7 +23,7 @@ local function ensure_message_formatter()
 end
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   SECTION 3: LOGIC MODULES (Lazy Loading - loaded on first use)
+---   LOGIC MODULES (loaded on first use)
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 -- Logic modules loaded on demand (performance optimization)
@@ -70,44 +44,6 @@ local function ensure_storm_manager()
     end
 end
 
----  ═══════════════════════════════════════════════════════════════════════════
----   SECTION 4: COMBAT ACTION HOOKS
----  ═══════════════════════════════════════════════════════════════════════════
-
-include('../shared/jobs/blm/functions/BLM_PRECAST.lua')
-TIMER('BLM_PRECAST')
-include('../shared/jobs/blm/functions/BLM_MIDCAST.lua')
-TIMER('BLM_MIDCAST')
-include('../shared/jobs/blm/functions/BLM_AFTERCAST.lua')
-TIMER('BLM_AFTERCAST')
-
----  ═══════════════════════════════════════════════════════════════════════════
----   SECTION 5: GEAR SELECTION HOOKS
----  ═══════════════════════════════════════════════════════════════════════════
-
-include('../shared/jobs/blm/functions/BLM_IDLE.lua')
-TIMER('BLM_IDLE')
-include('../shared/jobs/blm/functions/BLM_ENGAGED.lua')
-TIMER('BLM_ENGAGED')
-
----  ═══════════════════════════════════════════════════════════════════════════
----   SECTION 6: EVENT MONITORING HOOKS
----  ═══════════════════════════════════════════════════════════════════════════
-
-include('../shared/jobs/blm/functions/BLM_STATUS.lua')
-TIMER('BLM_STATUS')
-include('../shared/jobs/blm/functions/BLM_BUFFS.lua')
-TIMER('BLM_BUFFS')
-
----  ═══════════════════════════════════════════════════════════════════════════
----   SECTION 7: UTILITY HOOKS
----  ═══════════════════════════════════════════════════════════════════════════
-
--- Lockstyle and macro book: the shared managers set up for this job (shared/data/job_defaults.lua)
-require('shared/utils/lockstyle/lockstyle_manager').install('BLM')
-require('shared/utils/macrobook/macrobook_manager').install('BLM')
-include('../shared/jobs/blm/functions/BLM_COMMANDS.lua')
-TIMER('BLM_COMMANDS')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   LOGIC MODULES REFERENCE (Lazy Loaded - loaded on first use)
@@ -125,7 +61,7 @@ TIMER('BLM_COMMANDS')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   SECTION 8: GLOBAL FUNCTION EXPORTS (FACADE PATTERN)
+---   GLOBAL FUNCTIONS
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   These functions are exported globally to maintain compatibility with
 ---   old system where functions are called directly in hooks (not via require)
@@ -280,21 +216,3 @@ _G.BuffSelf = BuffSelf
 _G.refine_various_spells = refine_various_spells
 _G.checkArts = checkArts
 _G.CastStorm = CastStorm
-
----  ═══════════════════════════════════════════════════════════════════════════
----   SECTION 9: DUAL-BOXING SYSTEM
----  ═══════════════════════════════════════════════════════════════════════════
-
--- Load dual-boxing manager (auto-initializes and handles ALT<>>MAIN communication)
--- Uses deferred initialization (2s delay) and lazy message loading
-local DualBoxManager = require('shared/utils/dualbox/dualbox_manager')
-
----  ═══════════════════════════════════════════════════════════════════════════
----   INITIALIZATION COMPLETE
----  ═══════════════════════════════════════════════════════════════════════════
-
--- All hook functions loaded, logic modules will load on demand
-local MessageFormatter = require('shared/utils/messages/message_formatter')
-MessageFormatter.show_debug('BLM', 'Hook functions loaded (and 5 global exports)')
-
-TIMER('TOTAL BLM_functions', true)

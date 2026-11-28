@@ -1,7 +1,7 @@
 # DNC (Dancer) job
 
-The DNC job area has 11 hook modules, the facade and 5 logic modules under
-`shared/jobs/dnc/functions/` (1 544 lines), one entry point per character,
+The DNC job area has 8 hook modules and 5 logic modules under
+`shared/jobs/dnc/functions/` (1 171 lines), one entry point per character,
 ten config files and one sets file. It also owns, or is the main user of,
 two shared helpers: `shared/utils/dnc/waltz_manager.lua` and
 `shared/utils/precast/ability_helper.lua`; it uses two more that serve every
@@ -41,7 +41,6 @@ function; line numbers are given only where no function name fits.
 | Path | Lines | Role |
 |------|------:|------|
 | `shared/entry/dnc.lua` | 209 | Entry point (the same for every character; `<Char>_DNC.lua` and its template `_master/entry/Tetsouo_DNC.lua` are one `include` of it): config preload, `get_sets` (with the `cancel_conflicting_buffs` override), `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/dnc/functions/dnc_functions.lua` | 105 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager` |
 | `shared/jobs/dnc/functions/DNC_PRECAST.lua` | 145 | `refine_waltz` override, `job_precast` (guard, cooldown, `job_precast_samba`, Climactic timestamp, `job_precast_weaponskill`, WS handler), `job_post_precast` (WS variant, TP gear) |
 | `shared/jobs/dnc/functions/DNC_MIDCAST.lua` | 90 | `job_midcast` (empty) / `job_post_midcast` (MidcastManager for Ninjutsu, Healing, Enhancing) |
 | `shared/jobs/dnc/functions/DNC_AFTERCAST.lua` | 38 | `job_aftercast`: watchdog tick only (exported to `_G` only) |
@@ -89,7 +88,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as Char_DNC.lua
     participant M as Mote-Include
-    participant F as dnc_functions.lua
+    participant F as EntryKit.load_job_files
     GS->>E: run chunk (LOCKSTYLE_CONFIG, config_loader + UIConfig, REGION_CONFIG)
     GS->>E: get_sets()
     E->>M: include Mote-Include
@@ -98,8 +97,8 @@ sequenceDiagram
     E->>E: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, UIConfig, RECAST_CONFIG, DNCTPConfig, DNCWSConfig
     E->>E: replace _G.cancel_conflicting_buffs
-    E->>E: JobChangeManager.cancel_all()
-    E->>F: include dnc_functions.lua -> 11 hooks, refine_waltz override
+    E->>E: EntryKit.load_job("DNC"): JobChangeManager.cancel_all()
+    E->>F: load_job_files('DNC') -> message_buffs + 8 hooks, refine_waltz override
     E->>E: register_lockstyle_cancel("DNC", ...)
 ```
 
@@ -108,14 +107,14 @@ is `KeybindManager.create('DNC', ...)`);
 `KeybindUI.smart_init("DNC", ...)` (the UI waits for `state.MainStep`);
 `JobChangeManager.initialize()` plus
 `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-(`shared/utils/core/entry_kit.lua`): 0.2 s later, once the facade has defined
+(`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has defined
 `select_default_macro_book` / `select_default_lockstyle`, the macro book, then
 the lockstyle after 8 s; `dualbox_manager`.
 
 The two Mote overrides:
 
-- `refine_waltz` (`DNC_PRECAST.lua`) is a global no-op defined when the facade
-  includes `DNC_PRECAST`. Mote's `user_precast` calls it on every action
+- `refine_waltz` (`DNC_PRECAST.lua`) is a global no-op defined when
+  `EntryKit.load_job_files` includes `DNC_PRECAST`. Mote's `user_precast` calls it on every action
   (`Mote-Globals.lua`), so a waltz typed or macroed by hand is never re-tiered,
   never downgraded for TP and never blocked on full HP. On other jobs with
   /DNC, Mote's own `refine_waltz` stays (it re-tiers a waltz on self).
@@ -527,9 +526,8 @@ and RUN read `_G.PrecastDebugState` (`BRD_PRECAST.lua`, `RDM_PRECAST.lua`, `RUN_
   cast shorter than that (high Fast Cast) loses its new shadows, and an
   interrupted cast loses the old ones.
 - Fixed 2026-10-15: the initial macrobook / lockstyle no longer depend on the
-  `show_intro` side effect (`EntryKit.macro_and_lockstyle` waits for the facade).
-- Stale comments: the entry header claims subjob-filtered keybinds; the
-  facade calls `DNC_MOVEMENT` a "movement status accessor" (it is empty).
+  `show_intro` side effect (`EntryKit.macro_and_lockstyle` waits for the job files).
+- Stale comment: the entry header claims subjob-filtered keybinds.
 - Dead states: `CombatWeaponMode`, `Buff['Climactic Flourish']`.
 - `DNC_AFTERCAST.lua` exports to `_G` only, with no module `return`.
 - Pending in-game checks: `//gs c waltz` on a party member picks a tier sized

@@ -11,7 +11,7 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---
 --- Architecture:
----   Main File (this) >> nin_functions.lua >> Hooks >> Logic Modules
+---   Main File (this) >> EntryKit.load_job_files >> Hooks >> Logic Modules
 ---
 --- Hooks Modules:
 ---   NIN_PRECAST | NIN_MIDCAST | NIN_AFTERCAST | NIN_STATUS | NIN_BUFFS
@@ -57,8 +57,9 @@ function get_sets()
     -- NIN-specific configs
     _G.NINTPConfig = require(CharPaths.module('job', 'NIN_TP_CONFIG', 'NIN'))
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('NIN', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('NIN', Profiler)
 
     Profiler.finish()
 end

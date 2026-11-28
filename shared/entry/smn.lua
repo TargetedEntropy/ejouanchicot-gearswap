@@ -52,8 +52,9 @@ function get_sets()
     _G.RECAST_CONFIG = require(CharPaths.module('common', 'RECAST_CONFIG'))
     Profiler.mark('After configs')
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('SMN', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('SMN', Profiler)
 
     Profiler.finish()
 end

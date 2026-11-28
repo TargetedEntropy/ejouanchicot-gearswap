@@ -11,7 +11,7 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---
 --- Architecture:
----   Main File (this) >> pup_functions.lua >> Hooks >> Logic Modules
+---   Main File (this) >> EntryKit.load_job_files >> Hooks >> Logic Modules
 ---
 --- Hooks Modules:
 ---   PUP_PRECAST | PUP_MIDCAST | PUP_PET_MIDCAST | PUP_AFTERCAST | PUP_STATUS
@@ -57,8 +57,9 @@ function get_sets()
     -- PUP-specific configs
     _G.PUPTPConfig = require(CharPaths.module('job', 'PUP_TP_CONFIG', 'PUP'))
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('PUP', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('PUP', Profiler)
 
     Profiler.finish()
 end

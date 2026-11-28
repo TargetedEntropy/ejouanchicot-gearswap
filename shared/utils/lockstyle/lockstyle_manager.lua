@@ -2,7 +2,7 @@
 ---   Lockstyle Manager - Centralized Lockstyle Management Factory
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   Factory pattern that creates job-specific lockstyle modules. A job's
----   facade calls install(job): its globals, its module built at the first call
+---   EntryKit.load_job_files calls install(job): its globals, its module built at the first call
 ---   (the numbers in shared/data/job_defaults.lua).
 ---   Also owns the persistent DressUp toggle and apply_style() for one-off
 ---   styles (craft/fish).
@@ -322,7 +322,7 @@ function LockstyleManager.create(job_code, config_path, default_lockstyle, defau
     return api
 end
 
---- The globals a job's facade needs at load (the entry reads cancel_<job>_lockstyle_operations right after it),
+--- The globals a job's files need at load (the entry reads cancel_<job>_lockstyle_operations right after it),
 --- the job's module built by create() at the first call of either. The config is the character's
 --- <job>/display/<JOB>_LOCKSTYLE.lua; with no entry for the subjob, shared/data/job_defaults.lua.
 --- @param job_code string Job code ('WAR')

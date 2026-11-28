@@ -63,8 +63,9 @@ function get_sets()
     -- the shared systems, the data, the spell / ability / weaponskill messages
     EntryKit.after_mote(Profiler)
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('BST', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('BST', Profiler)
 
     Profiler.finish()
 end

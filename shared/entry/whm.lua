@@ -14,7 +14,7 @@
 ---   • UI + Keybind system
 ---
 --- Architecture:
----   Main File >> whm_functions.lua (facade) >> Hooks + Logic Module
+---   Main File >> EntryKit.load_job_files >> Hooks + Logic Module
 ---
 --- Modules:
 ---   • Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
@@ -62,8 +62,9 @@ function get_sets()
     -- WHM-specific configs
     _G.WHMTPConfig = require(CharPaths.module('job', 'WHM_TP_CONFIG', 'WHM'))
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('WHM', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('WHM', Profiler)
 
     -- Initial macrobook/lockstyle are triggered from user_setup();
     -- subjob changes go through JobChangeManager (job_sub_job_change).

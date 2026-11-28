@@ -2,7 +2,7 @@
 
 This page covers two groups of code:
 
-- **The two per-job factories**, lockstyle and macrobook. Each job's facade calls `LockstyleManager.install(job)` and `MacrobookManager.install(job)`, which define the job's globals and build its module at the first call, from the defaults in `shared/data/job_defaults.lua` (the 44 per-job wrapper files they replaced were removed on 2026-11-27). They are triggered from the entry's `user_setup()`, from `//gs c ls`, from the dual-box sync hooks and from craft mode.
+- **The two per-job factories**, lockstyle and macrobook. For each job, `EntryKit.load_job_files` (`shared/utils/core/entry_kit.lua`) calls `LockstyleManager.install(job)` and `MacrobookManager.install(job)`, which define the job's globals and build its module at the first call, from the defaults in `shared/data/job_defaults.lua` (the 44 per-job wrapper files they replaced were removed on 2026-11-27). They are triggered from the entry's `user_setup()`, from `//gs c ls`, from the dual-box sync hooks and from craft mode.
 - **The shared helpers** that apply to every job, or to several:
   - installed on Mote's hooks by `INIT_SYSTEMS.lua` on every load: ElementalBelt (Obi / Orpheus), DualWield (DW tiers by haste), TreasureHunter (Treasure Mode gear);
   - started by `INIT_SYSTEMS.lua` 0.5 s after load: AutoMove, which polls the player position with `coroutine.schedule`;
@@ -62,7 +62,7 @@ Other helpers in `shared/utils/equipment/` are documented elsewhere:
 
 ### How it works
 
-1. `LockstyleManager.install(job_code)` (called by the job's facade) defines `select_default_lockstyle` and `cancel_<job>_lockstyle_operations`; the first call of either runs `LockstyleManager.create(job_code, 'config/<job>/<JOB>_LOCKSTYLE', default_lockstyle, default_subjob)`, the defaults from `shared/data/job_defaults.lua`. `create()` returns the `ctx` already built for that job code, or builds one. The ctxs are kept per job code in the sandbox global `_G.__lockstyle_contexts` (local `contexts()`), not in a module-local. That way every `create()` of a job in one load shares them, and they die with the load. A ctx holds:
+1. `LockstyleManager.install(job_code)` (called by `EntryKit.load_job_files`) defines `select_default_lockstyle` and `cancel_<job>_lockstyle_operations`; the first call of either runs `LockstyleManager.create(job_code, 'config/<job>/<JOB>_LOCKSTYLE', default_lockstyle, default_subjob)`, the defaults from `shared/data/job_defaults.lua`. `create()` returns the `ctx` already built for that job code, or builds one. The ctxs are kept per job code in the sandbox global `_G.__lockstyle_contexts` (local `contexts()`), not in a module-local. That way every `create()` of a job in one load shares them, and they die with the load. A ctx holds:
    - the job code and the defaults;
    - the config returned by `pcall(require, CharPaths.legacy_module(config_path))`, or a fallback that always answers `default_lockstyle` (`load_config_or_fallback`);
    - `load_gen`, the LoadGate number of the load that made it (`windower._load_gen`);
@@ -153,12 +153,7 @@ Each wrapper holds a module-local `lockstyle_module` / `macrobook_module` and de
 
 The config's `default` overrides the lockstyle argument (e.g. the PLD config's default 3 vs the argument 1).
 
-Each wrapper file is executed twice per sandbox:
-
-1. by `KeybindManager`'s `show_intro()` `require`, during `user_setup()`, which runs inside `include('Mote-Include.lua')` (see [keybinds-and-custom.md](keybinds-and-custom.md#the-intro-message));
-2. by the facade `include` in `get_sets()` (e.g. `shared/jobs/war/functions/war_functions.lua`).
-
-The two executions have separate module-locals, so each calls `create()` once. The first execution no longer matters to the entry: `EntryKit.macro_and_lockstyle` (`shared/utils/core/entry_kit.lua`) reads `select_default_macro_book` / `select_default_lockstyle` 0.2 s after `user_setup()`, through `LoadGate.defer`, once the facade `include` has defined them again; so the lockstyle it schedules and `JobChangeManager.register_lockstyle_cancel(job, cancel_<job>_lockstyle_operations)` in `get_sets()` both come from the facade's copy. Both copies get the same `ctx` from `create()` (one per job code in `_G.__lockstyle_contexts`) anyway. Until 2026-10-15 the entry called the two globals at once in `user_setup()`, and found them only thanks to the `show_intro()` require: with keybinds that failed to load or had no key, the first macro book and lockstyle were skipped without a word.
+`install()` runs once per load, from `EntryKit.load_job_files` in `get_sets()`, after `user_setup()` (which runs inside `include('Mote-Include.lua')`). `EntryKit.macro_and_lockstyle` (`shared/utils/core/entry_kit.lua`) reads `select_default_macro_book` / `select_default_lockstyle` 0.2 s after `user_setup()`, through `LoadGate.defer`, once `load_job_files` has defined them; the lockstyle it schedules and `JobChangeManager.register_lockstyle_cancel(job, cancel_<job>_lockstyle_operations)` in `get_sets()` both reach the same `ctx` (one per job code in `_G.__lockstyle_contexts`). Until 2026-10-15 the entry called the two globals at once in `user_setup()`, and found them only thanks to the `show_intro()` require: with keybinds that failed to load or had no key, the first macro book and lockstyle were skipped without a word.
 
 ---
 
@@ -881,7 +876,7 @@ Which shared system applies to which job, checked in the code and the `_master` 
 2. `select_default_lockstyle` does nothing when `player.main_job` is not the factory's job; `select_default_macro_book` has no such guard.
 3. A lockstyle debounce only covers operations of the same job `ctx`, which both wrapper copies of a sandbox share. `apply_style` is not debounced against it.
 4. `equip()` from a coroutine does nothing. AutoMove, DualWield and TreasureHunter send `gs c update`; craft uses `gs disable` commands, or synchronous `enable()` / `equip()` inside the command handler.
-5. AutoMove callbacks must be registered after `automove.lua` has been included, i.e. more than 0.5 s after `INIT_SYSTEMS` (WAR waits 0.6 s). `_G.AutoMove` does not exist while the facade is being included.
+5. AutoMove callbacks must be registered after `automove.lua` has been included, i.e. more than 0.5 s after `INIT_SYSTEMS` (WAR waits 0.6 s). `_G.AutoMove` does not exist while `EntryKit.load_job_files` includes the job files.
 6. AutoMove writes `state.Moving.value` directly instead of calling `state.Moving:set()`. Mote's modes have no `__newindex`, so from then on `.value` is a plain field, and `.current` / `:set()` no longer move it.
 7. Craft slot locks belong to the GearSwap engine, not to the sandbox. Only `//gs enable all` or a successful `//gs c uncraft` releases them.
 8. `select_cure_tier` returning `nil` means "cast the original", including when every tier is on recast. It then prints nothing, and the recast check that follows in `WHM_PRECAST` reports it.
@@ -894,7 +889,7 @@ Which shared system applies to which job, checked in the code and the `_master` 
 
 ## For maintainers / AI
 
-- **New job lockstyle / macrobook.** Add the job to `shared/data/job_defaults.lua` (its default subjob, and a lockstyle / book / page only when not 1), and call `require('shared/utils/lockstyle/lockstyle_manager').install('<JOB>')` and `require('shared/utils/macrobook/macrobook_manager').install('<JOB>')` from the facade. Add `<char>/<job>/display/<JOB>_LOCKSTYLE.lua` with `default` and `by_subjob` (`get_style` is optional since 2026-10-30: the factory reads `by_subjob` without it), and `<JOB>_MACROBOOK.lua` with `solo`, `dualbox` and `default`. The entry's `EntryKit.load_facade` registers the cancel. Never write `/lockstyleset` or `/macro book` by hand: lockstyle and macro book always go through the two factories.
+- **New job lockstyle / macrobook.** Add the job to `shared/data/job_defaults.lua` (its default subjob, and a lockstyle / book / page only when not 1); `EntryKit.load_job_files` calls `require('shared/utils/lockstyle/lockstyle_manager').install('<JOB>')` and `require('shared/utils/macrobook/macrobook_manager').install('<JOB>')` for every job. Add `<char>/<job>/display/<JOB>_LOCKSTYLE.lua` with `default` and `by_subjob` (`get_style` is optional since 2026-10-30: the factory reads `by_subjob` without it), and `<JOB>_MACROBOOK.lua` with `solo`, `dualbox` and `default`. The entry's `EntryKit.load_job` registers the cancel. Never write `/lockstyleset` or `/macro book` by hand: lockstyle and macro book always go through the two factories.
 - **New craft.** Add `<char>/_common/sets/<name>_sets.lua` in either shape, and a command branch that calls `CraftManager.resolve_set('<name>', variant)` through `equip_craft_gear`, the way `handle_fish` does.
 - **New waltz or cure tier.** WaltzManager tiers live in `WALTZ_CONFIG` + `CURING_TIERS` / `DEFAULT_WALTZ_FROM` (and the `waltz_from` line of `_master/config_global/SUBJOB_CONFIG.lua`). Cure tiers live in the character's `WHM_CURE_CONFIG.lua` (`cure_tiers` / `curaga_tiers`, ascending), plus `CURE_IDS` for the recast lookup.
 - **New AutoMove consumer.** Read `state.Moving.value` in the set builder (or go through `base_set_builder.lua`), or register a callback from a coroutine scheduled after 0.5 s.
@@ -928,7 +923,7 @@ Open:
 Fixed:
 
 - `by_subjob` was ignored when a lockstyle config had no `get_style` (the BLM, BLU, BRD, DRG, MNK, NIN, PUP, RDM, RNG, SAM, SCH, THF and WHM templates, and the overlays copied from them): `resolve_style` now reads it itself (`lockstyle_manager.lua`, 2026-10-30, checked offline only).
-- A job whose keybind file failed to load, or bound no key, got no first macro book and no lockstyle, without a word: the entry found the two globals only because `show_intro()` had required the wrappers. Every entry now calls `EntryKit.macro_and_lockstyle` (`shared/utils/core/entry_kit.lua`), which waits 0.2 s for the facade (2026-10-15).
+- A job whose keybind file failed to load, or bound no key, got no first macro book and no lockstyle, without a word: the entry found the two globals only because `show_intro()` had required the wrappers. Every entry now calls `EntryKit.macro_and_lockstyle` (`shared/utils/core/entry_kit.lua`), which waits 0.2 s for the job files (2026-10-15).
 - CureManager's fallback config had no tier tables, so every Cure / Curaga then raised an error in precast. The fallback now carries default `cure_tiers` / `curaga_tiers` (`cure_manager.lua`, module load).
 - SAM's idle builder ends with `BaseSetBuilder.apply_movement`, so `sets.MoveSpeed` goes on while moving, as on the other jobs (2026-09-28).
 - DRK and SAM idle builders start with `BaseSetBuilder.select_idle_base_town` (DRK through `BaseSetBuilder.select_idle_base` since the same day, which also wears `sets.idle[HybridMode]` outside town): in a town the town set goes on top of the idle set and the movement layer is skipped, as on the other jobs (2026-09-29).

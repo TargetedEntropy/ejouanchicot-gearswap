@@ -15,7 +15,7 @@
 
 local EntryKit = {}
 
--- after user_setup(), get_sets() has included the job facade by then
+-- after user_setup(), get_sets() has loaded the job's files by then (load_job)
 local FACADE_WAIT = 0.2
 
 local function job_change_manager()
@@ -66,20 +66,79 @@ function EntryKit.after_mote(Profiler)
     Profiler.mark('After WS messages')
 end
 
---- The job's facade (shared/jobs/<job>/functions/<job>_functions.lua): what the
---- previous job scheduled is cancelled first, and the job's lockstyle cancel
---- (defined by the facade) is handed to JobChangeManager after.
+--- The job's hook files (shared/jobs/<job>/functions/<JOB>_<HOOK>.lua), in load
+--- order. Every job has the eight in HOOKS; JOB_FILES says what a job has besides
+--- (or without):
+---   buff_messages = false  no buff gain / loss messages (message_buffs.lua)
+---   pet_midcast            <JOB>_PET_MIDCAST.lua, after MIDCAST
+---   movement               <JOB>_MOVEMENT.lua, after COMMANDS
+---   own                    <job>_functions.lua: what the job defines besides its hooks
+---                          (BLM's checkArts / CastStorm..., THF's Treasure Hunter start)
+local HOOKS = {'PRECAST', 'MIDCAST', 'AFTERCAST', 'IDLE', 'ENGAGED', 'STATUS', 'BUFFS', 'COMMANDS'}
+local JOB_FILES = {
+    BLM = {own = true},
+    BRD = {buff_messages = false, movement = true},
+    BST = {pet_midcast = true},
+    COR = {movement = true},
+    DRG = {pet_midcast = true},
+    PUP = {pet_midcast = true},
+    RDM = {buff_messages = false},
+    SAM = {buff_messages = false},
+    SMN = {pet_midcast = true},
+    THF = {own = true},
+    WAR = {movement = true},
+    WHM = {buff_messages = false},
+}
+
+--- The files EntryKit.load_job_files includes for a job, in order (the tests read it).
+--- @param job string The job's code
+--- @return table paths, from data/ ('../shared/...')
+function EntryKit.job_files(job)
+    local jl, spec = job:lower(), JOB_FILES[job] or {}
+    local dir = '../shared/jobs/' .. jl .. '/functions/'
+    local files = {}
+    if spec.buff_messages ~= false then
+        files[#files + 1] = '../shared/utils/messages/formatters/magic/message_buffs.lua'
+    end
+    for _, hook in ipairs(HOOKS) do
+        files[#files + 1] = dir .. job .. '_' .. hook .. '.lua'
+        if hook == 'MIDCAST' and spec.pet_midcast then files[#files + 1] = dir .. job .. '_PET_MIDCAST.lua' end
+        if hook == 'COMMANDS' and spec.movement then files[#files + 1] = dir .. job .. '_MOVEMENT.lua' end
+    end
+    if spec.own then files[#files + 1] = dir .. jl .. '_functions.lua' end
+    return files
+end
+
+--- Everything a job defines: its hook files (EntryKit.job_files), its lockstyle and
+--- macro book (the shared managers, shared/data/job_defaults.lua) and the dual-box
+--- manager. Each file is timed under //gs c perf.
+--- @param job string The job's code
+function EntryKit.load_job_files(job)
+    local TIMER = require('shared/utils/debug/performance_profiler').create_timer(job)
+    require('shared/utils/lockstyle/lockstyle_manager').install(job)
+    require('shared/utils/macrobook/macrobook_manager').install(job)
+    for _, file in ipairs(EntryKit.job_files(job)) do
+        include(file)
+        TIMER(file:match('([^/]+)%.lua$'))
+    end
+    -- auto-initialises, and handles the main <-> alt messages
+    require('shared/utils/dualbox/dualbox_manager')
+    TIMER('TOTAL ' .. job .. ' files', true)
+end
+
+--- The job's files (load_job_files): what the previous job scheduled is cancelled
+--- first, and the job's lockstyle cancel (defined by LockstyleManager.install) is
+--- handed to JobChangeManager after.
 --- @param job string The entry's job
 --- @param Profiler table The performance profiler get_sets started
-function EntryKit.load_facade(job, Profiler)
-    local jl = job:lower()
+function EntryKit.load_job(job, Profiler)
     local JobChangeManager = job_change_manager()
     if JobChangeManager then
         JobChangeManager.cancel_all()
     end
-    include('../shared/jobs/' .. jl .. '/functions/' .. jl .. '_functions.lua')
-    Profiler.mark('After ' .. jl .. '_functions')
-    local cancel = rawget(_G, 'cancel_' .. jl .. '_lockstyle_operations')
+    EntryKit.load_job_files(job)
+    Profiler.mark('After ' .. job:lower() .. ' files')
+    local cancel = rawget(_G, 'cancel_' .. job:lower() .. '_lockstyle_operations')
     if JobChangeManager and cancel then
         JobChangeManager.register_lockstyle_cancel(job, cancel)
     end
@@ -162,8 +221,8 @@ function EntryKit.reload_pending()
 end
 
 --- First macro book, then the lockstyle `lockstyle_delay` seconds later.
---- Waits for the job facade: user_setup() runs inside include('Mote-Include.lua'),
---- before get_sets() includes it, and the two functions came early only when
+--- Waits for the job's files (load_job): user_setup() runs inside include('Mote-Include.lua'),
+--- before get_sets() loads them, and the two functions came early only when
 --- the keybinds loaded (KeybindManager's intro requires them). Without keys,
 --- both used to be skipped without a word. Through LoadGate: a newer load or a
 --- job change drops it.

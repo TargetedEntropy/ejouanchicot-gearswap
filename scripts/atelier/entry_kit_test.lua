@@ -2,7 +2,7 @@
 --- Test of the hooks every entry shares (shared/utils/core/entry_kit.lua)
 ---============================================================================
 --- The first macro book and lockstyle come even when the keybinds did not
---- load (the facade defines them only after user_setup), and a newer load
+--- load (the job's files define them only after user_setup), and a newer load
 --- drops them, and so does the old sandbox's user_setup() on a subjob change;
 --- unload cancels then unbinds; a subjob change goes to
 --- JobChangeManager with the job of the game.
@@ -50,11 +50,11 @@ local EntryKit = require('shared/utils/core/entry_kit')
 -- 1. keybinds failed: the two functions do not exist during user_setup
 select_default_macro_book, select_default_lockstyle = nil, nil
 EntryKit.macro_and_lockstyle(8)
--- get_sets() then includes the facade
+-- get_sets() then loads the job's files
 select_default_macro_book = function() calls[#calls + 1] = 'macro' end
 select_default_lockstyle = function() calls[#calls + 1] = 'lockstyle' end
 run_until(1)
-check('macro book once the facade is there', calls[1], 'macro')
+check('macro book once the job\'s files are there', calls[1], 'macro')
 check('lockstyle not yet', calls[2], nil)
 run_until(9)
 check('lockstyle after its delay', calls[2], 'lockstyle')
@@ -110,5 +110,29 @@ player = nil
 EntryKit.sub_job_change('WAR', 'NIN')
 check('subjob change with the game job', calls[1], 'change WAR/DNC')
 check('subjob change without player', calls[2], 'change WAR/NIN')
+
+-- the job's files: every file EntryKit.job_files lists exists, and every hook file of a job folder is listed
+-- (a hook file nobody includes defines nothing; a listed file missing stops get_sets)
+local JOBS = {'BLM', 'BLU', 'BRD', 'BST', 'COR', 'DNC', 'DRG', 'DRK', 'GEO', 'MNK', 'NIN', 'PLD', 'PUP', 'RDM',
+    'RNG', 'RUN', 'SAM', 'SCH', 'SMN', 'THF', 'WAR', 'WHM'}
+local listed = {}
+for _, job in ipairs(JOBS) do
+    for _, file in ipairs(EntryKit.job_files(job)) do
+        local path = file:gsub('^%.%./', '')
+        listed[path] = true
+        local f = io.open(path)
+        T.ok(job .. ' loads ' .. path .. ', which exists', f ~= nil)
+        if f then f:close() end
+    end
+end
+for _, path in ipairs(T.files('shared/jobs', '.lua')) do
+    if path:match('^shared/jobs/%l+/functions/[^/]+%.lua$') then
+        T.ok(path .. ' is loaded by EntryKit.job_files', listed[path])
+    end
+end
+local war = EntryKit.job_files('WAR')
+check('WAR: the buff messages first', war[1], '../shared/utils/messages/formatters/magic/message_buffs.lua')
+check('WAR: MOVEMENT after COMMANDS', war[#war], '../shared/jobs/war/functions/WAR_MOVEMENT.lua')
+check('BRD: no buff messages', EntryKit.job_files('BRD')[1], '../shared/jobs/brd/functions/BRD_PRECAST.lua')
 
 T.done()

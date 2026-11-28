@@ -14,7 +14,7 @@
 ---   • UI + Keybind system
 ---
 --- Architecture:
----   Main File >> run_functions.lua (facade) >> Hooks + 4 Logic Modules
+---   Main File >> EntryKit.load_job_files >> Hooks + 4 Logic Modules
 ---
 --- Modules:
 ---   • Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
@@ -65,8 +65,9 @@ function get_sets()
     -- Note: RUN_TP_CONFIG.lua exports _G.RUNTPConfig automatically
     require(CharPaths.module('job', 'RUN_TP_CONFIG', 'RUN'))
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('RUN', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('RUN', Profiler)
 
     Profiler.finish()
 end

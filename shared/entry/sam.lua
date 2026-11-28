@@ -2,7 +2,7 @@
 --- FFXI GearSwap Configuration - Samurai (SAM) - Modular Architecture
 ---============================================================================
 --- Main coordinator for Samurai job configuration. Loads Mote-Include, the
---- shared systems and the SAM modules (shared/jobs/sam/functions/sam_functions.lua).
+--- shared systems and the SAM modules (EntryKit.load_job_files).
 ---
 --- @file shared/entry/sam.lua
 --- @author ejouanchicot
@@ -50,9 +50,9 @@ function get_sets()
         JobChangeManager.cancel_all()
     end
 
-    -- Load job-specific functions (AutoMove loaded via INIT_SYSTEMS)
-    include('../shared/jobs/sam/functions/sam_functions.lua')
-    Profiler.mark('After sam_functions')
+    -- the job's hook files, lockstyle and macro book (EntryKit.load_job_files)
+    EntryKit.load_job_files('SAM')
+    Profiler.mark('After sam files')
 
     -- Register SAM lockstyle cancel function
     if jcm_success and JobChangeManager and cancel_sam_lockstyle_operations then

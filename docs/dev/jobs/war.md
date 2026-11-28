@@ -49,7 +49,6 @@ numbers are avoided because they drift.
 | Path | Lines | Role |
 |------|------:|------|
 | `shared/entry/war.lua` | 222 | Entry point (the same for every character; `<Char>_WAR.lua` and its template `_master/entry/Tetsouo_WAR.lua` are one `include` of it): config preload, `get_sets`, `init_gear_sets` + `sync_weapon_with_hand`, `job_sub_job_change`, `user_setup` (+ `AmpullaLock.apply`), `job_update`, `file_unload` (+ `AmpullaLock.release`); shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/war/functions/war_functions.lua` | 109 | Facade: includes `message_buffs.lua` and the 11 hook files, requires `dualbox_manager` |
 | `shared/jobs/war/functions/WAR_PRECAST.lua` | 43 | `job_precast` / `job_post_precast`: guard, cooldown, WS handler (which runs AutoJump), TP gear |
 | `shared/jobs/war/functions/WAR_MIDCAST.lua` | 74 | `job_midcast` (empty) / `job_post_midcast`: Healing and Enhancing routed to `MidcastManager` |
 | `shared/jobs/war/functions/WAR_AFTERCAST.lua` | 37 | `job_aftercast`: empty |
@@ -108,7 +107,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/war.lua
     participant M as Mote-Include
-    participant F as war_functions.lua
+    participant F as EntryKit.load_job_files
     GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>E: _G.WARWSConfig = CharPaths.optional WAR_WS_CONFIG
@@ -117,9 +116,9 @@ sequenceDiagram
     M->>E: init_gear_sets() -> include war/sets/war_sets.lua, then sync_weapon_with_hand()
     E->>E: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.WARTPConfig
-    E->>E: JobChangeManager.cancel_all()
-    E->>F: include war_functions.lua
-    F->>F: include message_buffs + 11 hook files, require dualbox_manager
+    E->>E: EntryKit.load_job("WAR"): JobChangeManager.cancel_all()
+    E->>F: load_job_files('WAR')
+    F->>F: lockstyle + macro book install, message_buffs + 9 hook files, require dualbox_manager
     E->>E: register_lockstyle_cancel("WAR", ...)
 ```
 
@@ -143,17 +142,17 @@ slot would show `N/A`.
 4. `KeybindUI.smart_init("WAR", UIConfig.init_delay)` (anchor `state.HybridMode`).
 5. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once the facade has defined
+   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has defined
    `select_default_macro_book` / `select_default_lockstyle`, the macro book is set
    and the lockstyle scheduled after 8 s.
 6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-The facade (`war_functions.lua`) includes `message_buffs.lua`, then `WAR_PRECAST`,
-`WAR_MIDCAST`, `WAR_AFTERCAST`, `WAR_IDLE`, `WAR_ENGAGED`, `WAR_STATUS`, `WAR_BUFFS`,
-`WAR_LOCKSTYLE`, `WAR_MACROBOOK`, `WAR_COMMANDS`, `WAR_MOVEMENT`, requires
-`dualbox_manager` and prints a debug line. The lockstyle and macrobook wrappers
-therefore run twice per sandbox (see
-[factories](../systems/factories-and-helpers.md#job-wrappers)).
+`EntryKit.load_job('WAR', Profiler)` cancels what the previous job scheduled, then
+`EntryKit.load_job_files('WAR')` installs the lockstyle and macro book
+(`LockstyleManager.install` / `MacrobookManager.install`), includes
+`message_buffs.lua`, then `WAR_PRECAST`, `WAR_MIDCAST`, `WAR_AFTERCAST`, `WAR_IDLE`,
+`WAR_ENGAGED`, `WAR_STATUS`, `WAR_BUFFS`, `WAR_COMMANDS`, `WAR_MOVEMENT` (WAR's
+`JOB_FILES` entry, `movement`), and requires `dualbox_manager`.
 
 `file_unload` releases the ammo lock **first** (GearSwap runs `file_unload` in a
 single `pcall`), then `EntryKit.unload(WARKeybinds)`: `JobChangeManager.cancel_all()`,
@@ -383,7 +382,7 @@ has no effect on WAR.
 
 ### Retaliation auto-cancel
 
-`WAR_MOVEMENT.lua` schedules, 0.6 s after the facade runs, the registration of an
+`WAR_MOVEMENT.lua` schedules, 0.6 s after it is included, the registration of an
 `AutoMove` callback (AutoMove is included by `INIT_SYSTEMS`' 0.5 s deferred block).
 The callback receives `(is_moving, distance, player_status)` on every moving tick
 and on the stop transition, only while not engaged (AutoMove's engaged branch does

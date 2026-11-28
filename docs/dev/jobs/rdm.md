@@ -47,7 +47,6 @@ the sets files (structure and set names only).
 | Path | Lines | Role |
 |------|------:|------|
 | `shared/entry/rdm.lua` | 208 | Entry (the same for every character; `<Char>_RDM.lua` and its template `_master/entry/Tetsouo_RDM.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD only), `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/rdm/functions/rdm_functions.lua` | 78 | Facade: includes the 11 hook files, then requires `dualbox_manager` |
 | `shared/jobs/rdm/functions/RDM_PRECAST.lua` | 394 | `job_precast` as stages (guard, cooldown/refine, Phalanx, Saboteur) + WS + `SpellGearLock.begin`; `job_post_precast` (TP gear, spell FC set, lock hold, `debugprecast` trace) |
 | `shared/jobs/rdm/functions/RDM_MIDCAST.lua` | 387 | `job_midcast` (empty), `job_post_midcast` -> `route_midcast` (`SKILL_HANDLERS` table) + `SpellGearLock.hold` |
 | `shared/jobs/rdm/functions/RDM_AFTERCAST.lua` | 27 | `job_aftercast = LifecycleManager.aftercast(...)` with `SpellGearLock.release` as the extra step |
@@ -95,7 +94,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as <Character>_RDM.lua
     participant M as Mote-Include
-    participant F as rdm_functions.lua
+    participant F as EntryKit.load_job_files
     GS->>E: run chunk (LOCKSTYLE_CONFIG, UI config, REGION_CONFIG)
     GS->>E: get_sets()
     E->>M: include Mote-Include
@@ -103,9 +102,9 @@ sequenceDiagram
     M->>E: init_gear_sets() -> include rdm/sets/rdm_sets.lua
     E->>E: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, RDM_TP_CONFIG, _G.RDMSaboteurConfig
-    E->>E: JobChangeManager.cancel_all()
-    E->>F: include rdm_functions.lua
-    F->>F: include 11 hook files, require dualbox_manager
+    E->>E: EntryKit.load_job("RDM"): JobChangeManager.cancel_all()
+    E->>F: load_job_files('RDM')
+    F->>F: lockstyle + macro book install, 8 hook files (no message_buffs), require dualbox_manager
     E->>E: register_lockstyle_cancel("RDM", ...)
 ```
 
@@ -116,21 +115,19 @@ sequenceDiagram
 2. `pcall(require, '<Character>/rdm/keys/RDM_KEYBINDS')`, stored in the
    global `RDMKeybinds`, then `bind_all()`: keys of the file that no longer
    apply are unbound, the entries `get_active_binds()` keeps are bound, then
-   `show_intro()`. `show_intro` requires `RDM_MACROBOOK.lua` and
-   `RDM_LOCKSTYLE.lua`; neither returns the info table it looks for, so the
-   intro never shows the book or the style. A failed require prints
+   `show_intro()`. A failed require prints
    `[RDM] Keybinds failed to load: <error>` (`EntryKit.keybind_error`).
 3. `KeybindUI.smart_init("RDM", init_delay)`.
 4. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`
    (`shared/utils/core/entry_kit.lua`) sets the macro book 0.2 s later, once
-   the facade has defined `select_default_macro_book`, and schedules the
+   `EntryKit.load_job_files` has defined `select_default_macro_book`, and schedules the
    lockstyle after `LockstyleConfig.initial_load_delay` (8 s).
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')` (its auto-init does
    the job exchange once per load).
 
 `get_sets()` then sets `_G.RDMSaboteurConfig` (fallback
 `{auto_trigger_spells = {}, wait_time = 2}`) and requires `RDM_TP_CONFIG`
-(which writes `_G.RDMTPConfig`) **before** including the facade:
+(which writes `_G.RDMTPConfig`) **before** `EntryKit.load_job('RDM', Profiler)` includes the hook files:
 `RDM_PRECAST.lua` captures both into file locals when it is included.
 
 ### Precast
@@ -509,7 +506,7 @@ T = `_master/sets/rdm_sets.lua`. Player version: [sets.md](../../user/jobs/rdm/s
 - `SpellGearLock.hold()` must stay last in `job_post_precast` and
   `job_post_midcast`, and `release()` in `job_aftercast`.
 - `_G.RDMTPConfig` and `_G.RDMSaboteurConfig` must be set by the entry before
-  the facade include (captured at include time).
+  `EntryKit.load_job` (captured when `RDM_PRECAST.lua` is included).
 - Keybind files are data only; add a key in the template and in the live copy.
 
 **Traps**
