@@ -7,6 +7,9 @@
 --- 2. A word in a job's `words` is never a common word: the shared call would answer it first and the job's
 ---    handler would never run (COR's colors and WAR's perf were such words).
 --- 3. The shared commands answer in the job's place: handled set, the common router given the job and the words.
+--- 4. The router answers unless a handler returns JobCommands.PASS; 5. the weaponskill slots.
+--- 6. Every MessageFormatter function a command file names exists: called directly, or named in a table
+---    ('show_marcato_used': BRD's ABILITIES, read when the word is used), a typo would only fail in game.
 --- @file scripts/atelier/job_commands_test.lua
 ---============================================================================
 package.path = './?.lua;' .. package.path
@@ -149,5 +152,29 @@ check('ws alone: not a slot', ws({'ws'}, 'ws'), JC.PASS)
 cast = nil
 check('ws alone on PLD: slot 1', (pld_ws({'ws'}, 'ws') ~= JC.PASS) and cast, 1)
 check('another word: not a slot', ws({'wsx'}, 'wsx'), JC.PASS)
+
+-- 6. the MessageFormatter names the command files use
+local formatter = io.open('shared/utils/messages/message_formatter.lua'):read('*a')
+local defined = {}
+for name in formatter:gmatch('MessageFormatter%.([%w_]+)%s*=') do defined[name] = true end
+for name in formatter:gmatch('function MessageFormatter%.([%w_]+)') do defined[name] = true end
+check('the formatter\'s functions are read', next(defined) ~= nil, true)
+local used = 0
+for _, f in ipairs(T.files('shared/jobs', '_COMMANDS.lua')) do
+    local file = f:match('[^/]+$')
+    for line in io.lines(f) do
+        local code = line:gsub('%-%-.*$', '')
+        for name in code:gmatch('%f[%w_]MessageFormatter%.([%w_]+)%s*%(') do
+            used = used + 1
+            T.ok(file .. ': MessageFormatter.' .. name .. ' exists', defined[name])
+        end
+        -- a function named in a table, called as MessageFormatter[name](...)
+        for name in code:gmatch("'(show_[%w_]+)'") do
+            used = used + 1
+            T.ok(file .. ': MessageFormatter.' .. name .. ' (named in a table) exists', defined[name])
+        end
+    end
+end
+check('names checked', used > 50, true)
 
 T.done()
