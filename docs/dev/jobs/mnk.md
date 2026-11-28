@@ -83,18 +83,18 @@ files exist.
 3. `KeybindUI.smart_init("MNK", UIConfig.init_delay)` (`[MNK] Failed to load
    UI_MANAGER` when it did not load).
 4. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`: macro
-   book 0.2 s later, once `EntryKit.load_job_files` has run, lockstyle after
+   book 0.2 s later, once `load_job` has run, lockstyle after
    `LockstyleConfig.initial_load_delay`.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-`get_sets()` then runs `EntryKit.after_mote` (`INIT_SYSTEMS`, data, message
+`get_sets()` then runs `after_mote` (`INIT_SYSTEMS`, data, message
 hooks), sets `_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`,
-`_G.MNKTPConfig`; then `EntryKit.load_job` cancels pending job-change work, loads the job files
+`_G.MNKTPConfig`; then `load_job` cancels pending job-change work, loads the job files
 and registers `cancel_mnk_lockstyle_operations`.
 
-`job_update`: `EntryKit.update_hud` (`KeybindUI.update()`). `file_unload`:
-`EntryKit.unload(MNKKeybinds)`: `JobChangeManager.cancel_all()`, then
-`MNKKeybinds.unbind_all()`. `job_sub_job_change` is `EntryKit.sub_job_change`.
+`job_update`: `update_hud` (`KeybindUI.update()`). `file_unload`:
+`file_unload`'s common end: `JobChangeManager.cancel_all()`, then
+`MNKKeybinds.unbind_all()`. `job_sub_job_change` is `EntryKit.job`.
 All six come from `EntryKit.job` (`shared/utils/core/entry_kit.lua`).
 
 ### Precast

@@ -53,11 +53,11 @@ if ok and keybinds then
     _G[job .. 'Keybinds'] = keybinds
     keybinds.bind_all()
 else
-    EntryKit.keybind_error(job, keybinds)
+    MessageFormatter.show_error('[' .. job .. '] Keybinds failed to load: ' .. tostring(keybinds))
 end
 ```
 
-When the require fails, `EntryKit.keybind_error` (`shared/utils/core/entry_kit.lua`) prints `[<JOB>] Keybinds failed to load: <error>`, error included. `file_unload()` ends with `EntryKit.unload(<JOB>Keybinds)`, which calls `<JOB>Keybinds.unbind_all()`.
+When the require fails, `EntryKit.job`'s `bind_keys` (`shared/utils/core/entry_kit.lua`) prints `[<JOB>] Keybinds failed to load: <error>`, error included. `file_unload()` ends with `file_unload`'s common end, which calls `<JOB>Keybinds.unbind_all()`.
 
 Requiring the file runs `KeybindManager.create(job, module)`, which does the following, in this order:
 
@@ -125,7 +125,7 @@ The same function builds the line `bind_all` and `refresh` send; KeybindGuard re
 - PLD's state-change hook (`PLD_COMMANDS.lua`, after a stance change: `/SCH` Tanking hides `MainWeapon`);
 - `KeybindManager.refresh_active()`, which calls `refresh` on `_G._keybind_active`. It runs whenever `alt_states.lua` records a new job, subjob or weapon type for a box, whenever this character's main hand changes weapon type (entries with `weapon`), and after every `//gs c combatmode|th show|hide|key` (`optional_state_commands.lua` `refresh`).
 
-**`unbind_all()`** is called by every entry file from `file_unload()`, through `EntryKit.unload`. Since 2026-09-30 it sends nothing: the keys stay down for the next load, whose `bind_all` sends only the difference (unwanted keys unbound, changed keys re-bound). It logs `keys <JOB>: kept for the next load` and empties `ctx.applied`. Before, a subjob change unbound every key and bound them all again a moment later, about 390 console commands in a second; both client crashes traced on Gab's side hit inside that burst.
+**`unbind_all()`** is called by every entry file from `file_unload()`, through `file_unload`'s common end. Since 2026-09-30 it sends nothing: the keys stay down for the next load, whose `bind_all` sends only the difference (unwanted keys unbound, changed keys re-bound). It logs `keys <JOB>: kept for the next load` and empties `ctx.applied`. Before, a subjob change unbound every key and bound them all again a moment later, about 390 console commands in a second; both client crashes traced on Gab's side hit inside that burst.
 
 The keys are still removed when GearSwap itself unloads (`//lua unload gearswap`, `//lua reload gearswap`): `create` registers a raw `unload` event that sends one `unbind` per key recorded in `windower._keybind_manager_bound`, joined with `; ` into a single command, then empties the record. `file_unload` cannot tell a job change from the addon unloading; the addon's `unload` event only fires for the latter, and GearSwap drops the handler at the next file load (`refresh.lua`), so only the live file's handler is registered.
 
@@ -145,7 +145,7 @@ It only warns: the bind is still sent, in case Windower knows a key name the lis
 
 ### The intro message
 
-`show_intro()` lists the keyed active binds under `<JOB> SYSTEM LOADED`. It no longer requires the job's lockstyle and macrobook wrapper files (removed on 2026-11-27): none of them returned the info it looked for, so the intro never showed the macro book or the lockstyle, and `show_system_intro_complete` is never reached (see Known issues). The first macro book and lockstyle go through `EntryKit.macro_and_lockstyle` (`shared/utils/core/entry_kit.lua`), 0.2 s later, once `EntryKit.load_job_files` has defined `select_default_macro_book` and `select_default_lockstyle` (since 2026-10-15; before, a job whose keybind file failed to load or bound no key got no first macro book and no lockstyle).
+`show_intro()` lists the keyed active binds under `<JOB> SYSTEM LOADED`. It no longer requires the job's lockstyle and macrobook wrapper files (removed on 2026-11-27): none of them returned the info it looked for, so the intro never showed the macro book or the lockstyle, and `show_system_intro_complete` is never reached (see Known issues). The first macro book and lockstyle go through `EntryKit.macro_and_lockstyle` (`shared/utils/core/entry_kit.lua`), 0.2 s later, once `load_job` has defined `select_default_macro_book` and `select_default_lockstyle` (since 2026-10-15; before, a job whose keybind file failed to load or bound no key got no first macro book and no lockstyle).
 
 ### Common keys
 

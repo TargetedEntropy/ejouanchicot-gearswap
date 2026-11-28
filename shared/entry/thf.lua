@@ -17,7 +17,7 @@
 ---   - Clean separation of concerns
 ---
 --- Architecture Overview:
----   EntryKit.job >> EntryKit.load_job_files >> Hooks >> Logic Modules
+---   EntryKit.job >> load_job >> Hooks >> Logic Modules
 ---
 --- Module Organization:
 ---   ├── functions/thf_functions.lua    [THF's own start]

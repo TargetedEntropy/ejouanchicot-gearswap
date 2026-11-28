@@ -88,15 +88,15 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/blu.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     GS->>E: run chunk (LOCKSTYLE_CONFIG, UI config, REGION_CONFIG, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
     M->>E: user_setup() (states, keybinds + intro, HUD, JCM, macrobook/lockstyle, after_setup: AzureSets, dualbox)
     M->>E: init_gear_sets() -> include blu/sets/blu_sets.lua
-    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.BLUTPConfig
-    E->>E: EntryKit.load_job("BLU"): JobChangeManager.cancel_all()
+    E->>E: load_job("BLU"): JobChangeManager.cancel_all()
     E->>F: load_job_files('BLU')
     F->>F: lockstyle + macro book install, message_buffs + 8 hook files, require dualbox_manager
     E->>E: register_lockstyle_cancel("BLU", ...)
@@ -107,13 +107,13 @@ sequenceDiagram
 1. `BLUStates.configure()` creates the states (see [Mote states](#mote-states)).
 2. `pcall(require, '<Character>/blu/keys/BLU_KEYBINDS')` into the global
    `BLUKeybinds`, then `bind_all()`; a failed require prints
-   `[BLU] Keybinds failed to load: <error>` (`EntryKit.keybind_error`).
+   `[BLU] Keybinds failed to load: <error>` (`EntryKit.job`'s `bind_keys`).
    `bind_all` ends with `show_intro()`.
 3. `KeybindUI.smart_init("BLU", UIConfig.init_delay)`; the HUD waits for
    `state.MainWeapon` (`ui_lifecycle.lua`).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has
+   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `load_job` has
    defined them, the macro book, then the lockstyle after the delay.
 5. `BLUAzureSets.load()` (see [AzureSets](#azuresets)).
 6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.

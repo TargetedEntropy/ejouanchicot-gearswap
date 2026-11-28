@@ -91,7 +91,7 @@ flowchart TD
     F --> M["Mote-Include<br/>(states, hook order, self commands)"]
     F --> I["INIT_SYSTEMS<br/>(universal systems, per load)"]
     F --> H["Message hooks<br/>shared/hooks/init_*_messages"]
-    F --> FA["Job files<br/>EntryKit.load_job_files (shared/utils/core/entry_kit.lua)"]
+    F --> FA["Job files<br/>load_job (shared/utils/core/entry_kit.lua)"]
     FA --> HM["8 hook modules (+ PET_MIDCAST, MOVEMENT)<br/>shared/jobs/&lt;job&gt;/functions/&lt;JOB&gt;_PRECAST … _COMMANDS"]
     HM --> L["Job logic<br/>shared/jobs/&lt;job&gt;/functions/logic/"]
     HM --> S["Shared systems<br/>shared/utils/*"]
@@ -110,7 +110,7 @@ flowchart TD
   holds only the job's own steps (none for MNK, DRG, NIN, RNG, SCH, BLM, DRK,
   SAM, whose entry is one line). See
   [core-lifecycle.md](systems/core-lifecycle.md).
-- **Job files** (`EntryKit.load_job_files(job)`, `shared/utils/core/entry_kit.lua`):
+- **Job files** (`load_job(job)`, `shared/utils/core/entry_kit.lua`):
   installs the job's lockstyle and macro book (`LockstyleManager.install`,
   `MacrobookManager.install`), `include`s `message_buffs.lua` (not BRD, RDM, SAM,
   WHM), the 8 hook modules (PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS,
@@ -148,15 +148,15 @@ includes `shared/entry/war.lua`:
    3. `include INIT_SYSTEMS` (see below).
    4. `require data_loader`, then the three message hooks
       (`init_spell_messages`, `init_ability_messages`, `init_ws_messages`).
-      Steps 3-4 are `EntryKit.after_mote(Profiler)`.
+      Steps 3-4 are `after_mote(Profiler)`.
    5. `_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`,
       `_G.<JOB>TPConfig` (not SMN), then the job's `configs()`.
    6. `JobChangeManager.cancel_all()`.
-   7. `EntryKit.load_job_files('<JOB>')`, the job files.
+   7. `load_job('<JOB>')`, the job files.
    8. `register_lockstyle_cancel`.
    9. `after_load()` (PLD WS slots, COR party tracking).
 
-   Steps 6-8 are `EntryKit.load_job('<JOB>', Profiler)`.
+   Steps 6-8 are `load_job('<JOB>', Profiler)`.
 3. **`user_setup()`** (called from step 2.2, so before INIT_SYSTEMS and the
    job files): `<JOB>States.configure()`, `after_states()`, keybinds
    `bind_all()` (RUN 0.5 s later), `KeybindUI.smart_init()` (or an error
@@ -165,7 +165,7 @@ includes `shared/entry/war.lua`:
    `EntryKit.macro_and_lockstyle` (macro book 0.2 s later, once the job files
    are loaded; lockstyle after 8 s), `after_setup()`, `pcall(require
    dualbox_manager)`. `file_unload` runs the job's `unload()` (its locks,
-   addons, loops) before `EntryKit.unload` (JCM cancel, keys).
+   addons, loops) before `file_unload`'s common end (JCM cancel, keys).
 
 `INIT_SYSTEMS.lua` then starts, in order, what every job needs: synchronously
 the Atelier set and SubWeapon overrides, the debug flags, the require cache, the
@@ -376,7 +376,7 @@ Interactions, Invariants & gotchas, Extending, Known issues):
 |---|---|
 | Sandbox / environment / load | The Lua environment GearSwap builds for one job file; replaced on every job change, subjob change (via reload) and `gs reload` |
 | Entry file | `data/<Char>/<Char>_<JOB>.lua`, the file GearSwap loads |
-| Job files | What `EntryKit.load_job_files` includes for a job: its hook modules and, for BLM and THF, `<job>_functions.lua` |
+| Job files | What `load_job` includes for a job: its hook modules and, for BLM and THF, `<job>_functions.lua` |
 | Hook module | `<JOB>_PRECAST.lua` etc.: assigns Mote's `job_*` globals |
 | Mote state | `state.X = M{...}` mode object from Mote-Include; cycled by keybinds |
 | Template / overlay / live | `_master/` generic file / `_master/<Name>/` replacement / `data/<Name>/` deployed copy |

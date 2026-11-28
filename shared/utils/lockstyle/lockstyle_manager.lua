@@ -2,7 +2,7 @@
 ---   Lockstyle Manager - Centralized Lockstyle Management Factory
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   Factory pattern that creates job-specific lockstyle modules. A job's
----   EntryKit.load_job_files calls install(job): its globals, its module built at the first call
+---   load_job calls install(job): its globals, its module built at the first call
 ---   (the numbers in shared/data/job_defaults.lua).
 ---   Also owns the persistent DressUp toggle and apply_style() for one-off
 ---   styles (craft/fish).

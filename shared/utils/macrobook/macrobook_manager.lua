@@ -2,7 +2,7 @@
 ---   Macrobook Manager - Centralized Macrobook Management Factory
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   Factory pattern that creates job-specific macrobook modules; a job's
----   EntryKit.load_job_files calls install(job) (shared/data/job_defaults.lua). Picks the book
+---   load_job calls install(job) (shared/data/job_defaults.lua). Picks the book
 ---   from the subjob, or from the dual-box alt's job when one is online.
 ---
 ---   @file    shared/utils/macrobook/macrobook_manager.lua

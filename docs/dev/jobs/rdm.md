@@ -94,16 +94,16 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/rdm.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     GS->>E: run chunk (LOCKSTYLE_CONFIG, UI config, REGION_CONFIG; JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
     M->>E: user_setup() (states, keybinds, HUD, JCM, macrobook/lockstyle, dualbox)
     M->>E: init_gear_sets() -> include rdm/sets/rdm_sets.lua
-    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, RDM_TP_CONFIG
     E->>E: configs: _G.RDMSaboteurConfig
-    E->>E: EntryKit.load_job("RDM"): JobChangeManager.cancel_all()
+    E->>E: load_job("RDM"): JobChangeManager.cancel_all()
     E->>F: load_job_files('RDM')
     F->>F: lockstyle + macro book install, 8 hook files (no message_buffs), require dualbox_manager
     E->>E: register_lockstyle_cancel("RDM", ...)
@@ -119,19 +119,19 @@ sequenceDiagram
    global `RDMKeybinds`, then `bind_all()`: keys of the file that no longer
    apply are unbound, the entries `get_active_binds()` keeps are bound, then
    `show_intro()`. A failed require prints
-   `[RDM] Keybinds failed to load: <error>` (`EntryKit.keybind_error`).
+   `[RDM] Keybinds failed to load: <error>` (`EntryKit.job`'s `bind_keys`).
 4. `KeybindUI.smart_init("RDM", init_delay)` (`[RDM] Failed to load
    UI_MANAGER` when it did not load).
 5. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`
    (`shared/utils/core/entry_kit.lua`) sets the macro book 0.2 s later, once
-   `EntryKit.load_job_files` has defined `select_default_macro_book`, and schedules the
+   `load_job` has defined `select_default_macro_book`, and schedules the
    lockstyle after `LockstyleConfig.initial_load_delay` (8 s).
 6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')` (its auto-init does
    the job exchange once per load).
 
 `get_sets()` then requires `RDM_TP_CONFIG` (common configs; the file also
 writes `_G.RDMTPConfig`) and sets `_G.RDMSaboteurConfig` (`configs`, fallback
-`{auto_trigger_spells = {}, wait_time = 2}`) **before** `EntryKit.load_job('RDM', Profiler)` includes the hook files:
+`{auto_trigger_spells = {}, wait_time = 2}`) **before** `load_job('RDM', Profiler)` includes the hook files:
 `RDM_PRECAST.lua` captures both into file locals when it is included.
 
 ### Precast
@@ -453,7 +453,7 @@ T = `_master/sets/rdm_sets.lua`. Player version: [sets.md](../../user/jobs/rdm/s
   poll; `wait` chains from the refiner sit in the Windower queue and survive a
   reload.
 - Subjob change: Mote calls `user_setup()` (states reset, Storm created or
-  dropped), then `job_sub_job_change` (`EntryKit.sub_job_change`:
+  dropped), then `job_sub_job_change` (`EntryKit.job`:
   `JobChangeManager.on_job_change`, which reloads 2.0 s later,
   [job change lifecycle](../architecture/job-change-lifecycle.md)).
 
@@ -510,7 +510,7 @@ T = `_master/sets/rdm_sets.lua`. Player version: [sets.md](../../user/jobs/rdm/s
 - `SpellGearLock.hold()` must stay last in `job_post_precast` and
   `job_post_midcast`, and `release()` in `job_aftercast`.
 - `_G.RDMTPConfig` and `_G.RDMSaboteurConfig` must be set by the entry before
-  `EntryKit.load_job` (captured when `RDM_PRECAST.lua` is included).
+  `load_job` (captured when `RDM_PRECAST.lua` is included).
 - Keybind files are data only; add a key in the template and in the live copy.
 
 **Traps**

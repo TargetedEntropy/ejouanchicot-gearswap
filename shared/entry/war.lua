@@ -18,7 +18,7 @@
 ---   • Clean separation of concerns
 ---
 --- Architecture Overview:
----   EntryKit.job >> EntryKit.load_job_files >> Specialized Modules
+---   EntryKit.job >> load_job >> Specialized Modules
 ---
 --- Module Organization:
 ---   ├── <Character>/war/sets/war_sets.lua [Equipment Sets]

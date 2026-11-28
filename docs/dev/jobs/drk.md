@@ -70,7 +70,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/drk.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig via ConfigLoader, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
@@ -78,7 +78,7 @@ sequenceDiagram
     M->>E: init_gear_sets() -> include drk/sets/drk_sets.lua
     E->>E: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.DRKTPConfig
-    E->>E: EntryKit.load_job("DRK"): JobChangeManager.cancel_all()
+    E->>E: load_job("DRK"): JobChangeManager.cancel_all()
     E->>F: load_job_files('DRK')
     E->>E: register_lockstyle_cancel("DRK", ...)
 ```
@@ -92,12 +92,12 @@ sequenceDiagram
 `DRKKeybinds` and `bind_all()` (3 binds, the optional states, the common keys,
 then `show_intro()`), `KeybindUI.smart_init`, `JobChangeManager`
 initialisation + `EntryKit.macro_and_lockstyle` (macro book 0.2 s later, once
-`EntryKit.load_job_files` has defined the `select_default_*` globals, lockstyle 8 s after
+`load_job` has defined the `select_default_*` globals, lockstyle 8 s after
 that), the `dualbox_manager` require. `job_sub_job_change` only hands the
-reload to `JobChangeManager.on_job_change` (`EntryKit.sub_job_change`,
+reload to `JobChangeManager.on_job_change` (`EntryKit.job`,
 `shared/utils/core/entry_kit.lua`).
 
-`EntryKit.load_job_files('DRK')` installs the lockstyle and macro book,
+`load_job('DRK')` installs the lockstyle and macro book,
 includes `message_buffs.lua` (unused by DRK), then `DRK_PRECAST` ..
 `DRK_COMMANDS`, and requires `dualbox_manager`.
 

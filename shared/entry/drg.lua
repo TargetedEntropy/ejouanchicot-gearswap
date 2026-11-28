@@ -11,7 +11,7 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---
 --- Architecture:
----   EntryKit.job >> EntryKit.load_job_files >> Hooks >> Logic Modules
+---   EntryKit.job >> load_job >> Hooks >> Logic Modules
 ---
 --- Hooks Modules:
 ---   DRG_PRECAST | DRG_MIDCAST | DRG_PET_MIDCAST | DRG_AFTERCAST | DRG_STATUS

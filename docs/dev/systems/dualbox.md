@@ -54,7 +54,7 @@ a name would not locate the spot (they move often in this folder).
 Integration points outside the folder: `shared/utils/core/COMMON_COMMANDS.lua` (command routing),
 `shared/utils/core/INIT_SYSTEMS.lua` (sync IPC block: hooks + listener), the 22
 `shared/jobs/*/functions/*_COMMANDS.lua` (protocol commands), every entry file's `user_setup()`
-and `EntryKit.load_job_files` (`shared/utils/core/entry_kit.lua`, module load), `shared/jobs/geo/functions/GEO_BUFFS.lua`
+and `load_job` (`shared/utils/core/entry_kit.lua`, module load), `shared/jobs/geo/functions/GEO_BUFFS.lua`
 (buff reports), `shared/utils/macrobook/macrobook_manager.lua` `dualbox_config` (macro book per alt job),
 `shared/jobs/cor/functions/logic/roll_party.lua` and `party_tracker.lua` (roll job bonus, party job cache),
 `shared/utils/keybinds/keybind_manager.lua` (`alt` and `weapon` conditions on keys, through `alt_states.lua`).
@@ -72,8 +72,8 @@ The module body schedules the auto-init. It runs when the module is `require`d w
 which since the require cache is installed by `char_paths` (the first file of the entry, at file level) means
 **once per load**:
 
-- Every shared entry requires it at the end of `user_setup()` (`EntryKit.job`, `shared/utils/core/entry_kit.lua:355`). That is the first `require` of the load, so it executes the body.
-- `EntryKit.load_job_files` requires it again after the job's hook files (`shared/utils/core/entry_kit.lua:116`); the job
+- Every shared entry requires it at the end of `user_setup()` (`EntryKit.job`, `shared/utils/core/entry_kit.lua:311`). That is the first `require` of the load, so it executes the body.
+- `load_job` requires it again after the job's hook files (`shared/utils/core/entry_kit.lua:130`); the job
   COMMANDS files require it to deliver `altjobupdate` / `requestjob`. Both are cache hits.
 - On a subjob change Mote re-runs `user_setup()` in the old environment: also a cache hit, so the dying
   environment schedules no auto-init.
@@ -810,7 +810,7 @@ Behaviour per event:
   existing hooks, and `SyncIPC.broadcast('<cmd>')` from the local handler after the local work. The
   hook must not call the handler that broadcasts.
 - **New job.** Its `*_COMMANDS.lua` calls `JobCommands.shared` (or is `JobCommands.router('<JOB>')`), which answers
-  `altjobupdate` / `requestjob` (`shared/utils/core/job_commands.lua`, forwarding `cmdParams[2..7]`). `EntryKit.load_job_files` requires
+  `altjobupdate` / `requestjob` (`shared/utils/core/job_commands.lua`, forwarding `cmdParams[2..7]`). `load_job` requires
   `shared/utils/dualbox/dualbox_manager` for every job, so the auto-init needs nothing in the job's own files.
 
 ## Known issues

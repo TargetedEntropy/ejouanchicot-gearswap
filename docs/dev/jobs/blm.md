@@ -93,7 +93,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/blm.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     GS->>E: file chunk: LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig (ConfigLoader), JCM, UI_MANAGER
     GS->>E: get_sets()
     E->>M: include('Mote-Include.lua')
@@ -101,7 +101,7 @@ sequenceDiagram
     M->>E: init_gear_sets(): include('blm/sets/blm_sets.lua')
     E->>E: INIT_SYSTEMS, data_loader, spell / ability / WS message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.BLMTPConfig
-    E->>E: EntryKit.load_job("BLM"): JobChangeManager.cancel_all()
+    E->>E: load_job("BLM"): JobChangeManager.cancel_all()
     E->>F: load_job_files('BLM') (message_buffs, 8 hook files, blm_functions.lua)
     E->>E: JobChangeManager.register_lockstyle_cancel("BLM", ...)
 ```
@@ -115,13 +115,13 @@ sequenceDiagram
    the character's `COMMON_KEYBINDS.lua` keys are appended there), stored in
    the global `BLMKeybinds`, then `bind_all()`, which validates, binds and
    calls `show_intro()`. A failed require prints the Lua error
-   (`EntryKit.keybind_error`).
+   (`EntryKit.job`'s `bind_keys`).
 3. `KeybindUI.smart_init("BLM", UIConfig.init_delay)` (`[BLM] Failed to load
    UI_MANAGER` when it did not load).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
    (`shared/utils/core/entry_kit.lua`). `select_default_macro_book` and
-   `select_default_lockstyle` come from `EntryKit.load_job_files`, which has not run yet, so it
+   `select_default_lockstyle` come from `load_job`, which has not run yet, so it
    waits 0.2 s (`LoadGate.defer`), then sets the macro book and schedules the
    lockstyle after 8 s.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')` (auto-init).
@@ -129,7 +129,7 @@ sequenceDiagram
 The entry names no character: every character file is resolved through
 `CharPaths` (`CharPaths.module('job', ...)`, `CharPaths.relative('sets', ...)`).
 
-`EntryKit.load_job_files('BLM')` installs the lockstyle and macro book,
+`load_job('BLM')` installs the lockstyle and macro book,
 includes `message_buffs.lua`, then `BLM_PRECAST`, `BLM_MIDCAST`,
 `BLM_AFTERCAST`, `BLM_IDLE`, `BLM_ENGAGED`, `BLM_STATUS`, `BLM_BUFFS`,
 `BLM_COMMANDS`, then `blm_functions.lua` (BLM's `JOB_FILES` entry, `own`), and

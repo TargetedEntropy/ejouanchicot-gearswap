@@ -99,16 +99,16 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/bst.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
-    GS->>E: run chunk (defines the monitor functions; EntryKit.load_configs: LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig; JCM, UI_MANAGER)
+    participant F as load_job
+    GS->>E: run chunk (defines the monitor functions; load_configs: LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig; JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>E: before_mote: _G.BSTBeastPetData (plain require), BSTEcosystemData
     E->>E: early_configs: _G.LockstyleConfig/UIConfig/RECAST_CONFIG/BSTTPConfig (plain require)
     E->>M: include Mote-Include
     M->>E: user_setup() (states, ecosystem, keybinds, UI, JCM + EntryKit.macro_and_lockstyle, HUD reload, monitor start, dualbox require)
     M->>E: init_gear_sets() -> include sets file
-    E->>E: EntryKit.after_mote: INIT_SYSTEMS (AutoMove +0.5 s, hooks), data_loader, message hooks
-    E->>E: EntryKit.load_job("BST"): JobChangeManager.cancel_all()
+    E->>E: after_mote: INIT_SYSTEMS (AutoMove +0.5 s, hooks), data_loader, message hooks
+    E->>E: load_job("BST"): JobChangeManager.cancel_all()
     E->>F: load_job_files('BST')
     F->>F: lockstyle + macro book install, message_buffs + 9 hook files, require dualbox_manager
     E->>E: register_lockstyle_cancel("BST", cancel_bst_lockstyle_operations)
@@ -124,13 +124,13 @@ sequenceDiagram
    (`<Char>/bst/keys/BST_KEYBINDS`), stored in the global `BSTKeybinds`,
    then `bind_all()` (7 BST binds, the optional-state entries, `_CUSTOM` keys,
    common keys, then `show_intro()`). A failed require shows the Lua error
-   (`EntryKit.keybind_error`, `shared/utils/core/entry_kit.lua`).
+   (`EntryKit.job`'s `bind_keys`, `shared/utils/core/entry_kit.lua`).
 4. `KeybindUI.smart_init("BST", UIConfig.init_delay)` (`[BST] Failed to load
    UI_MANAGER` when it did not load); `after_ui` exports `_G.KeybindUI`
    (read by `ecosystem_manager`).
 5. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`: 0.2 s
-   later (`LoadGate.defer`), once `EntryKit.load_job_files` has defined
+   later (`LoadGate.defer`), once `load_job` has defined
    `select_default_macro_book` / `select_default_lockstyle`, the macro book,
    then the lockstyle after 8 s.
 6. `after_setup`, BST-HUD: bumps `_G.bst_hud_load_id`, then after 2 s sends
@@ -145,7 +145,7 @@ sequenceDiagram
    MAIN, `send_job_update` as ALT). Covers main job changes;
    `job_sub_job_change` does not call it again.
 
-`EntryKit.load_job_files('BST')` installs the lockstyle and macro book, then
+`load_job('BST')` installs the lockstyle and macro book, then
 includes, in order: `message_buffs.lua`, `BST_PRECAST`, `BST_MIDCAST`,
 `BST_PET_MIDCAST` (BST's `JOB_FILES` entry, `pet_midcast`), `BST_AFTERCAST`,
 `BST_IDLE`, `BST_ENGAGED`, `BST_STATUS`, `BST_BUFFS`, `BST_COMMANDS`, and
@@ -571,11 +571,11 @@ or /DNC, shields included (its comment now says so).
   dual-box ([dualbox](../systems/dualbox.md)).
 - `LagDebugger.on_prerender_check` is called by the monitor in
   `shared/entry/bst.lua`; `on_job_update` by `job_update`, through
-  `EntryKit.update_hud` (`shared/utils/core/entry_kit.lua`).
+  `update_hud` (`shared/utils/core/entry_kit.lua`).
 
 ## Invariants & gotchas
 
-- `user_setup()` runs before `EntryKit.load_job_files`; anything
+- `user_setup()` runs before `load_job`; anything
   it calls from the hook files
   must be deferred (the first macro book / lockstyle and the monitor start are).
 - `equip()` from a bare coroutine does nothing; use `send_command('gs c update')`

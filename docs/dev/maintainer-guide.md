@@ -58,7 +58,7 @@ flowchart TD
     MOTE["Mote-Include<br/>(libs/Mote-*.lua)<br/>states, hook order, gs c commands"]
     INIT["INIT_SYSTEMS.lua<br/>systems started on every load,<br/>gear wrappers"]
     HOOKS["Message hooks<br/>shared/hooks/init_*_messages.lua"]
-    FACADE["Job files<br/>EntryKit.load_job_files<br/>(shared/utils/core/entry_kit.lua)"]
+    FACADE["Job files<br/>load_job<br/>(shared/utils/core/entry_kit.lua)"]
     MODS["Job hook modules<br/>&lt;JOB&gt;_PRECAST ... &lt;JOB&gt;_COMMANDS<br/>+ logic/"]
     SYS["Shared systems<br/>shared/utils/*"]
     DATA["Databases<br/>shared/data/*"]
@@ -88,7 +88,7 @@ project fills Mote's hooks; it never replaces the engine-facing functions.
 
 | Moment | Engine | Mote | Project |
 |---|---|---|---|
-| **Load** (`gs reload`, main job change, zone-in on another job, login) | `load_user_files` *(engine, `refresh.lua:62-184`)*: previous file's `file_unload`, unregister its events, delete texts and prims, build a new sandbox, run the file, call `get_sets()` | `include('Mote-Include.lua')` runs `init_include()` from the middle of the file (`Mote-Include.lua:188`): Mote states, `job_setup()`, `user_setup()` (`:171`), `init_gear_sets()` (`:175`); then Mote defines `handle_actions`, `cleanup_*`, `handle_equipping_gear` (`:227-456`) | Entry `get_sets()`: Mote, then `INIT_SYSTEMS.lua`, data loader, the three message hooks, configs, `JobChangeManager.cancel_all()`, the job files (`EntryKit.load_job_files`). Full order: [README.md, Boot sequence](README.md#boot-sequence-of-one-load) |
+| **Load** (`gs reload`, main job change, zone-in on another job, login) | `load_user_files` *(engine, `refresh.lua:62-184`)*: previous file's `file_unload`, unregister its events, delete texts and prims, build a new sandbox, run the file, call `get_sets()` | `include('Mote-Include.lua')` runs `init_include()` from the middle of the file (`Mote-Include.lua:188`): Mote states, `job_setup()`, `user_setup()` (`:171`), `init_gear_sets()` (`:175`); then Mote defines `handle_actions`, `cleanup_*`, `handle_equipping_gear` (`:227-456`) | Entry `get_sets()`: Mote, then `INIT_SYSTEMS.lua`, data loader, the three message hooks, configs, `JobChangeManager.cancel_all()`, the job files (`load_job`). Full order: [README.md, Boot sequence](README.md#boot-sequence-of-one-load) |
 | **Action** (spell, JA, WS, item, ranged) | `outgoing text` handler (`triggers.lua:41`) resolves the command, filters it (`filter_pretarget`), then calls `pretarget`, `precast`; `midcast` and `aftercast` follow the action packets | `handle_actions` (`Mote-Include.lua:227-283`): `filter_X` → `user_X` → `job_X` → `default_X` → `user_post_X` → `job_post_X` → `cleanup_X`; a cancel stops the chain but `cleanup_X` still runs | Precast pipeline, `MidcastManager`, message hooks on `user_post_precast` / `user_post_midcast`, wrappers on `cleanup_*` ([section 3](#3-the-gear-wrapper-chain)) |
 | **Status change** (idle, engaged, resting, dead) | `status change` event (`gearswap.lua:323-328`) | `status_change` → `user_status_change` → `job_status_change` → `handle_equipping_gear` (`Mote-Include.lua:995-1017`) | `<JOB>_STATUS.lua`, `LifecycleManager`, wrappers on `handle_equipping_gear` |
 | **Buff change** | packet 0x063 (`packet_parsing.lua:442-573`) fires `buff_change` / `buff_refresh` | `buff_change` updates `state.Buff[buff]`, then `user_buff_change`, `job_buff_change` (`Mote-Include.lua:1023-1043`). No gear re-equip | `<JOB>_BUFFS.lua`; `CustomStates` re-dresses when a buff its rules watch changes |
@@ -518,7 +518,7 @@ The coding standard, as reviews enforce it:
 |---|---|
 | `data/<Char>/<Char>_<JOB>.lua` (template `_master/entry/Tetsouo_<JOB>.lua`, 15 lines) | Character entry, the file GearSwap opens: a header and one statement, `include('../shared/entry/<job>.lua')` |
 | `shared/entry/<job>.lua` | Entry code, the same for every character: one `EntryKit.job('<JOB>', spec)` call (`shared/utils/core/entry_kit.lua`), which defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload` and finds the character's files through `shared/utils/core/char_paths.lua`; the spec holds only the job's own steps |
-| `shared/jobs/<job>/functions/<JOB>_PRECAST.lua` ... `_COMMANDS.lua` | 8 hook modules (PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS, COMMANDS), plus `_PET_MIDCAST` on BST/DRG/PUP/SMN and `_MOVEMENT` on BRD/COR/WAR. `EntryKit.load_job_files` (`shared/utils/core/entry_kit.lua`) includes them; its `JOB_FILES` table lists each job's extras |
+| `shared/jobs/<job>/functions/<JOB>_PRECAST.lua` ... `_COMMANDS.lua` | 8 hook modules (PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS, COMMANDS), plus `_PET_MIDCAST` on BST/DRG/PUP/SMN and `_MOVEMENT` on BRD/COR/WAR. `load_job` (`shared/utils/core/entry_kit.lua`) includes them; its `JOB_FILES` table lists each job's extras |
 | `shared/jobs/<job>/functions/<job>_functions.lua` | BLM and THF only: what the job defines besides its hook files, loaded after them (`JOB_FILES` `own`) |
 | `shared/jobs/<job>/functions/logic/` | Job logic called by the hook modules |
 | `data/<Char>/<job>/<theme>/` (template `_master/config/<job>/`, flat) | `display/` (`<JOB>_HUD`, `_LOCKSTYLE`, `_MACROBOOK`), `keys/` (`_KEYBINDS`, `_STATES`, `_CUSTOM`), `combat/` (`<JOB>_CONFIG`: the job's own switches and thresholds, read by `job_config.lua`; TP/WS configs and the job's other settings), `inventory/` (`_REFILL`) |
@@ -574,7 +574,7 @@ done while its docs are stale.
 The files to create or touch:
 
 - [ ] `shared/jobs/<job>/functions/`: the hook modules and `logic/`; no loader
-      file (`EntryKit.load_job_files` includes the hook modules).
+      file (`load_job` includes the hook modules).
       Start from a similar job (templates: DNC_PRECAST, PLD_MIDCAST,
       WAR_COMMANDS). Pet jobs add `<JOB>_PET_MIDCAST.lua`. Three things come from the
       shared code instead of a file of the job's own: `<JOB>_PRECAST.lua` is
@@ -582,7 +582,7 @@ The files to create or touch:
       ([precast-pipeline.md](systems/precast-pipeline.md#the-job_precast-contract)),
       `<JOB>_COMMANDS.lua` is `JobCommands.router('<JOB>', {its own words})`
       ([commands-and-debug.md](systems/commands-and-debug.md#2-the-job-file-contract)), and
-      `EntryKit.load_job_files` calls `LockstyleManager.install('<JOB>')` /
+      `load_job` calls `LockstyleManager.install('<JOB>')` /
       `MacrobookManager.install('<JOB>')` with the job's defaults in
       `shared/data/job_defaults.lua`.
 - [ ] `shared/utils/core/entry_kit.lua` `JOB_FILES`: an entry only when the job

@@ -80,7 +80,7 @@ Same shape as BLU ([core lifecycle](../systems/core-lifecycle.md#how-a-job-file-
 Mote-Include calls `user_setup()` and `init_gear_sets()` from inside
 `include('Mote-Include.lua')`, before `INIT_SYSTEMS` and before the PUP hook
 files exist. The entry is `EntryKit.job('PUP', ...)`: at file level it sets
-`_G.RegionConfig`, then loads the UI config (`EntryKit.load_configs`), as on
+`_G.RegionConfig`, then loads the UI config (`load_configs`), as on
 every job.
 
 `user_setup()`:
@@ -90,24 +90,24 @@ every job.
    HUD first draws it (the HUD caches what it reads in `user_setup`).
 3. `PUP_KEYBINDS` into the global `PUPKeybinds`, `bind_all()`; a failed
    require prints `[PUP] Keybinds failed to load: <error>`
-   (`EntryKit.keybind_error`).
+   (`EntryKit.job`'s `bind_keys`).
 4. `KeybindUI.smart_init("PUP", init_delay)` (`[PUP] Failed to load
    UI_MANAGER` when it did not load).
 5. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`: macro
-   book 0.2 s later, once `EntryKit.load_job_files` has defined it, lockstyle after
+   book 0.2 s later, once `load_job` has defined it, lockstyle after
    `LockstyleConfig.initial_load_delay`.
 6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
 `get_sets()` then sets `_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`,
-`_G.PUPTPConfig`; then `EntryKit.load_job` cancels pending job-change work, loads the job files
+`_G.PUPTPConfig`; then `load_job` cancels pending job-change work, loads the job files
 and registers `cancel_pup_lockstyle_operations`.
 
 `job_update` (every `gs c update`, cycle, set, toggle; Mote calls it before it
 equips): `update`: `Automaton.refresh_mode()`, `PetWS.ensure_running()`, then
-`EntryKit.update_hud('PUP')` (`KeybindUI.update()`).
+`update_hud('PUP')` (`KeybindUI.update()`).
 
 `file_unload`: `unload`, `PetWS.stop()`, first (GearSwap runs `file_unload` under one
-`pcall`), then `EntryKit.unload(PUPKeybinds)`: `JobChangeManager.cancel_all()`,
+`pcall`), then `file_unload`'s common end: `JobChangeManager.cancel_all()`,
 then `PUPKeybinds.unbind_all()`. The shared hooks are in
 `shared/utils/core/entry_kit.lua`.
 

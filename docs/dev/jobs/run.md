@@ -75,16 +75,16 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/run.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG; JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>M: include Mote-Include
     M->>E: user_setup(): states, schedule keybinds +0.5 s (keybinds_delay), UI, JCM, EntryKit.macro_and_lockstyle (+0.2 s), dualbox
     M->>E: init_gear_sets() -> include run/sets/run_sets.lua
-    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, require RUN_TP_CONFIG (sets _G.RUNTPConfig)
     E->>E: configs: _G.BluMagicConfig = RUN_BLU_MAGIC
-    E->>E: EntryKit.load_job("RUN"): JobChangeManager.cancel_all()
+    E->>E: load_job("RUN"): JobChangeManager.cancel_all()
     E->>F: load_job_files('RUN')
     E->>E: register_lockstyle_cancel("RUN", ...)
     Note over E: +0.2 s: select_default_macro_book(), lockstyle after 8 s
@@ -96,7 +96,7 @@ sequenceDiagram
 1. `RUNStates.configure()`.
 2. Keybinds in a `coroutine.schedule(..., 0.5)` (`keybinds_delay = 0.5`): `require` into the global
    `RUNKeybinds`, `bind_all()`; a failed `require` prints
-   `[RUN] Keybinds failed to load: <error>` (`EntryKit.keybind_error`). Why they
+   `[RUN] Keybinds failed to load: <error>` (`EntryKit.job`'s `bind_keys`). Why they
    are deferred is not recorded.
 3. `KeybindUI.smart_init("RUN", UIConfig.init_delay)` (`[RUN] Failed to load
    UI_MANAGER` when it did not load).
@@ -104,7 +104,7 @@ sequenceDiagram
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
    (`shared/utils/core/entry_kit.lua`), as on every job. At `user_setup` time
    nothing defines `select_default_macro_book` / `select_default_lockstyle`;
-   `EntryKit.load_job_files` defines them during the rest of `get_sets()`, and 0.2 s later
+   `load_job` defines them during the rest of `get_sets()`, and 0.2 s later
    (`LoadGate.defer`) the macro book is set and the lockstyle scheduled after
    `initial_load_delay` (8 s). Until 2026-10-15 RUN ran its own 0.2 s
    coroutine for this.
@@ -112,11 +112,11 @@ sequenceDiagram
    update that brings a new job or subjob later calls `select_default_macro_book()`
    (`dualbox_manager.lua` `receive_alt_job`).
 
-`file_unload` is `EntryKit.unload(RUNKeybinds)`: it cancels pending
+`file_unload` is only the common end (`EntryKit.job`): it cancels pending
 JobChangeManager operations and calls `RUNKeybinds.unbind_all()` when the
 global exists. RUN has no ammo lock to release.
 
-`EntryKit.load_job_files('RUN')` installs the lockstyle and macro book,
+`load_job('RUN')` installs the lockstyle and macro book,
 includes `message_buffs.lua`, `RUN_PRECAST`, `RUN_MIDCAST`, `RUN_AFTERCAST`,
 `RUN_IDLE`, `RUN_ENGAGED`, `RUN_STATUS`, `RUN_BUFFS`, `RUN_COMMANDS`, then
 requires `dualbox_manager`.

@@ -107,16 +107,16 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/war.lua (EntryKit.job)
     participant M as Mote-Include
-    participant F as EntryKit.load_job_files
+    participant F as load_job
     GS->>E: run chunk (LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig, JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>E: before_mote: _G.WARWSConfig = CharPaths.optional WAR_WS_CONFIG
     E->>M: include Mote-Include
     M->>E: user_setup(): states + WS slots, after_states AmpullaLock.apply, keybinds, UI, JCM, macrobook/lockstyle, dualbox
     M->>E: init_gear_sets() -> include war/sets/war_sets.lua, then after_sets sync_weapon_with_hand()
-    E->>E: EntryKit.after_mote: INIT_SYSTEMS, data_loader, message hooks
+    E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.WARTPConfig
-    E->>E: EntryKit.load_job("WAR"): JobChangeManager.cancel_all()
+    E->>E: load_job("WAR"): JobChangeManager.cancel_all()
     E->>F: load_job_files('WAR')
     F->>F: lockstyle + macro book install, message_buffs + 9 hook files, require dualbox_manager
     E->>E: register_lockstyle_cancel("WAR", ...)
@@ -138,26 +138,26 @@ slot would show `N/A`.
 3. `pcall(require, CharPaths.module('job', 'WAR_KEYBINDS', 'WAR'))` (the character's
    `war/keys/WAR_KEYBINDS.lua`), stored in the global `WARKeybinds`,
    then `bind_all()`, which calls `show_intro()`. A failed `require` goes to
-   `EntryKit.keybind_error`, which prints `[WAR] Keybinds failed to load: <error>`.
+   `EntryKit.job`'s `bind_keys`, which prints `[WAR] Keybinds failed to load: <error>`.
 4. `KeybindUI.smart_init("WAR", UIConfig.init_delay)` (anchor `state.HybridMode`).
 5. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has defined
+   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `load_job` has defined
    `select_default_macro_book` / `select_default_lockstyle`, the macro book is set
    and the lockstyle scheduled after 8 s.
 6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-`EntryKit.load_job('WAR', Profiler)` cancels what the previous job scheduled, then
-`EntryKit.load_job_files('WAR')` installs the lockstyle and macro book
+`load_job('WAR', Profiler)` cancels what the previous job scheduled, then
+`load_job('WAR')` installs the lockstyle and macro book
 (`LockstyleManager.install` / `MacrobookManager.install`), includes
 `message_buffs.lua`, then `WAR_PRECAST`, `WAR_MIDCAST`, `WAR_AFTERCAST`, `WAR_IDLE`,
 `WAR_ENGAGED`, `WAR_STATUS`, `WAR_BUFFS`, `WAR_COMMANDS`, `WAR_MOVEMENT` (WAR's
 `JOB_FILES` entry, `movement`), and requires `dualbox_manager`.
 
 `file_unload` runs WAR's `unload` step first, which releases the ammo lock (GearSwap runs `file_unload` in a
-single `pcall`), then `EntryKit.unload(WARKeybinds)`: `JobChangeManager.cancel_all()`,
-then `WARKeybinds.unbind_all()`. `job_update` is `EntryKit.update_hud('WAR')` (WAR has no `update` step) and
-`job_sub_job_change` is `EntryKit.sub_job_change('WAR', newSubjob)`.
+single `pcall`), then `file_unload`'s common end: `JobChangeManager.cancel_all()`,
+then `WARKeybinds.unbind_all()`. `job_update` is `update_hud('WAR')` (WAR has no `update` step) and
+`job_sub_job_change` is `JobChangeManager.on_job_change('WAR', newSubjob)`.
 
 ### Precast
 

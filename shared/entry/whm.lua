@@ -14,7 +14,7 @@
 ---   • UI + Keybind system
 ---
 --- Architecture:
----   EntryKit.job >> EntryKit.load_job_files >> Hooks + Logic Module
+---   EntryKit.job >> load_job >> Hooks + Logic Module
 ---
 --- Modules:
 ---   • Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,

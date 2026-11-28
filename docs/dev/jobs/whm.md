@@ -40,7 +40,7 @@ the sets file (structure and set names only).
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/whm.lua` | 61 | Entry (the same for every character; `<Char>_WHM.lua` and its template `_master/entry/Tetsouo_WHM.lua` are one `include` of it): one `EntryKit.job('WHM', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with WHM's steps: `after_states` starts `CureAutoTier` as `WHM_CURE_CONFIG.lua` says, `unload` releases the `Melee ON` lock and clears its `windower._weapon_locks.whm_melee` record (then `EntryKit.unload`) |
+| `shared/entry/whm.lua` | 61 | Entry (the same for every character; `<Char>_WHM.lua` and its template `_master/entry/Tetsouo_WHM.lua` are one `include` of it): one `EntryKit.job('WHM', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with WHM's steps: `after_states` starts `CureAutoTier` as `WHM_CURE_CONFIG.lua` says, `unload` releases the `Melee ON` lock and clears its `windower._weapon_locks.whm_melee` record (then `file_unload`'s common end) |
 | `shared/jobs/whm/functions/WHM_PRECAST.lua` | 98 | `job_precast`: guard, `CureManager.retier`, cooldown, `paralyna_on_self`, WS; `job_post_precast` (TP gear) |
 | `shared/jobs/whm/functions/WHM_MIDCAST.lua` | 299 | `job_midcast` (Cure sets by mode), `job_post_midcast` (overlays + `MidcastManager`), `job_get_spell_map` |
 | `shared/jobs/whm/functions/WHM_AFTERCAST.lua` | 27 | `job_aftercast = LifecycleManager.aftercast()` |
@@ -79,7 +79,7 @@ the entry chunk loads `LOCKSTYLE_CONFIG`, the UI config and `REGION_CONFIG`;
 `data_loader` and the message hooks; then `_G.LockstyleConfig`, `_G.UIConfig`,
 `_G.RECAST_CONFIG`, `_G.WHMTPConfig`, `JobChangeManager.cancel_all()`, the
 job files and the lockstyle cancel registration (all three from
-`EntryKit.load_job`).
+`load_job`).
 
 `user_setup()` (`EntryKit.job`; WHM's `after_states` is the end of step 1):
 
@@ -89,10 +89,10 @@ job files and the lockstyle cancel registration (all three from
 2. `pcall(require, '<Character>/whm/keys/WHM_KEYBINDS')` into the global
    `WHMKeybinds`, then `bind_all()` (ends with `show_intro()`). A failed
    require prints `[WHM] Keybinds failed to load: <error>`
-   (`EntryKit.keybind_error`).
+   (`EntryKit.job`'s `bind_keys`).
 3. `KeybindUI.smart_init("WHM", UIConfig.init_delay)`.
 4. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`: macro book
-   0.2 s later, once `EntryKit.load_job_files` has defined `select_default_macro_book`,
+   0.2 s later, once `load_job` has defined `select_default_macro_book`,
    lockstyle after 8 s.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 

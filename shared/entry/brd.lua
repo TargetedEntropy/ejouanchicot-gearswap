@@ -21,7 +21,7 @@
 ---   - Madrigal, Minuet, Prelude support
 ---
 --- Architecture Overview:
----   EntryKit.job >> EntryKit.load_job_files >> Specialized Modules
+---   EntryKit.job >> load_job >> Specialized Modules
 ---
 --- Module Organization:
 ---   ├── <Character>/brd/sets/brd_sets.lua [Equipment Sets]

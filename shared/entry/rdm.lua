@@ -22,7 +22,7 @@
 ---   - Light/Dark elemental spell management
 ---
 --- Architecture Overview:
----   EntryKit.job >> EntryKit.load_job_files >> Specialized Modules
+---   EntryKit.job >> load_job >> Specialized Modules
 ---
 --- Module Organization:
 ---   ├── <Character>/rdm/sets/rdm_sets.lua [Equipment Sets]

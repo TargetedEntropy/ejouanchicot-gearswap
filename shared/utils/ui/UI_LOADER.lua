@@ -3,7 +3,7 @@
 ---============================================================================
 --- Loads a job's keybind configuration, <Character>/<job>/keys/<JOB>_KEYBINDS.lua
 --- (CharPaths.module('job', ...), shared/utils/core/char_paths.lua). When it
---- does not load, the HUD shows no rows: EntryKit.keybind_error has already
+--- does not load, the HUD shows no rows: EntryKit.job's bind_keys has already
 --- said why in the chat.
 ---
 --- @file shared/utils/ui/UI_LOADER.lua

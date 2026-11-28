@@ -1,7 +1,7 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   BLM Functions - what BLM defines besides its hook files
 ---  ═══════════════════════════════════════════════════════════════════════════
----   Loaded by EntryKit.load_job_files after the BLM hook files
+---   Loaded by load_job after the BLM hook files
 ---   (shared/utils/core/entry_kit.lua, JOB_FILES `own`). Global functions the
 ---   hooks call:
 ---   • BuffSelf() - Automated self-buffing
