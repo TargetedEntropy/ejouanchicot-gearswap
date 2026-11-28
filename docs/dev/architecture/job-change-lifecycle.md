@@ -18,7 +18,7 @@ Engine paths below are relative to `D:\Windower Tetsouo\addons\GearSwap\` and ma
 | `shared/entry/<job>.lua` (22) | 168-376 | Entry code: `get_sets`, `user_setup`, `job_sub_job_change`, `file_unload` |
 | `shared/utils/core/job_change_manager.lua` | 237 | Debounced subjob change: cleanup, then `gs reload` |
 | `shared/utils/core/job_sync_watchdog.lua` | 165 | Reloads when the loaded file's job differs from the client's job |
-| `shared/utils/core/INIT_SYSTEMS.lua` | 481 | Per-load bootstrap of the universal systems (sync and deferred) and of the gear hook chain |
+| `shared/utils/core/INIT_SYSTEMS.lua` | 467 | Per-load bootstrap of the universal systems (sync and deferred) and of the gear hook chain |
 | `shared/utils/core/keybind_guard.lua` | 82 | Re-sends the job's binds 2 s after a load, sequence-guarded on `windower._keybind_guard_seq` |
 | `shared/utils/core/module_cache.lua` | 213 | Makes `require` cache per environment |
 | `shared/utils/core/lifecycle_manager.lua` | 174 | Shared builders for `job_status_change`/`job_buff_change`/`job_aftercast`/`job_state_change`, plus `refresh_after_buff` |

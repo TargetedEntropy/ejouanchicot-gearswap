@@ -12,7 +12,7 @@
 ---     immediate  debug flags restored from windower._gs_debug, reload counter,
 ---                ModuleCache, HP priority, LagDebugger, AutoMedicine,
 ---                JobSyncWatchdog, DualBox sync IPC, KeybindGuard, Stealth
----                timers, custom states hooks
+---                timers, the gear chain (STARTS, ActionHooks)
 ---     +0.5 s     WarpInit, AutoMove, StateDisplayOverride
 ---     +2.0 s     MidcastWatchdog
 ---     +3.0 s     load check of the PrecastGuard / CooldownChecker /
@@ -329,35 +329,49 @@ else
 end
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   CUSTOM STATES - hook the player's own gear (<JOB>_CUSTOM.lua)
+---   GEAR CHAIN AND COMBAT SYSTEMS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
--- Hachirin-no-Obi / Orpheus's Sash on elemental damage (elemental_belt.lua).
--- Laid first, so the midcast fallback below (its set) and the custom states
--- (the player's own gear) wrap it: set, then belt, then custom gear.
-start_safely('ElementalBelt', function() require('shared/utils/equipment/elemental_belt').install() end)
+-- {name, module, function}. The gear layers (marked ActionHooks) only register their layer here: where each one
+-- sits around Mote's handle_equipping_gear / cleanup_precast / cleanup_midcast is ActionHooks.ORDER's
+-- (shared/utils/core/action_hooks.lua), not this list's. The others start in this order, which nothing depends on.
+local STARTS = {
+    -- ActionHooks: Hachirin-no-Obi / Orpheus's Sash on elemental damage (elemental_belt.lua)
+    {'ElementalBelt', 'shared/utils/equipment/elemental_belt', 'install'},
+    -- ActionHooks: Dual Wield tier pieces by magic haste on the engaged set (dual_wield.lua)
+    {'DualWield', 'shared/utils/equipment/dual_wield', 'install'},
+    -- Weaponskill set by the support in the party (support_tier.lua): wraps Mote's get_weaponskill_set, defined by
+    -- now, and listens for party jobs
+    {'SupportTier', 'shared/utils/party/support_tier', 'install'},
+    -- A chat block at each fight and each kill (fight_tracker.lua), only when the player turned it on
+    -- (//gs c fights on): off, init() does nothing
+    {'FightTracker', 'shared/utils/combat/fight_tracker', 'init'},
+    -- The timers a Random Deal / Wild Card gave back (random_deal_watch.lua), only while the player has it on
+    -- (//gs c dealwatch on)
+    {'RandomDealWatch', 'shared/utils/combat/random_deal_watch', 'init'},
+    -- ActionHooks: Treasure Hunter on the engaged set and on the first action against a mob not tagged yet
+    -- (treasure_hunter.lua)
+    {'TreasureHunter', 'shared/utils/equipment/treasure_hunter', 'install'},
+    -- A coloured line after each synthesis: NQ, HQ 1 to 3, Break and what it lost (synth_results.lua), every job
+    {'SynthResults', 'shared/utils/craft/synth_results', 'init'},
+    -- ActionHooks: spells a job's midcast does not route (a subjob's magic) go through MidcastManager anyway
+    {'MidcastFallback', 'shared/utils/midcast/midcast_fallback', 'install'},
+    -- ActionHooks: the player's own gear (<JOB>_CUSTOM.lua, custom_states.lua)
+    {'CustomStates', 'shared/utils/custom/custom_states', 'install_hooks'},
+    -- ActionHooks: cast time of every spell from the precast set actually sent (watchdog, BRD song queue)
+    {'CastTime', 'shared/utils/precast/cast_time', 'install_hook'},
+    -- The game's "cast started" packets (cast_tracker.lua)
+    {'CastTracker', 'shared/utils/core/cast_tracker', 'start'},
+    -- ActionHooks: the Combat Mode lock, every job (combat_mode.lua)
+    {'CombatMode', 'shared/utils/core/combat_mode', 'install_hook'},
+}
+for _, start in ipairs(STARTS) do
+    start_safely(start[1], function() require(start[2])[start[3]]() end)
+end
 
--- Dual Wield tier pieces by magic haste on the engaged set (dual_wield.lua).
--- Wraps handle_equipping_gear before the custom states do, so the player's
--- custom gear still goes on last.
-start_safely('DualWield', function() require('shared/utils/equipment/dual_wield').install() end)
-
--- Weaponskill set by the support in the party (support_tier.lua): wraps
--- Mote's get_weaponskill_set, defined by now, and listens for party jobs.
-start_safely('SupportTier', function() require('shared/utils/party/support_tier').install() end)
-
--- A chat block at each fight and each kill (fight_tracker.lua), only when
--- the player turned it on (//gs c fights on): off, init() does nothing.
-start_safely('FightTracker', function() require('shared/utils/combat/fight_tracker').init() end)
-
--- The timers a Random Deal / Wild Card gave back (random_deal_watch.lua),
--- only while the player has it on (//gs c dealwatch on).
-start_safely('RandomDealWatch', function() require('shared/utils/combat/random_deal_watch').init() end)
-
--- Treasure Hunter on the engaged set and on the first action against a
--- mob not tagged yet (treasure_hunter.lua). After the Dual Wield and belt
--- hooks (TH wins, once per mob), before the custom states.
-start_safely('TreasureHunter', function() require('shared/utils/equipment/treasure_hunter').install() end)
+-- The layers registered above laid on Mote's three functions, each wrapped once. Here, after
+-- include('Mote-Include.lua') has defined them: from user_setup() Mote would overwrite them a moment later.
+require('shared/utils/core/action_hooks').install()
 
 -- The dated journals (logs/fights, enhtest, sortie) older than 60 days deleted,
 -- once a session, a moment after the load (shared/utils/core/log_keeper.lua).
@@ -369,25 +383,6 @@ pcall(function()
     end, 'log prune')
 end)
 
--- A coloured line after each synthesis: NQ, HQ 1 to 3, Break and what it
--- lost (shared/utils/craft/synth_results.lua), every job.
-start_safely('SynthResults', function() require('shared/utils/craft/synth_results').init() end)
-
--- Spells a job's midcast does not route (a subjob's magic) go through
--- MidcastManager anyway. Laid before the custom states hook below, which
--- wraps it, so the player's custom gear still goes on last.
-start_safely('MidcastFallback', function() require('shared/utils/midcast/midcast_fallback').install() end)
-
--- Not from user_setup(): Mote calls it from the middle of Mote-Include, before
--- defining handle_equipping_gear and cleanup_precast/midcast, and those
--- definitions then replace any hook laid on them. By now they all exist.
-start_safely('CustomStates', function() require('shared/utils/custom/custom_states').install_hooks() end)
-
--- Cast time of every spell from the precast set actually sent (watchdog, BRD
--- song queue), and the game's "cast started" packets.
-start_safely('CastTime', function() require('shared/utils/precast/cast_time').install_hook() end)
-start_safely('CastTracker', function() require('shared/utils/core/cast_tracker').start() end)
-
 -- A queue still under way from the previous load (stealth, cleanse, buff) listens
 -- again for the end of each action; else every step waits its longest wait.
 pcall(function()
@@ -395,15 +390,6 @@ pcall(function()
         require('shared/utils/core/action_queue').resume()
     end
 end)
-
--- Combat Mode lock, every job: the outermost layer, the lock is set before any gear goes on.
-start_safely('CombatMode', function() require('shared/utils/core/combat_mode').install_hook() end)
-
--- The layers registered above (belt, Dual Wield, Treasure Hunter, midcast fallback, custom states, cast time,
--- Combat Mode) laid on Mote's handle_equipping_gear / cleanup_precast / cleanup_midcast, each function wrapped once,
--- in ActionHooks.ORDER (shared/utils/core/action_hooks.lua) whatever the order they registered in. Here, after
--- include('Mote-Include.lua') has defined the three: from user_setup() Mote would overwrite them a moment later.
-require('shared/utils/core/action_hooks').install()
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   PRECAST SAFETY MODULES - confirm they load, once per job load

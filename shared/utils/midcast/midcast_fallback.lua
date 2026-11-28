@@ -45,9 +45,8 @@ function MidcastFallback.skip(spell)
 end
 
 --- Hook route() on Mote's cleanup_midcast, which runs after job_post_midcast
---- on every midcast. Once per sandbox; INIT_SYSTEMS calls it after Mote
---- defined cleanup_midcast and before the custom states wrap it, so the
---- player's custom gear still goes on last.
+--- on every midcast. Its place in the chain (inside the custom states, so the
+--- player's custom gear still goes on last) is ActionHooks.ORDER's.
 function MidcastFallback.install()
     require('shared/utils/core/action_hooks').add('midcast_fallback', 'cleanup_midcast', {
         before = function(spell, _, eventArgs) MidcastFallback.route(spell, eventArgs) end,

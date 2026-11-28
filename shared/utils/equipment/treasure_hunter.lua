@@ -25,7 +25,8 @@
 --- Gear order: the engaged overlay wraps handle_equipping_gear after the
 --- Dual Wield tiers, the action overlay wraps cleanup_precast /
 --- cleanup_midcast after the Obi / Orpheus belt: TH wins over both (it is
---- worn once per mob), the player's CUSTOM gear still goes on last. THF
+--- worn once per mob), the player's CUSTOM gear still goes on last
+--- (ActionHooks.ORDER, shared/utils/core/action_hooks.lua). THF
 --- builds its engaged TH itself (SATA): _G._treasure_engaged_by_job is then
 --- a function giving the job's SA/TA + TH layer, which the engaged wrapper
 --- lays after the Dual Wield pieces instead of sets.TreasureHunter.
@@ -236,7 +237,7 @@ end
 
 --- Wrap handle_equipping_gear (engaged overlay) and cleanup_precast /
 --- cleanup_midcast (action overlay), once per sandbox, and start tracking.
---- Called from INIT_SYSTEMS after the Dual Wield and Obi / Orpheus hooks.
+--- Its place outside the Dual Wield and Obi / Orpheus layers is ActionHooks.ORDER's.
 function TreasureHunter.install()
     if rawget(_G, '_treasure_installed') then return end
     _G._treasure_installed = true
