@@ -1,7 +1,7 @@
 # BST (Beastmaster) job
 
-The BST job area is 12 hook modules, the facade and 5 logic modules under
-`shared/jobs/bst/functions/` (about 2 350 lines), one entry point, ten config
+The BST job area is 9 hook modules and 5 logic modules under
+`shared/jobs/bst/functions/` (about 1 950 lines), one entry point, ten config
 files and one sets file. GearSwap loads it when the main job becomes BST
 (`<Char>/<Char>_BST.lua`, one `include` of `shared/entry/bst.lua`). From then
 on Mote-Include calls its hooks on every action (precast, midcast, aftercast,
@@ -45,8 +45,7 @@ idle overlays of `logic/set_builder.lua` re-read on 2026-09-29.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/bst.lua` | 323 | Entry point (the same for every character; `<Char>_BST.lua` and its template `_master/entry/Tetsouo_BST.lua` are one `include` of it): config preload, `get_sets`, `user_setup`, `job_update`, `init_gear_sets`, `job_sub_job_change`, `prerender` pet monitor (`start_pet_monitoring` / `stop_pet_monitoring`), `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/bst/functions/bst_functions.lua` | 107 | Facade: includes `message_buffs.lua` and the 12 hook files (13 includes in all), requires `dualbox_manager` for its auto-init |
+| `shared/entry/bst.lua` | 324 | Entry point (the same for every character; `<Char>_BST.lua` and its template `_master/entry/Tetsouo_BST.lua` are one `include` of it): config preload, `get_sets`, `user_setup`, `job_update`, `init_gear_sets`, `job_sub_job_change`, `prerender` pet monitor (`start_pet_monitoring` / `stop_pet_monitoring`), `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
 | `shared/jobs/bst/functions/BST_PRECAST.lua` | 160 | `job_precast` / `job_post_precast`; locals `ready_move_info`, `equip_for_summon`, `equip_broth`, `prepare_ready_move` |
 | `shared/jobs/bst/functions/BST_MIDCAST.lua` | 204 | `job_midcast` (early returns, no `handled`) / `job_post_midcast` (subjob magic through `MidcastManager`, table `JOB_POST_MIDCAST_HANDLERS`) |
 | `shared/jobs/bst/functions/BST_AFTERCAST.lua` | 127 | `job_aftercast`: pet damage set for Ready moves that were not interrupted (held by `ReadyHold`), delayed `start_pet_monitoring`; `job_pet_aftercast` lets the hold go |
@@ -100,7 +99,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as <Char>_BST.lua
     participant M as Mote-Include
-    participant F as bst_functions.lua
+    participant F as EntryKit.load_job_files
     GS->>E: run chunk (LOCKSTYLE_CONFIG, config_loader + UIConfig, JCM, UI_MANAGER, REGION_CONFIG; defines the monitor functions)
     GS->>E: get_sets()
     E->>E: _G.LockstyleConfig/UIConfig/RECAST_CONFIG/BSTBeastPetData/BSTTPConfig (plain require)
@@ -108,9 +107,9 @@ sequenceDiagram
     M->>E: user_setup() (states, ecosystem, keybinds, UI, JCM + EntryKit.macro_and_lockstyle, HUD reload, monitor start, dualbox require)
     M->>E: init_gear_sets() -> include sets file
     E->>E: INIT_SYSTEMS (AutoMove +0.5 s, hooks), data_loader, message hooks
-    E->>E: JobChangeManager.cancel_all()
-    E->>F: include bst_functions.lua
-    F->>F: include message_buffs + 12 hook files, require dualbox_manager
+    E->>E: EntryKit.load_job("BST"): JobChangeManager.cancel_all()
+    E->>F: load_job_files('BST')
+    F->>F: lockstyle + macro book install, message_buffs + 9 hook files, require dualbox_manager
     E->>E: register_lockstyle_cancel("BST", cancel_bst_lockstyle_operations)
 ```
 
@@ -129,7 +128,7 @@ sequenceDiagram
    (read by `ecosystem_manager`).
 5. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`: 0.2 s
-   later (`LoadGate.defer`), once the facade has defined
+   later (`LoadGate.defer`), once `EntryKit.load_job_files` has defined
    `select_default_macro_book` / `select_default_lockstyle`, the macro book,
    then the lockstyle after 8 s.
 6. BST-HUD: bumps `_G.bst_hud_load_id`, then after 2 s sends
@@ -144,10 +143,11 @@ sequenceDiagram
    MAIN, `send_job_update` as ALT). Covers main job changes;
    `job_sub_job_change` does not call it again.
 
-The facade includes, in order: `message_buffs.lua`, `BST_PRECAST`,
-`BST_MIDCAST`, `BST_AFTERCAST`, `BST_PET_MIDCAST`,
-`BST_IDLE`, `BST_ENGAGED`, `BST_STATUS`, `BST_BUFFS`, `BST_LOCKSTYLE`,
-`BST_MACROBOOK`, `BST_COMMANDS`, `BST_MOVEMENT`. `BST_AFTERCAST` and
+`EntryKit.load_job_files('BST')` installs the lockstyle and macro book, then
+includes, in order: `message_buffs.lua`, `BST_PRECAST`, `BST_MIDCAST`,
+`BST_PET_MIDCAST` (BST's `JOB_FILES` entry, `pet_midcast`), `BST_AFTERCAST`,
+`BST_IDLE`, `BST_ENGAGED`, `BST_STATUS`, `BST_BUFFS`, `BST_COMMANDS`, and
+requires `dualbox_manager`. `BST_AFTERCAST` and
 `BST_PET_MIDCAST` require `pet_manager` / `ready_move_categorizer` at include
 time; the other logic modules load on first use.
 
@@ -573,7 +573,8 @@ or /DNC, shields included (its comment now says so).
 
 ## Invariants & gotchas
 
-- `user_setup()` runs before the facade; anything it calls from the hook files
+- `user_setup()` runs before `EntryKit.load_job_files`; anything
+  it calls from the hook files
   must be deferred (the first macro book / lockstyle and the monitor start are).
 - `equip()` from a bare coroutine does nothing; use `send_command('gs c update')`
   (`equip_pet_broth` is the counter-example).

@@ -62,7 +62,7 @@ local function ensure_message_init()
 end
 
 -- A start() that raises would climb out through this include and stop
--- get_sets() before the job facade: no precast, no midcast for the whole job.
+-- get_sets() before the job's files: no precast, no midcast for the whole job.
 -- Only the require used to be protected.
 local function start_safely(name, fn, ...)
     local ok, err = pcall(fn, ...)

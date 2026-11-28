@@ -21,10 +21,9 @@
 ---   - Madrigal, Minuet, Prelude support
 ---
 --- Architecture Overview:
----   Main File (this) >> brd_functions.lua >> Specialized Modules
+---   Main File (this) >> EntryKit.load_job_files >> Specialized Modules
 ---
 --- Module Organization:
----   ├── functions/brd_functions.lua    [Facade Loader]
 ---   ├── <Character>/brd/sets/brd_sets.lua [Equipment Sets]
 ---   └── functions/BRD_*.lua            [Specialized Modules]
 ---
@@ -75,8 +74,9 @@ function get_sets()
     -- the shared systems, the data, the spell / ability / weaponskill messages
     EntryKit.after_mote(Profiler)
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('BRD', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('BRD', Profiler)
 
     -- Initial macrobook/lockstyle are triggered from user_setup();
     -- subjob changes go through JobChangeManager (job_sub_job_change).

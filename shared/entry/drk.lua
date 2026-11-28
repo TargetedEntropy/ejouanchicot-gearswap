@@ -14,7 +14,7 @@
 ---   • UI + Keybind system
 ---
 --- Architecture:
----   Main File >> drk_functions.lua (facade) >> Hooks + Logic Modules
+---   Main File >> EntryKit.load_job_files >> Hooks + Logic Modules
 ---
 --- Modules:
 ---   • Hooks: PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
@@ -62,8 +62,9 @@ function get_sets()
     -- Note: DRK_TP_CONFIG.lua exports _G.DRKTPConfig automatically
     require(CharPaths.module('job', 'DRK_TP_CONFIG', 'DRK'))
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('DRK', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('DRK', Profiler)
 
     -- Initial macrobook/lockstyle are triggered from user_setup();
     -- subjob changes go through JobChangeManager (job_sub_job_change).

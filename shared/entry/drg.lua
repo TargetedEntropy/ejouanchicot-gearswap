@@ -11,7 +11,7 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---
 --- Architecture:
----   Main File (this) >> drg_functions.lua >> Hooks >> Logic Modules
+---   Main File (this) >> EntryKit.load_job_files >> Hooks >> Logic Modules
 ---
 --- Hooks Modules:
 ---   DRG_PRECAST | DRG_MIDCAST | DRG_PET_MIDCAST | DRG_AFTERCAST | DRG_STATUS
@@ -57,8 +57,9 @@ function get_sets()
     -- DRG-specific configs
     _G.DRGTPConfig = require(CharPaths.module('job', 'DRG_TP_CONFIG', 'DRG'))
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('DRG', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('DRG', Profiler)
 
     Profiler.finish()
 end

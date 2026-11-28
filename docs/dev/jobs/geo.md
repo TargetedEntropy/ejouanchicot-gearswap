@@ -1,7 +1,7 @@
 # GEO (Geomancer) job
 
-The GEO job area is the facade plus 11 hook modules and 3 logic modules under
-`shared/jobs/geo/functions/` (about 1 450 lines), an entry point per
+The GEO job area is 8 hook modules and the logic modules under
+`shared/jobs/geo/functions/` (about 2 450 lines), an entry point per
 character, nine config files and one sets file. GearSwap loads it when the
 main job becomes GEO. From then on Mote-Include calls its hooks on every
 action, on status, buff and pet changes, on `//gs c` commands and on state
@@ -42,7 +42,6 @@ function, not a line number.
 | Path | Role |
 |------|------|
 | `shared/entry/geo.lua` (252 lines) | Entry point (the same for every character; `<Char>_GEO.lua` and its template `_master/entry/Tetsouo_GEO.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (loads PetTP), `job_update` (HUD only), `init_gear_sets`, `file_unload` (unloads PetTP); shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/geo/functions/geo_functions.lua` | Facade: `message_buffs.lua`, the 11 hook files, `dualbox_manager` |
 | `shared/jobs/geo/functions/GEO_PRECAST.lua` | `job_precast` (guard, tier refine or cooldown, auto abilities, Entrust flag, WS) / `job_post_precast` |
 | `shared/jobs/geo/functions/GEO_MIDCAST.lua` | `job_midcast` (empty) / `job_post_midcast` (`midcast_geomancy` with `geomancy_family`, Enhancing branch, `PLAIN_SKILLS`) |
 | `shared/jobs/geo/functions/GEO_AFTERCAST.lua` | `job_aftercast`: watchdog, Entrust flag, `geo_escort_on_aftercast` |
@@ -95,7 +94,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/geo.lua
     participant M as Mote-Include
-    participant F as geo_functions.lua
+    participant F as EntryKit.load_job_files
     GS->>E: file chunk: LOCKSTYLE_CONFIG, UIConfig (ConfigLoader), REGION_CONFIG
     GS->>E: get_sets()
     E->>M: include('Mote-Include.lua')
@@ -103,8 +102,8 @@ sequenceDiagram
     M->>E: init_gear_sets(): include('geo/sets/geo_sets.lua')
     E->>E: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, _G.GEOTPConfig
-    E->>E: JobChangeManager.cancel_all()
-    E->>F: include geo_functions.lua
+    E->>E: EntryKit.load_job("GEO"): JobChangeManager.cancel_all()
+    E->>F: load_job_files('GEO')
     E->>E: register_lockstyle_cancel("GEO", ...)
 ```
 
@@ -114,22 +113,19 @@ sequenceDiagram
 2. `JobAddons.run('load', 'pettp')` ([JobAddons](../systems/factories-and-helpers.md#jobaddons-sharedutilscorejob_addonslua)): the PetTP addon, unloaded again in
    `file_unload`; `pettp = false` in `_common/tools/ADDONS_CONFIG.lua` skips both. The load is sent only when the flag `windower._geo_pettp_loaded` (it outlives the sandbox) is not set, so a subjob change or `//gs reload` of GEO sends neither the unload nor the load again. `file_unload(next_file)` unloads at once when GearSwap itself unloads (`next_file` nil); otherwise it asks the game 2 s later and unloads only when the main job is no longer GEO (`shared/entry/geo.lua`, since `edbcfb96`).
 3. `GEO_KEYBINDS` (which returns `KeybindManager.create('GEO', ...)`) ->
-   global `GEOKeybinds`, `bind_all()`. `show_intro` `require`s
-   `GEO_MACROBOOK.lua` and `GEO_LOCKSTYLE.lua` (both return nothing). A
-   failed require prints the Lua error (`EntryKit.keybind_error`).
+   global `GEOKeybinds`, `bind_all()`. A failed require prints the Lua error (`EntryKit.keybind_error`).
 4. `KeybindUI.smart_init("GEO", UIConfig.init_delay)`.
 5. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once the facade has
-   included the two wrapper files again (a second, independent factory
-   instance of each, same as [BLM](blm.md)), `select_default_macro_book()`,
+   (`shared/utils/core/entry_kit.lua`): 0.2 s later, once `EntryKit.load_job_files` has
+   defined them, `select_default_macro_book()`,
    then `select_default_lockstyle` after 8 s.
 6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
-`geo_functions.lua` includes `message_buffs.lua`, then `GEO_PRECAST`,
-`GEO_MIDCAST`, `GEO_AFTERCAST`, `GEO_IDLE`, `GEO_ENGAGED`, `GEO_STATUS`,
-`GEO_BUFFS`, `GEO_LOCKSTYLE`, `GEO_MACROBOOK`, `GEO_COMMANDS`, `GEO_MOVEMENT`,
-requires `dualbox_manager` and prints a debug line.
+`EntryKit.load_job_files('GEO')` installs the lockstyle and macro book,
+includes `message_buffs.lua`, then `GEO_PRECAST`, `GEO_MIDCAST`,
+`GEO_AFTERCAST`, `GEO_IDLE`, `GEO_ENGAGED`, `GEO_STATUS`, `GEO_BUFFS`,
+`GEO_COMMANDS`, and requires `dualbox_manager`.
 
 ### Precast
 
@@ -588,5 +584,5 @@ T = in `_master/sets/geo_sets.lua`.
   those `MidcastManager` routes return false.
 - Fixed 2026-10-15: the initial macrobook / lockstyle no longer depend on
   `KeybindManager.show_intro` requiring the wrappers
-  (`EntryKit.macro_and_lockstyle` waits for the facade).
+  (`EntryKit.macro_and_lockstyle` waits for the job files).
 - Dead code: `GEO_LOCKSTYLE.style` (`SetBuilder.apply_buff_gear` was removed on 2026-09-29).

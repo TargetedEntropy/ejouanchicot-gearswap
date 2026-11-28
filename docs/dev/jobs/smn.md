@@ -1,7 +1,7 @@
 # SMN (Summoner) job
 
-SMN is the 16th job area, added on 2026-07-29: the facade plus 12 hook
-modules and one logic module under `shared/jobs/smn/functions/` (about 1 300
+SMN is the 16th job area, added on 2026-07-29: 9 hook
+modules and one logic module under `shared/jobs/smn/functions/` (about 960
 lines). Like every other job it has a generic template in `_master/`
 (entry, `config/smn/`, flat `sets/smn_sets.lua`), offered by the clone script
 since 2026-09-28. Until then the entry, configs and sets existed only in the
@@ -68,7 +68,6 @@ clone of any other character printed
 | Path | Role |
 |------|------|
 | `shared/entry/smn.lua` (188 lines; every character's `<Char>_SMN.lua` and the template `_master/entry/Tetsouo_SMN.lua` are one `include` of it) | Entry: config preload, `get_sets`, `init_gear_sets`, `job_sub_job_change`, `user_setup` (Carbuncle auto-summon), `job_update` (HUD only), `file_unload` (stops the skill-up loop); shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/smn/functions/smn_functions.lua` | Facade: `message_buffs.lua`, the 12 hook files, `dualbox_manager`, a debug line |
 | `shared/jobs/smn/functions/SMN_PRECAST.lua` | Guard, cooldown, WS; empty Blood Pact branch; `job_post_precast` (TP gear) |
 | `shared/jobs/smn/functions/SMN_MIDCAST.lua` | `job_post_midcast`: Blood Pact set via the classifier, else `JOB_POST_MIDCAST_HANDLERS` by skill |
 | `shared/jobs/smn/functions/SMN_PET_MIDCAST.lua` | `job_pet_midcast(spell, action, spellMap, eventArgs)`: re-equips the classified Blood Pact set and marks the event handled |
@@ -104,8 +103,10 @@ are the cached instances
 Mote-Include (which runs `user_setup()` and `init_gear_sets()` =
 `include(CharPaths.relative('sets', 'smn_sets.lua', 'SMN'))`), then `INIT_SYSTEMS`, `data_loader` and
 the message hooks, sets `_G.LockstyleConfig`, `_G.UIConfig`,
-`_G.RECAST_CONFIG`, calls `JobChangeManager.cancel_all()`, includes the facade
-and registers the lockstyle cancel. It also marks each step for
+`_G.RECAST_CONFIG`, then `EntryKit.load_job('SMN', Profiler)`: `JobChangeManager.cancel_all()`,
+`EntryKit.load_job_files('SMN')` (lockstyle and macro book install,
+`message_buffs.lua`, the 8 hook files with `SMN_PET_MIDCAST` after
+`SMN_MIDCAST`, `dualbox_manager`) and the lockstyle cancel registration. It also marks each step for
 `//gs c perf`. There is no TP config.
 
 `user_setup()`:
@@ -118,7 +119,7 @@ and registers the lockstyle cancel. It also marks each step for
 3. `KeybindUI.smart_init("SMN", UIConfig.init_delay)`.
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-   (`shared/utils/core/entry_kit.lua`): the facade has not run yet, so it
+   (`shared/utils/core/entry_kit.lua`): `EntryKit.load_job_files` has not run yet, so it
    waits 0.2 s for `select_default_macro_book` / `select_default_lockstyle`,
    sets the macro book, and schedules the lockstyle after 8 s.
 5. A task `initial_load_delay + 2` s later (10 s, `LoadGate.defer(..., 'smn summon')`: dropped when a newer load came first): if the main job is
@@ -362,8 +363,8 @@ it stays on after the first cast.
   `MidcastFallback`, `MidcastWatchdog`
   ([midcast and buffs](../systems/midcast-and-buffs.md)); `LifecycleManager`
   (status), `DoomManager` directly (buffs).
-- Messages: `MessageFormatter` generic calls, `message_buffs` (included by the
-  facade), `message_commands`; Blood Pact activation messages come from the
+- Messages: `MessageFormatter` generic calls, `message_buffs` (included by
+  `EntryKit.load_job_files`), `message_commands`; Blood Pact activation messages come from the
   shared ability handler through `SMN_SPELL_DATABASE`
   ([messages](../systems/messages.md)).
 - Pet hooks are shared with [BST](bst.md) and PUP (`job_pet_midcast`).

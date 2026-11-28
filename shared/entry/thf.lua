@@ -17,10 +17,10 @@
 ---   - Clean separation of concerns
 ---
 --- Architecture Overview:
----   Main File (this) >> thf_functions.lua >> Hooks >> Logic Modules
+---   Main File (this) >> EntryKit.load_job_files >> Hooks >> Logic Modules
 ---
 --- Module Organization:
----   ├── functions/thf_functions.lua    [Facade Loader]
+---   ├── functions/thf_functions.lua    [THF's own start]
 ---   ├── functions/logic/               [Business Logic]
 ---   ├── <Character>/thf/sets/thf_sets.lua [Equipment Sets]
 ---   └── functions/THF_*.lua           [Hooks Modules]
@@ -70,8 +70,9 @@ function get_sets()
     -- THF-specific configs
     _G.THFTPConfig = require(CharPaths.module('job', 'THF_TP_CONFIG', 'THF'))
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('THF', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('THF', Profiler)
 
     -- Initial macrobook/lockstyle are triggered from user_setup();
     -- subjob changes go through JobChangeManager (job_sub_job_change).

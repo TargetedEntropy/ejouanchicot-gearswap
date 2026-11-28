@@ -11,7 +11,7 @@
 --- @requires Windower FFXI, GearSwap addon, Mote-Include v2.0+
 ---
 --- Architecture:
----   Main File (this) >> rng_functions.lua >> Hooks >> Logic Modules
+---   Main File (this) >> EntryKit.load_job_files >> Hooks >> Logic Modules
 ---
 --- Hooks Modules:
 ---   RNG_PRECAST | RNG_MIDCAST | RNG_AFTERCAST | RNG_STATUS | RNG_BUFFS
@@ -56,8 +56,9 @@ function get_sets()
     -- RNG-specific configs
     _G.RNGTPConfig = require(CharPaths.module('job', 'RNG_TP_CONFIG', 'RNG'))
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('RNG', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('RNG', Profiler)
 
     Profiler.finish()
 end

@@ -32,8 +32,7 @@ What PUP adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/pup.lua` | 161 | Entry (the same for every character; `<Char>_PUP.lua` and its template `_master/entry/Tetsouo_PUP.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ first PetMode detection), `job_update` (PetMode, poll, HUD), `init_gear_sets`, `file_unload` (+ poll stop) |
-| `shared/jobs/pup/functions/pup_functions.lua` | 64 | Facade: includes `message_buffs` and the 12 hook files, requires `dualbox_manager`, debug line |
+| `shared/entry/pup.lua` | 162 | Entry (the same for every character; `<Char>_PUP.lua` and its template `_master/entry/Tetsouo_PUP.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup` (+ first PetMode detection), `job_update` (PetMode, poll, HUD), `init_gear_sets`, `file_unload` (+ poll stop) |
 | `shared/jobs/pup/functions/PUP_PRECAST.lua` | 42 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (TP gear) |
 | `shared/jobs/pup/functions/PUP_MIDCAST.lua` | 99 | `job_midcast` (empty) / `job_post_midcast` (subjob magic via MidcastManager) / `job_get_spell_map` (Maneuver) |
 | `shared/jobs/pup/functions/PUP_PET_MIDCAST.lua` | 66 | `job_pet_midcast`: automaton weaponskills; automaton spells left to Mote |
@@ -93,13 +92,13 @@ files exist. The entry sets `_G.RegionConfig` first, then loads the UI config
    (`EntryKit.keybind_error`).
 4. `KeybindUI.smart_init("PUP", init_delay)`.
 5. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`: macro
-   book 0.2 s later, once the facade has defined it, lockstyle after
+   book 0.2 s later, once `EntryKit.load_job_files` has defined it, lockstyle after
    `LockstyleConfig.initial_load_delay`.
 6. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
 `get_sets()` then sets `_G.LockstyleConfig`, `_G.RECAST_CONFIG`,
-`_G.PUPTPConfig`, cancels pending job-change work, includes the facade and
-registers `cancel_pup_lockstyle_operations`.
+`_G.PUPTPConfig`; then `EntryKit.load_job` cancels pending job-change work, loads the job files
+and registers `cancel_pup_lockstyle_operations`.
 
 `job_update` (every `gs c update`, cycle, set, toggle; Mote calls it before it
 equips): `Automaton.refresh_mode()`, `PetWS.ensure_running()`, then

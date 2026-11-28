@@ -1,7 +1,7 @@
 # BRD (Bard) job
 
-The BRD job area is 11 hook modules, the facade and 10 logic modules under
-`shared/jobs/brd/functions/` (3 267 lines), one entry point, ten config files,
+The BRD job area is 9 hook modules and 10 logic modules under
+`shared/jobs/brd/functions/` (3 261 lines), one entry point, ten config files,
 one sets file and a song database. GearSwap loads it when the main job becomes
 BRD. From then on Mote-Include calls its hooks on every action (precast,
 midcast, aftercast), on status and buff changes, on `//gs c` commands and on
@@ -42,7 +42,6 @@ function; line numbers are given only where no function name fits.
 | Path | Lines | Role |
 |------|------:|------|
 | `shared/entry/brd.lua` | 209 | Entry point (the same for every character; `<Char>_BRD.lua` and its template `_master/entry/Tetsouo_BRD.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (song slots, then `EntryKit.update_hud`), `init_gear_sets`, `file_unload` (also stops the instrument skill-up loop: `BRDSkillUp.cancel`); shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/brd/functions/brd_functions.lua` | 85 | Facade: includes the 11 hook files, requires `dualbox_manager` |
 | `shared/jobs/brd/functions/BRD_PRECAST.lua` | 288 | `job_precast` (guard, `SongRefinement.refine_song`, cooldown, `job_precast_bardsong` Pianissimo, `try_marcato`, WS, `job_precast_bardsong_2` instrument lock) / `job_post_precast` (TP gear; on a song, ammo emptied and the locked instrument put back over the Fast Cast set's `range`; precast debug) |
 | `shared/jobs/brd/functions/BRD_MIDCAST.lua` | 145 | `job_midcast` (empty), `job_customize_midcast_set` (passthrough, never called), `job_post_midcast` (context + skill dispatch to the router) |
 | `shared/jobs/brd/functions/BRD_AFTERCAST.lua` | 73 | `job_aftercast`: watchdog, Pianissimo flag, `SongQueue.on_aftercast`, `DummyNext.on_aftercast`, instrument lock release |
@@ -94,7 +93,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as Char_BRD.lua
     participant M as Mote-Include
-    participant F as brd_functions.lua
+    participant F as EntryKit.load_job_files
     GS->>E: run chunk (LOCKSTYLE_CONFIG, config_loader + UIConfig, REGION_CONFIG)
     GS->>E: get_sets()
     E->>E: _G.LockstyleConfig, RECAST_CONFIG, BRDTPConfig, BRDSongConfig, BRDTimingConfig
@@ -103,8 +102,8 @@ sequenceDiagram
     M->>E: user_setup() (states, keybinds, UI, JCM, 0.2 s macro/lockstyle, song slots, dualbox)
     M->>E: init_gear_sets() -> include sets file
     E->>E: INIT_SYSTEMS, data_loader, message hooks
-    E->>E: JobChangeManager.cancel_all()
-    E->>F: include brd_functions.lua
+    E->>E: EntryKit.load_job("BRD"): JobChangeManager.cancel_all()
+    E->>F: load_job_files('BRD')
     E->>E: register_lockstyle_cancel("BRD", ...)
 ```
 
@@ -118,11 +117,14 @@ sequenceDiagram
   global `BRDKeybinds`, `bind_all()`; `KeybindUI.smart_init("BRD", ...)`;
   `JobChangeManager.initialize()` plus
   `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-  (`shared/utils/core/entry_kit.lua`), which 0.2 s later, once the facade has
+  (`shared/utils/core/entry_kit.lua`), which 0.2 s later, once `EntryKit.load_job_files` has
   defined them, calls `select_default_macro_book()` and schedules
   `select_default_lockstyle` after the delay; `_G.update_brd_song_slots()` after
   `UIConfig.init_delay + 0.5` s; `dualbox_manager` require.
-- BRD does not include `message_buffs.lua` (COR and DNC do).
+- `EntryKit.load_job_files('BRD')` installs the lockstyle and macro book,
+  includes the 8 hook files and `BRD_MOVEMENT.lua` after `BRD_COMMANDS`, and
+  requires `dualbox_manager`. BRD's `JOB_FILES` entry has
+  `buff_messages = false`: no `message_buffs.lua` (COR and DNC have it).
 
 ### Precast
 

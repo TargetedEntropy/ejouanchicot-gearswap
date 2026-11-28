@@ -34,8 +34,7 @@ from `H2H_WS_DATABASE.lua`.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/mnk.lua` | 137 | Entry (the same for every character; `<Char>_MNK.lua` and its template `_master/entry/Tetsouo_MNK.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
-| `shared/jobs/mnk/functions/mnk_functions.lua` | 61 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager`, debug line |
+| `shared/entry/mnk.lua` | 138 | Entry (the same for every character; `<Char>_MNK.lua` and its template `_master/entry/Tetsouo_MNK.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
 | `shared/jobs/mnk/functions/MNK_PRECAST.lua` | 66 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (WS buff layers, then TP gear) |
 | `shared/jobs/mnk/functions/MNK_MIDCAST.lua` | 75 | `job_midcast` (empty) / `job_post_midcast` (subjob magic via MidcastManager) |
 | `shared/jobs/mnk/functions/MNK_AFTERCAST.lua` | 21 | `job_aftercast = LifecycleManager.aftercast()` |
@@ -83,13 +82,13 @@ files exist.
    prints `[MNK] Keybinds failed to load: <error>`.
 3. `KeybindUI.smart_init("MNK", init_delay)`.
 4. `JobChangeManager.initialize()`; `EntryKit.macro_and_lockstyle`: macro
-   book 0.2 s later, once the facade exists, lockstyle after
+   book 0.2 s later, once `EntryKit.load_job_files` has run, lockstyle after
    `LockstyleConfig.initial_load_delay`.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
 `get_sets()` then sets `_G.LockstyleConfig`, `_G.RECAST_CONFIG`,
-`_G.MNKTPConfig`, cancels pending job-change work, includes the facade and
-registers `cancel_mnk_lockstyle_operations`.
+`_G.MNKTPConfig`; then `EntryKit.load_job` cancels pending job-change work, loads the job files
+and registers `cancel_mnk_lockstyle_operations`.
 
 `job_update`: `KeybindUI.update()`. `file_unload`:
 `JobChangeManager.cancel_all()`, then `MNKKeybinds.unbind_all()`. These hooks,

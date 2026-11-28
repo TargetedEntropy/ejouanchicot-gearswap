@@ -42,7 +42,6 @@ numbers are avoided because they drift.
 | Path | Lines | Role |
 |------|------:|------|
 | `shared/entry/pld.lua` | 222 | Entry point (the same for every character; `<Char>_PLD.lua` and its template `_master/entry/Tetsouo_PLD.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload`; shared hooks from `shared/utils/core/entry_kit.lua` |
-| `shared/jobs/pld/functions/pld_functions.lua` | 119 | Facade: includes `message_buffs` and the 11 hook files, requires `dualbox_manager` |
 | `shared/jobs/pld/functions/PLD_PRECAST.lua` | 131 | `job_precast` (guard, cooldown, auto-abilities, WS) / `job_post_precast` (/SCH weaponskill variants, TP gear, CureSelf FC, enmity override) |
 | `shared/jobs/pld/functions/PLD_MIDCAST.lua` | 203 | `job_midcast` (Cure to Cure IV) / `job_post_midcast` (name-before-skill dispatch, enmity override) |
 | `shared/jobs/pld/functions/PLD_AFTERCAST.lua` | 36 | `LifecycleManager.aftercast()`, empty `job_post_aftercast` |
@@ -103,7 +102,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as shared/entry/pld.lua
     participant M as Mote-Include
-    participant F as pld_functions.lua
+    participant F as EntryKit.load_job_files
     GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG)
     GS->>E: get_sets()
     E->>M: include Mote-Include
@@ -112,8 +111,8 @@ sequenceDiagram
     E->>E: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, PLD_TP_CONFIG (sets _G.PLDTPConfig), _G.BluMagicConfig
     E->>E: JobChangeManager.cancel_all()
-    E->>F: include pld_functions.lua
-    F->>F: include message_buffs + 11 hook files, require dualbox_manager
+    E->>F: load_job_files('PLD')
+    F->>F: lockstyle + macro book install, message_buffs + 8 hook files, require dualbox_manager
     E->>E: pld_rebuild_ws_slots(), register_lockstyle_cancel("PLD", ...)
 ```
 
@@ -124,7 +123,7 @@ sequenceDiagram
    calls `apply_hybrid_profile(state.HybridMode.value)`.
    `_G.pld_rebuild_ws_slots()` runs only when the job modules already exist (a
    subjob change re-runs `user_setup` in the same sandbox); on a cold load
-   `get_sets` calls it after including the facade. Then
+   `get_sets` calls it after `EntryKit.load_job_files('PLD')`. Then
    `AmpullaLock.apply(state.HybridMode.value)` gives back an ammo lock left by a
    stance that is no longer selected.
 2. `require(CharPaths.module('job', 'PLD_KEYBINDS', 'PLD'))` (a `KeybindManager` module) into
@@ -136,10 +135,9 @@ sequenceDiagram
    anchor for PLD is `state.HybridMode` (`ui_lifecycle.lua` `are_states_ready`).
 4. `JobChangeManager.initialize()`, then
    `EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)`
-   (`shared/utils/core/entry_kit.lua`): 0.2 s later (`LoadGate.defer`), once the
-   facade has defined `select_default_macro_book` / `select_default_lockstyle`,
-   the macro book is set and the lockstyle scheduled after 8 s; see
-   [factories](../systems/factories-and-helpers.md#job-wrappers).
+   (`shared/utils/core/entry_kit.lua`): 0.2 s later (`LoadGate.defer`), once
+   `EntryKit.load_job_files` has defined `select_default_macro_book` / `select_default_lockstyle`,
+   the macro book is set and the lockstyle scheduled after 8 s.
 5. `pcall(require, 'shared/utils/dualbox/dualbox_manager')`.
 
 `job_sub_job_change` only calls `JobChangeManager.on_job_change`
@@ -150,10 +148,11 @@ down would leak the lock), then `EntryKit.unload(PLDKeybinds)`:
 is `EntryKit.update_hud('PLD')`; its `UPDATE_DEBUG` step 2 line, once PLD's
 own, now prints for every job.
 
-`pld_functions.lua` includes `message_buffs.lua`, `PLD_PRECAST`, `PLD_MIDCAST`,
-`PLD_AFTERCAST`, `PLD_IDLE`, `PLD_ENGAGED`, `PLD_STATUS`, `PLD_BUFFS`,
-`PLD_LOCKSTYLE`, `PLD_MACROBOOK`, `PLD_COMMANDS`, `PLD_MOVEMENT`, then requires
-`dualbox_manager` and prints a debug line. Logic modules are required lazily by
+PLD calls `EntryKit.load_job_files('PLD')` itself (not `EntryKit.load_job`),
+between its own `JobChangeManager.cancel_all()` and `pld_rebuild_ws_slots()`. It
+installs the lockstyle and macro book, includes `message_buffs.lua`,
+`PLD_PRECAST`, `PLD_MIDCAST`, `PLD_AFTERCAST`, `PLD_IDLE`, `PLD_ENGAGED`,
+`PLD_STATUS`, `PLD_BUFFS`, `PLD_COMMANDS`, then requires `dualbox_manager`. Logic modules are required lazily by
 the hooks (`ensure_modules_loaded`, `ensure_commands_loaded`, first idle/engage).
 
 ### Precast

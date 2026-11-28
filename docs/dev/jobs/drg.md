@@ -28,8 +28,7 @@ What DRG adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/drg.lua` | 138 | Entry (the same for every character; `<Char>_DRG.lua` and its template `_master/entry/Tetsouo_DRG.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
-| `shared/jobs/drg/functions/drg_functions.lua` | 63 | Facade: includes `message_buffs` and the hook files, requires `dualbox_manager`, debug line |
+| `shared/entry/drg.lua` | 139 | Entry (the same for every character; `<Char>_DRG.lua` and its template `_master/entry/Tetsouo_DRG.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
 | `shared/jobs/drg/functions/DRG_PRECAST.lua` | 43 | `job_precast` (guard, cooldown, WS handler) / `job_post_precast` (TP gear) |
 | `shared/jobs/drg/functions/DRG_MIDCAST.lua` | 100 | `job_midcast` (empty) / `job_post_midcast` (subjob magic via MidcastManager, then the Healing Breath trigger) |
 | `shared/jobs/drg/functions/DRG_PET_MIDCAST.lua` | 43 | `job_pet_midcast`: wyvern breaths |
@@ -74,11 +73,11 @@ Same shape as PUP / BLU ([core lifecycle](../systems/core-lifecycle.md#how-a-job
 `DRGKeybinds` and `bind_all()` (a failed require prints `[DRG] Keybinds
 failed to load: <error>`), `KeybindUI.smart_init("DRG", init_delay)`,
 `JobChangeManager.initialize()`, `EntryKit.macro_and_lockstyle` (macro book
-0.2 s later, once the facade exists, and lockstyle after
+0.2 s later, once `EntryKit.load_job_files` has run, and lockstyle after
 `LockstyleConfig.initial_load_delay`), `dualbox_manager`. `get_sets()` then
 sets `_G.LockstyleConfig`, `_G.RECAST_CONFIG`, `_G.DRGTPConfig`, cancels
-pending job-change work, includes the facade and registers
-`cancel_drg_lockstyle_operations`. `job_update` repaints the HUD.
+pending job-change work, loads the job files and registers
+`cancel_drg_lockstyle_operations` (`EntryKit.load_job`). `job_update` repaints the HUD.
 `file_unload`: `JobChangeManager.cancel_all()`, `DRGKeybinds.unbind_all()`.
 The keybind error, `job_update`, `job_sub_job_change`, `file_unload` and the
 first macro book / lockstyle are the shared `EntryKit` calls

@@ -39,8 +39,7 @@ function; line numbers are deliberately not used.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/drk.lua` | 169 | Entry point (the same for every character; `<Char>_DRK.lua` and its template `_master/entry/Tetsouo_DRK.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload` |
-| `shared/jobs/drk/functions/drk_functions.lua` | 97 | Facade: includes `message_buffs.lua` and the 11 hook files, requires `dualbox_manager` |
+| `shared/entry/drk.lua` | 170 | Entry point (the same for every character; `<Char>_DRK.lua` and its template `_master/entry/Tetsouo_DRK.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update`, `init_gear_sets`, `file_unload` |
 | `shared/jobs/drk/functions/DRK_PRECAST.lua` | 62 | `job_precast` (guard, cooldown, pending flags, WS handler, JA gear, FC) / `job_post_precast` (TP gear) |
 | `shared/jobs/drk/functions/DRK_MIDCAST.lua` | 150 | `job_midcast` (empty) / `job_post_midcast`: watchdog + `JOB_POST_MIDCAST_HANDLERS` (Dark, Enfeebling, Elemental) |
 | `shared/jobs/drk/functions/DRK_AFTERCAST.lua` | 86 | `job_aftercast` (watchdog, pending flags), empty `job_post_aftercast` |
@@ -71,7 +70,7 @@ sequenceDiagram
     participant GS as GearSwap
     participant E as <Character>_DRK.lua
     participant M as Mote-Include
-    participant F as drk_functions.lua
+    participant F as EntryKit.load_job_files
     GS->>E: run chunk (LOCKSTYLE_CONFIG, UIConfig via ConfigLoader, REGION_CONFIG)
     GS->>E: get_sets()
     E->>M: include Mote-Include
@@ -79,8 +78,8 @@ sequenceDiagram
     M->>E: init_gear_sets() -> include drk/sets/drk_sets.lua
     E->>E: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.RECAST_CONFIG, require DRK_TP_CONFIG
-    E->>E: JobChangeManager.cancel_all()
-    E->>F: include drk_functions.lua
+    E->>E: EntryKit.load_job("DRK"): JobChangeManager.cancel_all()
+    E->>F: load_job_files('DRK')
     E->>E: register_lockstyle_cancel("DRK", ...)
 ```
 
@@ -92,13 +91,14 @@ sequenceDiagram
 `DRKKeybinds` and `bind_all()` (3 binds, the optional states, the common keys,
 then `show_intro()`), `KeybindUI.smart_init`, `JobChangeManager`
 initialisation + `EntryKit.macro_and_lockstyle` (macro book 0.2 s later, once
-the facade has defined the `select_default_*` globals, lockstyle 8 s after
+`EntryKit.load_job_files` has defined the `select_default_*` globals, lockstyle 8 s after
 that), the `dualbox_manager` require. `job_sub_job_change` only hands the
 reload to `JobChangeManager.on_job_change` (`EntryKit.sub_job_change`,
 `shared/utils/core/entry_kit.lua`).
 
-The facade includes `message_buffs.lua` (unused by DRK), then `DRK_PRECAST`
-.. `DRK_MOVEMENT`, requires `dualbox_manager` and prints a debug line.
+`EntryKit.load_job_files('DRK')` installs the lockstyle and macro book,
+includes `message_buffs.lua` (unused by DRK), then `DRK_PRECAST` ..
+`DRK_COMMANDS`, and requires `dualbox_manager`.
 
 ### Precast
 

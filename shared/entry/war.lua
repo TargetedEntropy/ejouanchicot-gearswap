@@ -18,10 +18,9 @@
 ---   • Clean separation of concerns
 ---
 --- Architecture Overview:
----   Main File (this) >> war_functions.lua >> Specialized Modules
+---   Main File (this) >> EntryKit.load_job_files >> Specialized Modules
 ---
 --- Module Organization:
----   ├── functions/war_functions.lua    [Facade Loader]
 ---   ├── <Character>/war/sets/war_sets.lua [Equipment Sets]
 ---   ├── functions/WAR_*.lua           [Hook Modules]
 ---   └── <Character>/war/<theme>/*.lua  [Configuration Files]
@@ -83,8 +82,9 @@ function get_sets()
     _G.WARTPConfig = require(CharPaths.module('job', 'WAR_TP_CONFIG', 'WAR'))
     Profiler.mark('After configs')
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('WAR', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('WAR', Profiler)
 
     -- ═══════════════════════════════════════════════════════════════════
     Profiler.finish()

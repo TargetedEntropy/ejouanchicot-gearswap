@@ -22,10 +22,10 @@
 ---   - AOE nuke support (tier III/II/I)
 ---
 --- Architecture Overview:
----   Main File (this) >> blm_functions.lua >> Specialized Modules
+---   Main File (this) >> EntryKit.load_job_files >> Specialized Modules
 ---
 --- Module Organization:
----   ├── functions/blm_functions.lua    [Facade Loader]
+---   ├── functions/blm_functions.lua    [BLM's own functions]
 ---   ├── <Character>/blm/sets/blm_sets.lua [Equipment Sets]
 ---   └── functions/BLM_*.lua            [Specialized Modules]
 ---
@@ -69,8 +69,9 @@ function get_sets()
     require(CharPaths.module('job', 'BLM_TP_CONFIG', 'BLM'))
     Profiler.mark('After configs')
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('BLM', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('BLM', Profiler)
 
     -- Initial macrobook/lockstyle are triggered from user_setup();
     -- subjob changes go through JobChangeManager (job_sub_job_change).

@@ -21,10 +21,9 @@
 ---   - Comprehensive equipment set organization
 ---
 --- Architecture Overview:
----   Main File (this) >> cor_functions.lua >> Specialized Modules
+---   Main File (this) >> EntryKit.load_job_files >> Specialized Modules
 ---
 --- Module Organization:
----   ├── functions/cor_functions.lua    [Facade Loader]
 ---   ├── <Character>/cor/sets/cor_sets.lua [Equipment Sets]
 ---   └── functions/COR_*.lua           [Specialized Modules]
 ---
@@ -57,7 +56,7 @@ local LockstyleConfig, UIConfig = EntryKit.load_configs('COR')
 ---
 --- Called from get_sets() and NOT from user_setup(): Mote-Include runs
 --- user_setup() from inside init_include(), which is halfway through
---- include('Mote-Include.lua') - long before cor_functions.lua and
+--- include('Mote-Include.lua') - long before the COR files (EntryKit.load_job_files) and
 --- INIT_SYSTEMS.lua exist. Roll detection used to be the last thing
 --- user_setup() registered, so anything that threw earlier in that function
 --- took it down with it, and the only symptom was a Phantom Roll that
@@ -146,16 +145,16 @@ function get_sets()
         windower._cor_rolltracker_off = require('shared/utils/core/job_addons').run('unload', 'rolltracker')
     end
 
-    -- Load job-specific functions (AutoMove loaded via INIT_SYSTEMS)
-    include('../shared/jobs/cor/functions/cor_functions.lua')
-    Profiler.mark('After cor_functions')
+    -- the job's hook files, lockstyle and macro book (EntryKit.load_job_files)
+    EntryKit.load_job_files('COR')
+    Profiler.mark('After cor files')
 
     -- Register COR lockstyle cancel function
     if jcm_success and JobChangeManager and cancel_cor_lockstyle_operations then
         JobChangeManager.register_lockstyle_cancel("COR", cancel_cor_lockstyle_operations)
     end
 
-    -- Party tracking + roll detection. Here, after cor_functions.lua, because
+    -- Party tracking + roll detection. Here, after the COR files, because
     -- every dependency it needs exists by this point in get_sets().
     init_party_tracking()
 

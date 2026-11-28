@@ -22,10 +22,9 @@
 ---   - Light/Dark elemental spell management
 ---
 --- Architecture Overview:
----   Main File (this) >> rdm_functions.lua >> Specialized Modules
+---   Main File (this) >> EntryKit.load_job_files >> Specialized Modules
 ---
 --- Module Organization:
----   ├── functions/rdm_functions.lua    [Facade Loader]
 ---   ├── <Character>/rdm/sets/rdm_sets.lua [Equipment Sets]
 ---   └── functions/RDM_*.lua            [Specialized Modules]
 ---
@@ -80,8 +79,9 @@ function get_sets()
         }
     end
 
-    -- what the last job scheduled is cancelled, the facade loaded, its lockstyle cancel registered
-    EntryKit.load_facade('RDM', Profiler)
+    -- what the last job scheduled is cancelled, the job's files loaded (EntryKit.load_job_files), its lockstyle
+    -- cancel registered
+    EntryKit.load_job('RDM', Profiler)
 
     -- Initial macrobook/lockstyle are triggered from user_setup();
     -- subjob changes go through JobChangeManager (job_sub_job_change).

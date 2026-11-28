@@ -91,8 +91,8 @@ flowchart TD
     F --> M["Mote-Include<br/>(states, hook order, self commands)"]
     F --> I["INIT_SYSTEMS<br/>(universal systems, per load)"]
     F --> H["Message hooks<br/>shared/hooks/init_*_messages"]
-    F --> FA["Job facade<br/>shared/jobs/&lt;job&gt;/functions/&lt;job&gt;_functions.lua"]
-    FA --> HM["11 hook modules<br/>&lt;JOB&gt;_PRECAST … _MACROBOOK"]
+    F --> FA["Job files<br/>EntryKit.load_job_files (shared/utils/core/entry_kit.lua)"]
+    FA --> HM["8 hook modules (+ PET_MIDCAST, MOVEMENT)<br/>shared/jobs/&lt;job&gt;/functions/&lt;JOB&gt;_PRECAST … _COMMANDS"]
     HM --> L["Job logic<br/>shared/jobs/&lt;job&gt;/functions/logic/"]
     HM --> S["Shared systems<br/>shared/utils/*"]
     S --> D["Databases<br/>shared/data/*"]
@@ -109,10 +109,13 @@ flowchart TD
   entry does the same way in those hooks is in
   `shared/utils/core/entry_kit.lua`. See
   [core-lifecycle.md](systems/core-lifecycle.md).
-- **Facade** (`shared/jobs/<job>/functions/<job>_functions.lua`): `include`s
-  the 11 hook modules (PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS, BUFFS,
-  LOCKSTYLE, MACROBOOK, COMMANDS, MOVEMENT) plus pet hooks for BST/PUP/SMN, and
-  requires the dual-box manager.
+- **Job files** (`EntryKit.load_job_files(job)`, `shared/utils/core/entry_kit.lua`):
+  installs the job's lockstyle and macro book (`LockstyleManager.install`,
+  `MacrobookManager.install`), `include`s `message_buffs.lua` (not BRD, RDM, SAM,
+  WHM), the 8 hook modules (PRECAST, MIDCAST, AFTERCAST, IDLE, ENGAGED, STATUS,
+  BUFFS, COMMANDS) plus PET_MIDCAST for BST/DRG/PUP/SMN and MOVEMENT for
+  BRD/COR/WAR, then `<job>_functions.lua` for BLM and THF, and requires the
+  dual-box manager. The per-job differences are the `JOB_FILES` table there.
 - **Hook modules** assign Mote's globals (`job_precast`, `job_post_midcast`, …)
   and delegate to shared systems and to `logic/`.
 - **Per-character data** (layout of 2026-09-30, resolved by `char_paths.lua`,
@@ -145,13 +148,16 @@ includes `shared/entry/war.lua`:
       (`init_spell_messages`, `init_ability_messages`, `init_ws_messages`).
    5. `_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`, job TP configs.
    6. `JobChangeManager.cancel_all()`.
-   7. `include` the facade.
+   7. `EntryKit.load_job_files('<JOB>')`, the job files.
    8. `register_lockstyle_cancel`.
+
+   Steps 6-8 are `EntryKit.load_job('<JOB>', Profiler)`; COR, PLD and SAM
+   write them out and call `EntryKit.load_job_files` themselves.
 3. **`user_setup()`** (called from step 2.2, so before INIT_SYSTEMS and the
-   facade): `<JOB>States.configure()`, keybinds `bind_all()`,
+   job files): `<JOB>States.configure()`, keybinds `bind_all()`,
    `KeybindUI.smart_init()`, `JobChangeManager.initialize()` (a seed, not an
    assignment), `EntryKit.macro_and_lockstyle` (macro book 0.2 s later, once
-   the facade exists; lockstyle after 8 s), `pcall(require
+   the job files are loaded; lockstyle after 8 s), `pcall(require
    dualbox_manager)`.
 
 `INIT_SYSTEMS.lua` then starts, in order, what every job needs: synchronously
@@ -363,7 +369,7 @@ Interactions, Invariants & gotchas, Extending, Known issues):
 |---|---|
 | Sandbox / environment / load | The Lua environment GearSwap builds for one job file; replaced on every job change, subjob change (via reload) and `gs reload` |
 | Entry file | `data/<Char>/<Char>_<JOB>.lua`, the file GearSwap loads |
-| Facade | `<job>_functions.lua`, which includes a job's hook modules |
+| Job files | What `EntryKit.load_job_files` includes for a job: its hook modules and, for BLM and THF, `<job>_functions.lua` |
 | Hook module | `<JOB>_PRECAST.lua` etc.: assigns Mote's `job_*` globals |
 | Mote state | `state.X = M{...}` mode object from Mote-Include; cycled by keybinds |
 | Template / overlay / live | `_master/` generic file / `_master/<Name>/` replacement / `data/<Name>/` deployed copy |

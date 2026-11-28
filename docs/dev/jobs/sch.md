@@ -1,7 +1,7 @@
 # SCH (Scholar) job
 
 SCH was added on 2026-09-29. It is a thin mage job built on the shared
-systems: 11 hook modules and their facade plus 4 logic modules under `shared/jobs/sch/functions/`,
+systems: 8 hook modules plus 4 logic modules under `shared/jobs/sch/functions/`,
 a template entry point, eight config files and one sets file. GearSwap loads it
 when the main job becomes SCH (the entry file `<Character>_SCH.lua`, one `include` of `shared/entry/sch.lua`, copied from
 `_master/entry/Tetsouo_SCH.lua` by the clone script, which offers SCH).
@@ -32,8 +32,7 @@ What SCH adds on top of the shared pipeline:
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/sch.lua` | 139 | Entry (the same for every character; `<Char>_SCH.lua` and its template `_master/entry/Tetsouo_SCH.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
-| `shared/jobs/sch/functions/sch_functions.lua` | 60 | Facade: includes `message_buffs` and the hook files, requires `dualbox_manager` |
+| `shared/entry/sch.lua` | 140 | Entry (the same for every character; `<Char>_SCH.lua` and its template `_master/entry/Tetsouo_SCH.lua` are one `include` of it): config preload, `get_sets`, `job_sub_job_change`, `user_setup`, `job_update` (HUD), `init_gear_sets`, `file_unload` |
 | `shared/jobs/sch/functions/SCH_PRECAST.lua` | 110 | `job_precast` (guard, tier refiner or cooldown, stratagem charges, WS handler) / `job_post_precast` (TP gear, grimoire layers) |
 | `shared/jobs/sch/functions/SCH_MIDCAST.lua` | 134 | `job_midcast` (empty) / `job_post_midcast` (MidcastManager per skill, grimoire layers) |
 | `shared/jobs/sch/functions/SCH_AFTERCAST.lua` | 21 | `LifecycleManager.aftercast()` |
@@ -80,10 +79,10 @@ Same shape as PUP / BLU ([core lifecycle](../systems/core-lifecycle.md#how-a-job
 `SCHKeybinds` and `bind_all()` (a failed require prints
 `[SCH] Keybinds failed to load: <error>`), `KeybindUI.smart_init("SCH")`,
 `JobChangeManager.initialize()`, `EntryKit.macro_and_lockstyle` (macro book
-0.2 s later, once the facade exists, lockstyle after `initial_load_delay`),
+0.2 s later, once `EntryKit.load_job_files` has run, lockstyle after `initial_load_delay`),
 `dualbox_manager`. `get_sets()` sets `_G.LockstyleConfig`,
-`_G.RECAST_CONFIG`, `_G.SCHTPConfig`, cancels pending job-change work, includes
-the facade and registers `cancel_sch_lockstyle_operations`. `job_update`
+`_G.RECAST_CONFIG`, `_G.SCHTPConfig`; then `EntryKit.load_job` cancels pending job-change work,
+loads the job files and registers `cancel_sch_lockstyle_operations`. `job_update`
 repaints the HUD. `file_unload`: `JobChangeManager.cancel_all()`, then
 `SCHKeybinds.unbind_all()`. These hooks, the keybind error and
 `job_sub_job_change` are the shared `EntryKit` calls
