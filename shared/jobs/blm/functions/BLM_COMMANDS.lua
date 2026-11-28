@@ -21,6 +21,10 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
+local JobCommands = require('shared/utils/core/job_commands')
+-- a handler that returns PASS leaves the word unanswered (JobCommands.router)
+local PASS = JobCommands.PASS
+
 local BLMMessages = nil
 local MessageFormatter = nil
 local StratagemCharges = nil
@@ -108,7 +112,7 @@ local ELEMENT_CYCLES = {
 local function cycle_element(_, command)
     local name, label = unpack(ELEMENT_CYCLES[command])
     local element = state and state[name]
-    if not element then return false end
+    if not element then return PASS end
     element:cycle()
     BLMMessages.show_element_cycle(label, element.value)
     update_ui()
@@ -116,7 +120,7 @@ end
 
 --- //gs c cycle Storm, with its coloured message (any other cycle is left to Mote).
 local function cycle_storm(cmdParams)
-    if not (cmdParams[1] == 'cycle' and cmdParams[2] == 'Storm' and state and state.Storm) then return false end
+    if not (cmdParams[1] == 'cycle' and cmdParams[2] == 'Storm' and state and state.Storm) then return PASS end
     state.Storm:cycle()
     BLMMessages.show_storm_cycle(state.Storm.value)
     update_ui()
@@ -137,7 +141,7 @@ local NUKES = {
 
 local function nuke(_, command)
     local element, tier, builder = unpack(NUKES[command])
-    return cast_from_states(state[element], state[tier], builder)
+    if not cast_from_states(state[element], state[tier], builder) then return PASS end
 end
 
 --- Klima: Dark Arts + Manifestation + Klimaform, each step only when usable.
@@ -170,8 +174,6 @@ local function klima(_, command)
     end, true)
 
 end
-
-local JobCommands = require('shared/utils/core/job_commands')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HANDLER HOOK
@@ -208,7 +210,7 @@ local words = {
     end,
     -- Storm: Cast current storm spell with automatic Klimaform (for SCH subjob)
     storm = function()
-        if not (state and state.Storm) then return false end
+        if not (state and state.Storm) then return PASS end
         local storm_name = state.Storm.current
         -- Function loaded globally via blm_functions.lua
         if CastStorm then

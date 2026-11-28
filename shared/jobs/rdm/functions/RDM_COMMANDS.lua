@@ -17,6 +17,10 @@
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
 
+local JobCommands = require('shared/utils/core/job_commands')
+-- a handler that returns PASS leaves the word unanswered (JobCommands.router)
+local PASS = JobCommands.PASS
+
 local MessageFormatter = nil
 
 local function ensure_commands_loaded()
@@ -130,8 +134,6 @@ local nuke_commands = {
     }
 }
 
-local JobCommands = require('shared/utils/core/job_commands')
-
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -217,7 +219,7 @@ local function other(cmdParams, command)
     -- get past the RDM commands.
     local mote_maps = mote_command_maps()
     if mote_maps and rawget(mote_maps, command) then
-        return false
+        return PASS
     end
 
     -- //gs c dispelga [target]: a spell that needs a piece in hand (Daybreak),
@@ -260,14 +262,14 @@ local function other(cmdParams, command)
         elseif mote_maps and mote_maps[cmdParams[1]] then
             -- Not an action but one of the alt's commands: left unhandled,
             -- Mote runs it through selfCommandMaps.
-            return false
+            return PASS
         else
             MessageFormatter.show_error(string.format("Command not recognized: '%s'", spell_name))
             MessageFormatter.show_info("Valid types: Job Abilities, Weaponskills, Magic Spells")
         end
         return
     end
-    return false
+    return PASS
 end
 
 local words = {

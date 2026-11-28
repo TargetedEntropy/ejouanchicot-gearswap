@@ -55,7 +55,7 @@ idle overlays of `logic/set_builder.lua` re-read on 2026-09-29.
 | `shared/jobs/bst/functions/BST_ENGAGED.lua` | 41 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/bst/functions/BST_STATUS.lua` | 33 | `job_status_change = LifecycleManager.status_change()`; `job_pet_change`: a pet out says its correlation in the chat |
 | `shared/jobs/bst/functions/BST_BUFFS.lua` | 19 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/bst/functions/BST_COMMANDS.lua` | 299 | `job_self_command` router, local `display_broth_count`; `job_state_change = LifecycleManager.state_change()` |
+| `shared/jobs/bst/functions/BST_COMMANDS.lua` | 301 | `job_self_command` router, local `display_broth_count`; `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/bst/functions/logic/ecosystem_manager.lua` | 280 | `initialize`, `change_ecosystem`, `change_species`, `equip_pet_broth`, `count_species_jugs`; `correlation(eco)`, `show_correlation(eco, pet)`, `ecosystem_of(name)` (the game's pet name has no spaces: letters and digits compared) |
 | `shared/jobs/bst/functions/logic/ready_hold.lua` | 70 | `ReadyHold`: a Ready move's set held until the pet's move lands (8 s at most, LoadGate), laid over any idle / engaged set rebuilt meanwhile (weapons left out) |
 | `shared/jobs/bst/functions/logic/pet_manager.lua` | 170 | Pet-valid cache (`update_pet_mode` / `get_pet_mode`), `engage_pet` / `disengage_pet`, Ready-move list (`update_ready_moves`, 30 s cache) |

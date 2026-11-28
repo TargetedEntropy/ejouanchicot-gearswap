@@ -50,7 +50,7 @@ numbers are avoided because they drift.
 | `shared/jobs/pld/functions/PLD_ENGAGED.lua` | 51 | `customize_melee_set` -> `SetBuilder.build_engaged_set` (+ trace) |
 | `shared/jobs/pld/functions/PLD_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/pld/functions/PLD_BUFFS.lua` | 20 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/pld/functions/PLD_COMMANDS.lua` | 143 | `job_self_command` router (incl. `ws`/`wsN`), local `rebuild_ws_slots` (exported `_G.pld_rebuild_ws_slots`), `job_state_change` (profile, WS slots, ammo lock, keybind refresh) |
+| `shared/jobs/pld/functions/PLD_COMMANDS.lua` | 145 | `job_self_command` router (incl. `ws`/`wsN`), local `rebuild_ws_slots` (exported `_G.pld_rebuild_ws_slots`), `job_state_change` (profile, WS slots, ammo lock, keybind refresh) |
 | `shared/jobs/pld/functions/logic/set_builder.lua` | 415 | Idle/engaged construction: weapon, shield, grip, ammo, HybridMode map, XP, Regen, movement, town; reads `PLD_WEAPONS.lua` (local `weapons_config`); `current_weapon()` is the authority on what is in hand |
 | `shared/jobs/pld/functions/logic/enmity_override.lua` | 149 | /SCH Tanking: FullEnmity spells wear `sets.EnmityMax`; JAs keep their set and gain what EnmityMax adds |
 | `shared/jobs/pld/functions/logic/cure_set_builder.lua` | 54 | CureSelf / CureOther choice for Cure to Cure IV, `is_cure` |

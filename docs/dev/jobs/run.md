@@ -46,7 +46,7 @@ drift.
 | `shared/jobs/run/functions/RUN_ENGAGED.lua` | 41 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/run/functions/RUN_STATUS.lua` | 20 | `LifecycleManager.status_change()` |
 | `shared/jobs/run/functions/RUN_BUFFS.lua` | 19 | `LifecycleManager.buff_change()` |
-| `shared/jobs/run/functions/RUN_COMMANDS.lua` | 72 | `job_self_command` router, `job_state_change = LifecycleManager.state_change()` (HUD refresh only) |
+| `shared/jobs/run/functions/RUN_COMMANDS.lua` | 74 | `job_self_command` router, `job_state_change = LifecycleManager.state_change()` (HUD refresh only) |
 | `shared/jobs/run/functions/logic/set_builder.lua` | 156 | Idle/engaged: HybridMode, weapon, grip, town, movement |
 | `shared/jobs/run/functions/logic/aoe_manager.lua` | 182 | BLU rotation (same code as PLD's except strings; refuses without /BLU) |
 | `shared/jobs/run/functions/logic/cure_set_builder.lua` | 57 | CureSelf / CureOther for Cure to Cure IV (subjob), `is_cure` |

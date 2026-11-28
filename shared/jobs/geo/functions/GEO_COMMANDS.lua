@@ -13,6 +13,10 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
+local JobCommands = require('shared/utils/core/job_commands')
+-- a handler that returns PASS leaves the word unanswered (JobCommands.router)
+local PASS = JobCommands.PASS
+
 local GeoSpellRefiner = nil
 
 --- Seconds //gs c indiensure leaves the bot to cast the Indi- itself before casting it.
@@ -104,8 +108,6 @@ local function is_geo_buff(spell_name)
     return GEO_BUFFS[spell_name] == true
 end
 
-local JobCommands = require('shared/utils/core/job_commands')
-
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HOOKS
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -135,21 +137,21 @@ local ELEMENTAL = {
 local function elemental(_, command)
     local element, tier, aoe = unpack(ELEMENTAL[command])
     local spell, level = state[element], state[tier]
-    if not (spell and spell.current and level and level.current) then return false end
+    if not (spell and spell.current and level and level.current) then return PASS end
     GeoSpellRefiner.refine_and_cast(spell.current, level.current, aoe, '<t>')
 end
 
 local words = {
     -- Cast primary Indi spell
     indi = function()
-        if not (state.MainIndi and state.MainIndi.current) then return false end
+        if not (state.MainIndi and state.MainIndi.current) then return PASS end
         send_command('input /ma "' .. state.MainIndi.current .. '" <me>')
     end,
     -- Cast primary Geo spell with intelligent targeting
     -- Buffs (party support) >> <stpc> (sub-target party)
     -- Debuffs (enemy) >> <stnpc> (sub-target NPC)
     geo = function()
-        if not (state.MainGeo and state.MainGeo.current) then return false end
+        if not (state.MainGeo and state.MainGeo.current) then return PASS end
         local spell_name = state.MainGeo.current
         local target = is_geo_buff(spell_name) and '<stpc>' or '<stnpc>'
         send_command('input /ma "' .. spell_name .. '" ' .. target)
