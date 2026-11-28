@@ -50,19 +50,16 @@ local JobCommands = require('shared/utils/core/job_commands')
 job_self_command = JobCommands.router('THF', {
     load = ensure_commands_loaded,
     words = {
-        steal = function(cmdParams, eventArgs)
+        steal = function()
             SmartbuffManager.apply_steal()
-            eventArgs.handled = true
         end,
-        fbc = function(cmdParams, eventArgs)
+        fbc = function()
             SmartbuffManager.apply_fbc()
-            eventArgs.handled = true
         end,
         -- Pull: the player's ranged weapon (sets.RangeLock, else sets.precast.RA), range + ammo locked, /ra on the
         -- sub-target unless the ammo is unsafe
-        range = function(cmdParams, eventArgs)
+        range = function()
             RangeLock.pull()
-            eventArgs.handled = true
         end,
     },
 })

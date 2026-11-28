@@ -135,15 +135,10 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---   COMMAND HOOK
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local function broth_command(cmdParams, eventArgs, command)
-    display_broth_count()
-    eventArgs.handled = true
-end
-
 job_self_command = JobCommands.router('BST', {
     load = ensure_commands_loaded,
     first = {
-        debugprecast = function(cmdParams, eventArgs, command)
+        debugprecast = function()
             -- Toggle BST-specific precast debug (for Job Abilities)
             -- Universal system only handles Magic, BST needs JA debug
             _G.BST_DEBUG_PRECAST = not _G.BST_DEBUG_PRECAST
@@ -151,66 +146,49 @@ job_self_command = JobCommands.router('BST', {
             local status = _G.BST_DEBUG_PRECAST and "ON" or "OFF"
             MessageFormatter.show_success("BST Precast Debug (JA): " .. status)
 
-            eventArgs.handled = true
         end,
     },
     words = {
         -- Ecosystem commands
-        ecosystem = function(cmdParams, eventArgs, command)
-            if EcosystemManager then
-                EcosystemManager.change_ecosystem()
-                eventArgs.handled = true
-            else
+        ecosystem = function()
+            if not EcosystemManager then
                 MessageFormatter.show_error_module_not_loaded('EcosystemManager')
+                return false
             end
+            EcosystemManager.change_ecosystem()
         end,
-        species = function(cmdParams, eventArgs, command)
-            if EcosystemManager then
-                EcosystemManager.change_species()
-                eventArgs.handled = true
-            else
+        species = function()
+            if not EcosystemManager then
                 MessageFormatter.show_error_module_not_loaded('EcosystemManager')
+                return false
             end
+            EcosystemManager.change_species()
         end,
-        broth = broth_command, broths = broth_command,
+        broth = display_broth_count, broths = display_broth_count,
         -- Pet commands
-        pet = function(cmdParams, eventArgs, command)
+        pet = function(cmdParams)
             if #cmdParams < 2 then
                 MessageFormatter.show_info('Usage: //gs c pet [engage|disengage]')
-                eventArgs.handled = true
                 return
             end
 
             local pet_command = cmdParams[2]:lower()
 
-            if pet_command == 'engage' then
-                if PetManager then
-                    PetManager.engage_pet()
-                    eventArgs.handled = true
-                else
+            if pet_command == 'engage' or pet_command == 'disengage' then
+                if not PetManager then
                     MessageFormatter.show_error_module_not_loaded('PetManager')
+                    return false
                 end
-                return
-            end
-
-            if pet_command == 'disengage' then
-                if PetManager then
-                    PetManager.disengage_pet()
-                    eventArgs.handled = true
-                else
-                    MessageFormatter.show_error_module_not_loaded('PetManager')
-                end
+                if pet_command == 'engage' then PetManager.engage_pet() else PetManager.disengage_pet() end
                 return
             end
 
             MessageFormatter.show_error('Unknown pet command: ' .. pet_command)
-            eventArgs.handled = true
         end,
         -- Ready move commands (rdymove 1-6, rdylist)
-        rdylist = function(cmdParams, eventArgs, command)
+        rdylist = function()
             if not PetManager then
                 MessageFormatter.show_error_module_not_loaded('PetManager')
-                eventArgs.handled = true
                 return
             end
 
@@ -218,7 +196,6 @@ job_self_command = JobCommands.router('BST', {
             local pet = _G.pet
             if not pet or not pet.id or pet.id == 0 then
                 MessageFormatter.show_error_no_pet()
-                eventArgs.handled = true
                 return
             end
 
@@ -227,24 +204,20 @@ job_self_command = JobCommands.router('BST', {
 
             if not ready_moves or #ready_moves == 0 then
                 MessageFormatter.show_error_no_ready_moves()
-                eventArgs.handled = true
                 return
             end
 
             MessageFormatter.show_bst_ready_moves_list(pet.name, ready_moves)
-            eventArgs.handled = true
         end,
-        rdymove = function(cmdParams, eventArgs, command)
+        rdymove = function(cmdParams)
             if not PetManager then
                 MessageFormatter.show_error_module_not_loaded('PetManager')
-                eventArgs.handled = true
                 return
             end
 
             -- Check if index provided
             if #cmdParams < 2 then
                 MessageFormatter.show_info('Usage: //gs c RdyMove [1-6]')
-                eventArgs.handled = true
                 return
             end
 
@@ -252,7 +225,6 @@ job_self_command = JobCommands.router('BST', {
             local index = tonumber(cmdParams[2])
             if not index or index < 1 then
                 MessageFormatter.show_error_invalid_index(cmdParams[2])
-                eventArgs.handled = true
                 return
             end
 
@@ -260,7 +232,6 @@ job_self_command = JobCommands.router('BST', {
             local pet = _G.pet
             if not pet or not pet.id or pet.id == 0 then
                 MessageFormatter.show_error_no_pet()
-                eventArgs.handled = true
                 return
             end
 
@@ -268,14 +239,12 @@ job_self_command = JobCommands.router('BST', {
             local ready_moves = PetManager.get_ready_moves()
             if not ready_moves or #ready_moves == 0 then
                 MessageFormatter.show_error_no_ready_moves()
-                eventArgs.handled = true
                 return
             end
 
             -- Check if index is valid
             if index > #ready_moves then
                 MessageFormatter.show_error_index_out_of_range(index, #ready_moves)
-                eventArgs.handled = true
                 return
             end
 
@@ -283,7 +252,6 @@ job_self_command = JobCommands.router('BST', {
             local move = ready_moves[index]
             if not move or not move.name then
                 MessageFormatter.show_error('Invalid Ready Move at index ' .. index)
-                eventArgs.handled = true
                 return
             end
 
@@ -311,7 +279,6 @@ job_self_command = JobCommands.router('BST', {
                 end
             end
 
-            eventArgs.handled = true
         end,
     },
 })

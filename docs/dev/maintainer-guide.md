@@ -621,8 +621,8 @@ See also [characters-and-templates.md, How to add a job to the templates](archit
       `is_common_command` reads the same table, so the word is reachable from
       every job at once.
 - [ ] Job command: an entry of `words` in the job's `JobCommands.router` call
-      (`<JOB>_COMMANDS.lua`); set `eventArgs.handled = true` on every path,
-      including errors. A job word that is also a common word goes in `first`
+      (`<JOB>_COMMANDS.lua`), a `fn(cmdParams, command)` the router answers for
+      (return `false` to leave the word to Mote). A job word that is also a common word goes in `first`
       (PLD / RUN `aoe`, DRG `jump`, BST `debugprecast`):
       `scripts/atelier/job_commands_test.lua` fails on one in `words`.
 - [ ] Check the name against job commands (`grep -rn "<name> = " shared/jobs/*/functions/*_COMMANDS.lua`),

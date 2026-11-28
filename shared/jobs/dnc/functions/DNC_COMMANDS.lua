@@ -52,18 +52,16 @@ local JobCommands = require('shared/utils/core/job_commands')
 
 --- buff / smartbuff / buffself are common commands, which ask DNC for its dance and samba first (job_buff_extra
 --- above); waltz / aoewaltz too, so that WAR/DNC, NIN/DNC, etc. can use them.
-local function dance(cmdParams, eventArgs)
+local function dance()
     SmartbuffManager.apply_dance()
-    eventArgs.handled = true
 end
 
 job_self_command = JobCommands.router('DNC', {
     load = ensure_commands_loaded,
     words = {
         -- Step with Presto
-        step = function(cmdParams, eventArgs)
+        step = function()
             StepManager.execute_step()
-            eventArgs.handled = true
         end,
         -- the dance state.Dance selects
         fandance = dance,

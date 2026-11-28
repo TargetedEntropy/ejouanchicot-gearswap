@@ -32,26 +32,12 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---   COMMAND HANDLER HOOK
 ---  ═══════════════════════════════════════════════════════════════════════════
 
---- A WAR buff routine (WAR_BUFFS / logic/smartbuff_manager), the word answered only when the routine is defined.
---- @param name string The global function's name
-local function routine(name, ...)
-    local args = {...}
-    return function(cmdParams, eventArgs)
-        local f = _G[name]
-        if f then
-            f(unpack(args))
-            eventArgs.handled = true
-        end
-    end
-end
-
-local function retaliation_debug(cmdParams, eventArgs)
+local function retaliation_debug()
     if toggle_retaliation_debug then
         toggle_retaliation_debug()
     else
         MessageFormatter.show_error('[WAR] Retaliation debug function not available')
     end
-    eventArgs.handled = true
 end
 
 --- WAR's words: the buff routines (berserk / defender: WAR abilities without the other one; thirdeye: /SAM
@@ -62,7 +48,7 @@ job_self_command = JobCommands.router('WAR', {
     words = {
         debugretaliation = retaliation_debug,
         debugretal = retaliation_debug,
-        retalstatus = function(cmdParams, eventArgs)
+        retalstatus = function()
             if get_retaliation_status then
                 local status = get_retaliation_status()
                 MessageFormatter.show_info('[WAR] Retaliation Status:')
@@ -72,12 +58,24 @@ job_self_command = JobCommands.router('WAR', {
             else
                 MessageFormatter.show_error('[WAR] Retaliation status function not available')
             end
-            eventArgs.handled = true
         end,
-        berserk = routine('buff_war', 'Berserk'),
-        defender = routine('buff_war', 'Defender'),
-        thirdeye = routine('buff_sam_sub'),
-        tp = routine('build_tp'),
+        -- the buff routines (WAR_BUFFS / logic/smartbuff_manager), left to Mote while one is not defined
+        berserk = function()
+            if not buff_war then return false end
+            buff_war('Berserk')
+        end,
+        defender = function()
+            if not buff_war then return false end
+            buff_war('Defender')
+        end,
+        thirdeye = function()
+            if not buff_sam_sub then return false end
+            buff_sam_sub()
+        end,
+        tp = function()
+            if not build_tp then return false end
+            build_tp()
+        end,
     },
     other = JobCommands.ws_slots(),
 })

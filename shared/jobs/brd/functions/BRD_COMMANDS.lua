@@ -149,61 +149,55 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---   COMMAND HANDLERS
 ---  ═══════════════════════════════════════════════════════════════════════════
 
---- JOB ABILITIES
-local function soul_voice_command(cmdParams, eventArgs, command)
-    use_ability('Soul Voice')
-    MessageFormatter.show_ability_command('Soul Voice (1hr)')
-    eventArgs.handled = true
+--- The abilities a word uses, and its message: {ability, MessageFormatter function, its argument}.
+local ABILITIES = {
+    soul_voice = {'Soul Voice', 'show_ability_command', 'Soul Voice (1hr)'},
+    nightingale = {'Nightingale', 'show_ability_command', 'Nightingale'},
+    troubadour = {'Troubadour', 'show_ability_command', 'Troubadour'},
+    marcato = {'Marcato', 'show_marcato_used'},
+    pianissimo = {'Pianissimo', 'show_pianissimo_used'},
+}
+ABILITIES.sv, ABILITIES.ni, ABILITIES.tr = ABILITIES.soul_voice, ABILITIES.nightingale, ABILITIES.troubadour
+ABILITIES.ma, ABILITIES.pi = ABILITIES.marcato, ABILITIES.pianissimo
+
+local function ability(_, command)
+    local name, show, arg = unpack(ABILITIES[command])
+    use_ability(name)
+    MessageFormatter[show](arg)
 end
 
-local function nightingale_command(cmdParams, eventArgs, command)
-    use_ability('Nightingale')
-    MessageFormatter.show_ability_command('Nightingale')
-    eventArgs.handled = true
+--- The debuff songs: {its key in DEBUFF_SONGS, MessageFormatter function}, on <stnpc>.
+local DEBUFFS = {
+    lullaby = {'lullaby', 'show_lullaby_cast'},
+    lullaby2 = {'lullaby2', 'show_lullaby_cast'},
+    elegy = {'elegy', 'show_elegy_cast'},
+    requiem = {'requiem', 'show_requiem_cast'},
+}
+DEBUFFS.foe = DEBUFFS.lullaby2
+
+local function debuff(_, command)
+    local key, show = unpack(DEBUFFS[command])
+    local song = debuff_songs()[key]
+    send_command('input /ma "' .. song .. '" <stnpc>')
+    MessageFormatter[show](song)
 end
 
-local function troubadour_command(cmdParams, eventArgs, command)
-    use_ability('Troubadour')
-    MessageFormatter.show_ability_command('Troubadour')
-    eventArgs.handled = true
-end
-
-local function marcato_command(cmdParams, eventArgs, command)
-    use_ability('Marcato')
-    MessageFormatter.show_marcato_used()
-    eventArgs.handled = true
-end
-
-local function pianissimo_command(cmdParams, eventArgs, command)
-    use_ability('Pianissimo')
-    MessageFormatter.show_pianissimo_used()
-    eventArgs.handled = true
-end
-
-local function lullaby2_command(cmdParams, eventArgs, command)
-    send_command('input /ma "' .. debuff_songs().lullaby2 .. '" <stnpc>')
-    MessageFormatter.show_lullaby_cast(debuff_songs().lullaby2)
-    eventArgs.handled = true
-end
-
---- SONG CASTING (PACK ROTATIONS)
-local function songs_command(cmdParams, eventArgs, command)
+--- Song casting (pack rotations)
+local function cast_pack(cmdParams)
     -- Cast current song pack using 3-phase rotation
     -- 'full': every dummy, whatever songs are up (another bard around)
     -- 'force': sing even when every song has time left (song_opening.lua)
     SongRotationManager.cast_songs_with_phases(false, '<me>', cmdParams[2] == 'full', cmdParams[2] == 'force')
-    eventArgs.handled = true
 end
 
-local function dummy_command(cmdParams, eventArgs, command)
+local function cast_dummies()
     -- Cast dummy songs (4 or 5 depending on Clarion Call)
     SongRotationManager.cast_dummy_songs()
-    eventArgs.handled = true
 end
 
 --- song1..song5: the song in that slot of the pack. No Clarion Call check: 5 songs can be refreshed even after
 --- Clarion Call wears off.
-local function song_slot(cmdParams, eventArgs, command)
+local function song_slot(_, command)
     local slot = tonumber(command:match('^song(%d)$'))
     local songs = SongRotationManager.get_songs_with_replacement()
     if songs and songs[slot] then
@@ -211,12 +205,11 @@ local function song_slot(cmdParams, eventArgs, command)
     else
         MessageFormatter.show_no_song_in_slot(slot)
     end
-    eventArgs.handled = true
 end
 
 local words = {
     -- Warp ring fix
-    forceidle = function(cmdParams, eventArgs, command)
+    forceidle = function(_, command)
         -- Re-equip the idle left_ring in ring1 after a warp interruption.
         -- No code in the project sends this command any more (manual use only).
 
@@ -258,18 +251,13 @@ local words = {
             end
         end, 1.0)
 
-        eventArgs.handled = true
     end,
     -- Instrument skill-up loop: //gs c skillup horn | harp | off | status
     -- (logic/skillup.lua)
-    skillup = function(cmdParams, eventArgs, command)
+    skillup = function(cmdParams)
         require('shared/jobs/brd/functions/logic/skillup').handle(cmdParams[2])
-        eventArgs.handled = true
     end,
-    soul_voice = soul_voice_command, sv = soul_voice_command,
-    nightingale = nightingale_command, ni = nightingale_command,
-    troubadour = troubadour_command, tr = troubadour_command,
-    nt = function(cmdParams, eventArgs, command)
+    nt = function()
         -- Nightingale + Troubadour combo
         use_ability('Nightingale')
         local delays = BRDTimingConfig.ABILITY_DELAYS or {}
@@ -281,29 +269,9 @@ local words = {
             ability_delay
         )
         -- Message handled by ability_message_handler (shows individual JA descriptions)
-        eventArgs.handled = true
     end,
-    marcato = marcato_command, ma = marcato_command,
-    pianissimo = pianissimo_command, pi = pianissimo_command,
-    -- Debuff songs
-    lullaby = function(cmdParams, eventArgs, command)
-        send_command('input /ma "' .. debuff_songs().lullaby .. '" <stnpc>')
-        MessageFormatter.show_lullaby_cast(debuff_songs().lullaby)
-        eventArgs.handled = true
-    end,
-    lullaby2 = lullaby2_command, foe = lullaby2_command,
-    elegy = function(cmdParams, eventArgs, command)
-        send_command('input /ma "' .. debuff_songs().elegy .. '" <stnpc>')
-        MessageFormatter.show_elegy_cast(debuff_songs().elegy)
-        eventArgs.handled = true
-    end,
-    requiem = function(cmdParams, eventArgs, command)
-        send_command('input /ma "' .. debuff_songs().requiem .. '" <stnpc>')
-        MessageFormatter.show_requiem_cast(debuff_songs().requiem)
-        eventArgs.handled = true
-    end,
-    songs = songs_command, meleesong = songs_command, melee = songs_command, allsongs = songs_command,
-    songplan = function(cmdParams, eventArgs, command)
+    songs = cast_pack, meleesong = cast_pack, melee = cast_pack, allsongs = cast_pack,
+    songplan = function()
         -- What //gs c songs would do now, and why (song_slots.lua)
         local SongSlots = require('shared/jobs/brd/functions/logic/song_slots')
         local songs = SongRotationManager.get_songs_with_replacement()
@@ -319,76 +287,68 @@ local words = {
                 {'Plan', ('%d songs, %d dummies (main opens %d)'):format(total, dummies, base)},
             },
         })
-        eventArgs.handled = true
     end,
-    songstop = function(cmdParams, eventArgs, command)
+    songstop = function()
         -- Drop a running rotation (song_queue.lua)
         local stopped = require('shared/jobs/brd/functions/logic/song_queue').stop()
         stopped = require('shared/jobs/brd/functions/logic/song_opening').stop() or stopped
         require('shared/utils/messages/message_formatter').show_info(
             stopped and 'Songs: rotation stopped.' or 'Songs: no rotation running.')
-        eventArgs.handled = true
     end,
-    dummy = dummy_command, dummysongs = dummy_command,
-    dummy1 = function(cmdParams, eventArgs, command)
+    dummy = cast_dummies, dummysongs = cast_dummies,
+    dummy1 = function()
         local dummy_songs = SongRotationManager.get_dummy_songs()
         if dummy_songs and dummy_songs[1] then
             cast_song(dummy_songs[1])
             -- DISABLED: Message already shown by midcast_router.lua (show_daurdabla_dummy)
             -- MessageFormatter.show_dummy_cast(dummy_songs[1])
         end
-        eventArgs.handled = true
     end,
-    dummy2 = function(cmdParams, eventArgs, command)
+    dummy2 = function()
         local dummy_songs = SongRotationManager.get_dummy_songs()
         if dummy_songs and dummy_songs[2] then
             cast_song(dummy_songs[2])
             -- DISABLED: Message already shown by midcast_router.lua (show_daurdabla_dummy)
             -- MessageFormatter.show_dummy_cast(dummy_songs[2])
         end
-        eventArgs.handled = true
     end,
-    threnody = function(cmdParams, eventArgs, command)
+    threnody = function()
         local threnody = get_current_threnody()
         if not threnody then
             MessageFormatter.show_no_element_selected()
-            eventArgs.handled = true
             return
         end
 
         local element = state.ThrenodyElement.current
         send_command('input /ma "' .. threnody .. '" <stnpc>')
         MessageFormatter.show_threnody_cast(element)
-        eventArgs.handled = true
     end,
-    carol = function(cmdParams, eventArgs, command)
+    carol = function()
         local carol = get_current_carol()
         if not carol then
             MessageFormatter.show_no_carol_element()
-            eventArgs.handled = true
             return
         end
 
         local element = state.CarolElement.current
         cast_song(carol)
         MessageFormatter.show_carol_cast(element)
-        eventArgs.handled = true
     end,
-    etude = function(cmdParams, eventArgs, command)
+    etude = function()
         local etude = get_current_etude()
         if not etude then
             MessageFormatter.show_no_etude_type()
-            eventArgs.handled = true
             return
         end
 
         local stat = state.EtudeType.current
         cast_song(etude)
         MessageFormatter.show_etude_cast(stat)
-        eventArgs.handled = true
     end,
 }
 for slot = 1, 5 do words['song' .. slot] = song_slot end
+for word in pairs(ABILITIES) do words[word] = ability end
+for word in pairs(DEBUFFS) do words[word] = debuff end
 
 job_self_command = JobCommands.router('BRD', {load = ensure_commands_loaded, words = words})
 

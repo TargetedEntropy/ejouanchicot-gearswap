@@ -105,25 +105,21 @@ local ELEMENT_CYCLES = {
 }
 
 --- Cycle an element state, with its coloured message.
-local function cycle_element(cmdParams, eventArgs, command)
+local function cycle_element(_, command)
     local name, label = unpack(ELEMENT_CYCLES[command])
     local element = state and state[name]
-    if element then
-        element:cycle()
-        BLMMessages.show_element_cycle(label, element.value)
-        update_ui()
-        eventArgs.handled = true
-    end
+    if not element then return false end
+    element:cycle()
+    BLMMessages.show_element_cycle(label, element.value)
+    update_ui()
 end
 
 --- //gs c cycle Storm, with its coloured message (any other cycle is left to Mote).
-local function cycle_storm(cmdParams, eventArgs)
-    if cmdParams[1] == 'cycle' and cmdParams[2] == 'Storm' and state and state.Storm then
-        state.Storm:cycle()
-        BLMMessages.show_storm_cycle(state.Storm.value)
-        update_ui()
-        eventArgs.handled = true
-    end
+local function cycle_storm(cmdParams)
+    if not (cmdParams[1] == 'cycle' and cmdParams[2] == 'Storm' and state and state.Storm) then return false end
+    state.Storm:cycle()
+    BLMMessages.show_storm_cycle(state.Storm.value)
+    update_ui()
 end
 
 --- light / dark / sublight / subdark: a single-target nuke (element state + SpellTier); aoelight / aoedark /
@@ -139,14 +135,14 @@ local NUKES = {
     subaoedark = {'SubDarkAOE', 'AOETier', build_aoe_name},
 }
 
-local function nuke(cmdParams, eventArgs, command)
+local function nuke(_, command)
     local element, tier, builder = unpack(NUKES[command])
-    eventArgs.handled = cast_from_states(state[element], state[tier], builder)
+    return cast_from_states(state[element], state[tier], builder)
 end
 
 --- Klima: Dark Arts + Manifestation + Klimaform, each step only when usable.
 --- Klimaform itself always fires; the two stratagem steps are opportunistic.
-local function klima(cmdParams, eventArgs)
+local function klima(_, command)
     local steps = {}
 
     local dark_active = buffactive and (buffactive['Dark Arts'] or buffactive['Addendum: Black'])
@@ -173,7 +169,6 @@ local function klima(cmdParams, eventArgs)
         send_command('input /ma "Klimaform" <me>')
     end, true)
 
-    eventArgs.handled = true
 end
 
 local JobCommands = require('shared/utils/core/job_commands')
@@ -200,7 +195,7 @@ local words = {
     --   Dark Arts active, no Addendum: Black     -> Addendum: Black, then Dispel
     --   Nothing active                            -> Dark Arts, Addendum: Black, then Dispel
     -- FFXI rejects intermediate JAs if no stratagem charge is available.
-    dispel = function(cmdParams, eventArgs)
+    dispel = function()
         local sub = (player and player.sub_job) or 'NON'
         if sub == 'RDM' then
             send_command('input /ma "Dispel" <stnpc>')
@@ -210,21 +205,17 @@ local words = {
             local MessageCore = require('shared/utils/messages/message_core')
             MessageCore.warning(('Dispel unavailable on BLM/%s. Need /RDM or /SCH.'):format(sub))
         end
-        eventArgs.handled = true
     end,
     -- Storm: Cast current storm spell with automatic Klimaform (for SCH subjob)
-    storm = function(cmdParams, eventArgs)
-        if state and state.Storm then
-            local storm_name = state.Storm.current
-            -- Function loaded globally via blm_functions.lua
-            if CastStorm then
-                CastStorm(storm_name)
-                eventArgs.handled = true
-            else
-                -- Fallback: cast Storm without Klimaform check
-                send_command('input /ma "' .. storm_name .. '" <me>')
-                eventArgs.handled = true
-            end
+    storm = function()
+        if not (state and state.Storm) then return false end
+        local storm_name = state.Storm.current
+        -- Function loaded globally via blm_functions.lua
+        if CastStorm then
+            CastStorm(storm_name)
+        else
+            -- Fallback: cast Storm without Klimaform check
+            send_command('input /ma "' .. storm_name .. '" <me>')
         end
     end,
 }

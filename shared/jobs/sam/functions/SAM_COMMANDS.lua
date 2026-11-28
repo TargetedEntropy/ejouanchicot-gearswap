@@ -19,11 +19,10 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 --- hasso / seigan: choose the stance the automation keeps, and use it.
-local function stance(cmdParams, eventArgs, command)
+local function stance(_, command)
     local name = command == 'hasso' and 'Hasso' or 'Seigan'
     if state.Stance then state.Stance:set(name) end
     send_command('input /ja ' .. name .. ' <me>')
-    eventArgs.handled = true
 end
 
 job_self_command = JobCommands.router('SAM', {

@@ -137,8 +137,7 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 --- //gs c enspell [element]: cast that element's enspell, or cycle state.EnSpell (silent)
-local function enspell(cmdParams, eventArgs)
-    eventArgs.handled = true
+local function enspell(cmdParams)
 
     if #cmdParams >= 2 then
         local element = cmdParams[2]:lower()
@@ -174,8 +173,7 @@ local function enspell(cmdParams, eventArgs)
 end
 
 --- castlight / castsublight / castdark / castsubdark: the element state's nuke at state.NukeTier
-local function nuke(cmdParams, eventArgs, command)
-    eventArgs.handled = true
+local function nuke(_, command)
     local config = nuke_commands[command]
     local element_state = state[config.state_name]
 
@@ -195,8 +193,7 @@ local function nuke(cmdParams, eventArgs, command)
 end
 
 --- castenspell / castgain / castbar / castbarailment / castspike / caststorm: the spell a state selects
-local function spell_from_state(cmdParams, eventArgs, command)
-    eventArgs.handled = true
+local function spell_from_state(_, command)
     local config = spell_state_commands[command]
     local spell_state = state[config.state_name]
 
@@ -213,20 +210,19 @@ local function spell_from_state(cmdParams, eventArgs, command)
 end
 
 --- A word no table names: Mote's own commands, a spell that needs a piece in hand, else an action by its name.
-local function other(command, cmdParams, eventArgs)
+local function other(cmdParams, command)
     -- Mote's own commands (update, cycle, set, naked...) are left unhandled:
     -- Mote runs them once job_self_command returns. rawget, because a plain
     -- lookup would also answer the alt's command names, and those must not
     -- get past the RDM commands.
     local mote_maps = mote_command_maps()
     if mote_maps and rawget(mote_maps, command) then
-        return
+        return false
     end
 
     -- //gs c dispelga [target]: a spell that needs a piece in hand (Daybreak),
     -- cast through Combat Mode (spell_gear_lock.lua)
     if require('shared/utils/equipment/spell_gear_lock').cast(command, cmdParams[2]) then
-        eventArgs.handled = true
         return
     end
 
@@ -260,25 +256,24 @@ local function other(command, cmdParams, eventArgs)
         end
 
         if action_type then
-            eventArgs.handled = true
             send_command('input ' .. action_type .. ' "' .. spell_name .. '" ' .. target)
         elseif mote_maps and mote_maps[cmdParams[1]] then
             -- Not an action but one of the alt's commands: left unhandled,
             -- Mote runs it through selfCommandMaps.
-            return
+            return false
         else
-            eventArgs.handled = true
             MessageFormatter.show_error(string.format("Command not recognized: '%s'", spell_name))
             MessageFormatter.show_info("Valid types: Job Abilities, Weaponskills, Magic Spells")
         end
+        return
     end
+    return false
 end
 
 local words = {
     enspell = enspell,
     -- Cycle Storm spell (SCH subjob only)
-    cyclestorm = function(cmdParams, eventArgs)
-        eventArgs.handled = true
+    cyclestorm = function()
         if state.Storm then
             state.Storm:cycle()
             MessageFormatter.show_storm_current(state.Storm.value)
@@ -289,8 +284,7 @@ local words = {
 }
 -- Quick JA commands (Convert, Chainspell, Saboteur, Composure)
 for word, ability in pairs(quick_ja_commands) do
-    words[word] = function(cmdParams, eventArgs)
-        eventArgs.handled = true
+    words[word] = function()
         send_command('input /ja "' .. ability .. '" <me>')
     end
 end
