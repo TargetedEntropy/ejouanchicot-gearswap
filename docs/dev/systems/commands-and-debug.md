@@ -362,7 +362,7 @@ The `_if` variants read `_G[flag_key]` and return at once when it is falsy. `Mes
 `enable()`, `disable()`, `toggle()`, `is_enabled()`, `status()`, `start(context)`, `mark(label, color)`, `finish(color)`, `create_timer(context)`, `measure(label, code_block)`. Callers:
 
 - `start`, `mark` and `finish`: every entry file's `get_sets()`;
-- `create_timer`: `load_job` (`shared/utils/core/entry_kit.lua:114`), one timer per job load;
+- `create_timer`: `load_job` (`shared/utils/core/entry_kit.lua:117`), one timer per job load;
 - `enable`, `disable`, `toggle` and `status`: `DebugCommands.handle_perf`;
 - `measure`: none.
 
