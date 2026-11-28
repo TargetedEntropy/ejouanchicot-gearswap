@@ -96,15 +96,15 @@ ea = {}
 check('a job word: not answered', JC.shared('indi', {'indi'}, ea, 'GEO'), false)
 check('  not handled', ea.handled, nil)
 
--- 4. the router: first, then the shared words, then words, then other; it answers unless the handler returns false
+-- 4. the router: first, then the shared words, then words, then other; it answers unless the handler returns PASS
 local seen = {}
 local function mark(name, ret) return function(cmdParams, command) seen[#seen + 1] = name .. ':' .. command return ret end end
 local loads = 0
 local router = JC.router('TST', {
     load = function() loads = loads + 1 end,
-    first = {reload = mark('first'), aoe = function(cmdParams) if cmdParams[2] then return false end seen[#seen + 1] = 'aoe' end},
-    words = {rune = mark('word'), cycle = mark('word', false)},
-    other = function(cmdParams, command) seen[#seen + 1] = 'other:' .. command if command == 'nothing' then return false end end,
+    first = {reload = mark('first'), aoe = function(cmdParams) if cmdParams[2] then return JC.PASS end seen[#seen + 1] = 'aoe' end},
+    words = {rune = mark('word'), cycle = mark('word', JC.PASS), plain = mark('word', false)},
+    other = function(cmdParams, command) seen[#seen + 1] = 'other:' .. command if command == 'nothing' then return JC.PASS end end,
 })
 routed = nil
 ea = {}
@@ -118,7 +118,7 @@ check('a job word', seen[2], 'word:rune')
 check('  answered', ea.handled, true)
 ea = {}
 router({'cycle', 'Storm'}, ea)
-check('a job word returning false', seen[3], 'word:cycle')
+check('a job word returning PASS', seen[3], 'word:cycle')
 check('  left to Mote', ea.handled, nil)
 ea = {}
 router({'ws3'}, ea)
@@ -126,25 +126,28 @@ check('any other word goes to other', seen[4], 'other:ws3')
 check('  answered', ea.handled, true)
 ea = {}
 router({'nothing'}, ea)
-check('other returning false: left to Mote', ea.handled, nil)
+check('other returning PASS: left to Mote', ea.handled, nil)
+ea = {}
+router({'plain'}, ea)
+check('a handler returning false (a helper\'s result): still answered', ea.handled, true)
 ea = {}
 router({'aoe'}, ea)
-check('first: bare aoe is the job\'s', seen[6], 'aoe')
+check('first: bare aoe is the job\'s', seen[7], 'aoe')
 check('  answered', ea.handled, true)
 ea = {}
 router({'aoe', 'sneak'}, ea)
-check('first returning false lets the word through (aoe is no shared word here: on to other)', seen[7], 'other:aoe')
+check('first returning PASS lets the word through (aoe is no shared word here: on to other)', seen[8], 'other:aoe')
 router({}, {})
-check('no word: nothing, not even the load', loads, 7)
+check('no word: nothing, not even the load', loads, 8)
 
 -- 5. the weaponskill slots
 local cast
 package.loaded['shared/utils/weaponskill/ws_slots'] = {cast = function(n) cast = n end}
 local ws, pld_ws = JC.ws_slots(), JC.ws_slots(true)
-check('ws2: slot 2', (ws({'ws2'}, 'ws2') ~= false) and cast, 2)
-check('ws alone: not a slot', ws({'ws'}, 'ws'), false)
+check('ws2: slot 2', (ws({'ws2'}, 'ws2') ~= JC.PASS) and cast, 2)
+check('ws alone: not a slot', ws({'ws'}, 'ws'), JC.PASS)
 cast = nil
-check('ws alone on PLD: slot 1', (pld_ws({'ws'}, 'ws') ~= false) and cast, 1)
-check('another word: not a slot', ws({'wsx'}, 'wsx'), false)
+check('ws alone on PLD: slot 1', (pld_ws({'ws'}, 'ws') ~= JC.PASS) and cast, 1)
+check('another word: not a slot', ws({'wsx'}, 'wsx'), JC.PASS)
 
 T.done()

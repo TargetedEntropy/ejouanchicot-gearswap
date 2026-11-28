@@ -21,14 +21,19 @@
 ---   })
 ---
 --- Each fn(cmdParams, command) answers the word: the router sets
---- eventArgs.handled. A fn that returns false leaves the word unanswered: a
---- `first` word goes on to the shared ones, any other to Mote (its own words,
---- the dual-box alt's commands). A job with no word of its own:
+--- eventArgs.handled, whatever fn returns, unless fn returns JobCommands.PASS.
+--- The word is then left unanswered: a `first` word goes on to the shared
+--- ones, any other to Mote (its own words, the dual-box alt's commands). A
+--- value of its own, never a false or nil some helper returned, so that a
+--- handler leaves a word only where it says so. A job with no word of its own:
 --- JobCommands.router('MNK').
 ---
 --- @file    shared/utils/core/job_commands.lua
 ---============================================================================
 local JobCommands = {}
+
+--- What a handler returns to leave the word unanswered (see the header).
+JobCommands.PASS = setmetatable({}, {__tostring = function() return 'JobCommands.PASS' end})
 
 local CommonCommands, WatchdogCommands, UICommands, CycleHandler, MessageCommands
 
@@ -101,9 +106,9 @@ function JobCommands.shared(command, cmdParams, eventArgs, job)
     return false
 end
 
---- fn answers the word unless it returns false.
+--- fn answers the word unless it returns PASS.
 local function answer(fn, cmdParams, eventArgs, command)
-    if fn(cmdParams, command) == false then return false end
+    if fn(cmdParams, command) == JobCommands.PASS then return false end
     eventArgs.handled = true
     return true
 end
@@ -134,9 +139,9 @@ end
 function JobCommands.ws_slots(bare_is_first)
     return function(cmdParams, command)
         local slot = (bare_is_first and command == 'ws') and '1' or command:match('^ws([1-9])$')
-        if not slot then return false end
+        if not slot then return JobCommands.PASS end
         local ok, WSSlots = pcall(require, 'shared/utils/weaponskill/ws_slots')
-        if not (ok and WSSlots) then return false end
+        if not (ok and WSSlots) then return JobCommands.PASS end
         WSSlots.cast(tonumber(slot))
     end
 end

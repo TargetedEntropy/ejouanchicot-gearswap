@@ -57,7 +57,7 @@ numbers are avoided because they drift.
 | `shared/jobs/war/functions/WAR_ENGAGED.lua` | 53 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/war/functions/WAR_STATUS.lua` | 27 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/war/functions/WAR_BUFFS.lua` | 117 | `job_buff_change` (Doom, Aftermath Lv.3 refresh through `LifecycleManager.refresh_after_buff`) and the globals `buff_war`, `buff_sam_sub`, `build_tp` |
-| `shared/jobs/war/functions/WAR_COMMANDS.lua` | 139 | `job_self_command` router and `job_state_change` (WS slot rebuild, `AmpullaLock.apply` on `HybridMode`, UI refresh) |
+| `shared/jobs/war/functions/WAR_COMMANDS.lua` | 141 | `job_self_command` router and `job_state_change` (WS slot rebuild, `AmpullaLock.apply` on `HybridMode`, UI refresh) |
 | `shared/jobs/war/functions/WAR_MOVEMENT.lua` | 177 | Retaliation auto-cancel (AutoMove callback), Retaliation debug helpers |
 | `shared/jobs/war/functions/logic/set_builder.lua` | 251 | Engaged base selection (KC through `BaseSetBuilder.kraken_in_offhand`, stance, AM3, weapon set, HybridMode), weapon layer (`BaseSetBuilder.lay_weapon`), stance ammo (`apply_stance_ammo` = `AmpullaLock.stance_ammo`), town / movement idle |
 | `shared/jobs/war/functions/logic/smartbuff_manager.lua` | 123 | `buff_war`, `buff_sam_sub`, `build_tp`: lists sent through the shared buff engine; `WAR_CHAINS`, the default chains of `berserk` / `defender` |

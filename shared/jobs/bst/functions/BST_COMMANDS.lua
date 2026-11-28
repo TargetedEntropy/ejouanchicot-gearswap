@@ -25,6 +25,10 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
+local JobCommands = require('shared/utils/core/job_commands')
+-- a handler that returns PASS leaves the word unanswered (JobCommands.router)
+local PASS = JobCommands.PASS
+
 local MessageFormatter = nil
 local EcosystemManager = nil
 local PetManager = nil
@@ -129,8 +133,6 @@ local function run_rdymove_sequence(move_name, heel)
     end, 'bst_rdymove_done')
 end
 
-local JobCommands = require('shared/utils/core/job_commands')
-
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HOOK
 ---  ═══════════════════════════════════════════════════════════════════════════
@@ -153,14 +155,14 @@ job_self_command = JobCommands.router('BST', {
         ecosystem = function()
             if not EcosystemManager then
                 MessageFormatter.show_error_module_not_loaded('EcosystemManager')
-                return false
+                return PASS
             end
             EcosystemManager.change_ecosystem()
         end,
         species = function()
             if not EcosystemManager then
                 MessageFormatter.show_error_module_not_loaded('EcosystemManager')
-                return false
+                return PASS
             end
             EcosystemManager.change_species()
         end,
@@ -177,7 +179,7 @@ job_self_command = JobCommands.router('BST', {
             if pet_command == 'engage' or pet_command == 'disengage' then
                 if not PetManager then
                     MessageFormatter.show_error_module_not_loaded('PetManager')
-                    return false
+                    return PASS
                 end
                 if pet_command == 'engage' then PetManager.engage_pet() else PetManager.disengage_pet() end
                 return

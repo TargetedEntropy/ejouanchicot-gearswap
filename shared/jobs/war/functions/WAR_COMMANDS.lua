@@ -18,6 +18,10 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
+local JobCommands = require('shared/utils/core/job_commands')
+-- a handler that returns PASS leaves the word unanswered (JobCommands.router)
+local PASS = JobCommands.PASS
+
 local MessageFormatter = nil
 
 local function ensure_commands_loaded()
@@ -25,8 +29,6 @@ local function ensure_commands_loaded()
         MessageFormatter = require('shared/utils/messages/message_formatter')
     end
 end
-
-local JobCommands = require('shared/utils/core/job_commands')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HANDLER HOOK
@@ -61,19 +63,19 @@ job_self_command = JobCommands.router('WAR', {
         end,
         -- the buff routines (WAR_BUFFS / logic/smartbuff_manager), left to Mote while one is not defined
         berserk = function()
-            if not buff_war then return false end
+            if not buff_war then return PASS end
             buff_war('Berserk')
         end,
         defender = function()
-            if not buff_war then return false end
+            if not buff_war then return PASS end
             buff_war('Defender')
         end,
         thirdeye = function()
-            if not buff_sam_sub then return false end
+            if not buff_sam_sub then return PASS end
             buff_sam_sub()
         end,
         tp = function()
-            if not build_tp then return false end
+            if not build_tp then return PASS end
             build_tp()
         end,
     },

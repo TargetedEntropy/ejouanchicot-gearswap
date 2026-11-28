@@ -55,7 +55,7 @@ the sets files (structure and set names only).
 | `shared/jobs/rdm/functions/RDM_ENGAGED.lua` | 42 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/rdm/functions/RDM_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/rdm/functions/RDM_BUFFS.lua` | 20 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/rdm/functions/RDM_COMMANDS.lua` | 325 | `job_self_command` router (cast-by-name resolved from `res`), `job_state_change` (HUD refresh) |
+| `shared/jobs/rdm/functions/RDM_COMMANDS.lua` | 327 | `job_self_command` router (cast-by-name resolved from `res`), `job_state_change` (HUD refresh) |
 | `shared/jobs/rdm/functions/logic/set_builder.lua` | 243 | Idle / engaged construction: mode sets, single vs dual wield (off-hand item and subjob), weapons, town, movement |
 | `shared/data/spells/RDM_ENFEEBLE_TIERS.lua` | 55 | Tier table of 11 enfeeble families (`RDM_ENFEEBLE_TIERS.get`) |
 | `shared/data/spells/NUKE_TIERS.lua` | 56 | Nuke / -ra / Aspir tier table (`NUKE_TIERS.get`), shared with GEO and SCH |

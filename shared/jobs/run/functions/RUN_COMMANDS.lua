@@ -17,6 +17,10 @@
 ---   DEPENDENCIES - LAZY LOADING (Performance Optimization)
 ---  ═══════════════════════════════════════════════════════════════════════════
 -- RUN logic modules, loaded on first command
+local JobCommands = require('shared/utils/core/job_commands')
+-- a handler that returns PASS leaves the word unanswered (JobCommands.router)
+local PASS = JobCommands.PASS
+
 local AOEManager = nil
 local RuneManager = nil
 
@@ -26,8 +30,6 @@ local function ensure_commands_loaded()
         RuneManager = require('shared/jobs/run/functions/logic/rune_manager')
     end
 end
-
-local JobCommands = require('shared/utils/core/job_commands')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HANDLER HOOK
@@ -42,7 +44,7 @@ job_self_command = JobCommands.router('RUN', {
         -- the bare word runs the Blue Magic rotation (RUN/BLU); `aoe sneak|invi|erase` (/SCH) goes on to the
         -- common commands
         aoe = function(cmdParams)
-            if cmdParams[2] then return false end
+            if cmdParams[2] then return PASS end
             AOEManager.execute_aoe()
         end,
     },

@@ -47,9 +47,9 @@ Related files read to establish behaviour (owned by other pages): `shared/utils/
 
 ### 2. The job-file contract
 
-Every `[JOB]_COMMANDS.lua` sets `job_self_command = JobCommands.router('<JOB>', spec)` (`shared/utils/core/job_commands.lua`) and exports it as `_G.job_self_command`. `spec` is the job's words as tables. Each handler is `fn(cmdParams, command)`, and the router sets `eventArgs.handled` once it has run, unless it returns `false`: the word is then left unanswered (a `first` word goes on to the common words, any other to Mote, and so to the dual-box alt's command of that name).
+Every `[JOB]_COMMANDS.lua` sets `job_self_command = JobCommands.router('<JOB>', spec)` (`shared/utils/core/job_commands.lua`) and exports it as `_G.job_self_command`. `spec` is the job's words as tables. Each handler is `fn(cmdParams, command)`, and the router sets `eventArgs.handled` once it has run, unless it returns `JobCommands.PASS` (a value of its own, never a `false` some helper returned): the word is then left unanswered (a `first` word goes on to the common words, any other to Mote, and so to the dual-box alt's command of that name).
 
-- `first`: the words that must win over a common word of the same name (PLD / RUN `aoe`, DRG `jump`, BST `debugprecast`). PLD / RUN `aoe sneak` returns `false` and goes on to the common `aoe`;
+- `first`: the words that must win over a common word of the same name (PLD / RUN `aoe`, DRG `jump`, BST `debugprecast`). PLD / RUN `aoe sneak` returns `PASS` and goes on to the common `aoe`;
 - `words`: the job's own words, never a common one;
 - `other`: what runs for a word no table names (PLD / WAR `ws1`..`ws9`, `JobCommands.ws_slots`; RDM's Mote words, Dispelga and cast-by-name);
 - `load`: the job's own modules, loaded at its first command.
@@ -577,7 +577,7 @@ Output goes through the `PROFILER` message namespace (`shared/utils/messages/dat
 - The job files lower-case only `cmdParams[1]`. Handlers that compare arguments must lower-case them themselves. Most do (`perf`, `lagdebug`, `fulltest`, `syscheck`, `automedicine`, `jamsg`, `trace`, `tb`, `dw`, `th`, `combatmode`); `wo` does not.
 - `table.unpack` is Windower's (`libs/tables.lua`). `table.unpack(t)` is `unpack(t)`, but `table.unpack(t, 2)` returns `t[2]` only, not `t[2..n]`.
 - A common name or a warp alias (and `<alias>all`) always beats a job command checked after `is_common_command`. Before naming a new job command, grep `CommonCommands.is_common_command` and `warp_command_registry.lua`. Watch the short aliases: `cc`, `pt`, `op`, `ns`, `ld`, `td`, `ar`, `mm` are warp destinations, and any word ending in `all` whose base is an alias is a warp broadcast.
-- An alt-config key never beats a job command. However, a job handler that returns `false` falls through to Mote, and so to the alt's command of that name. Example: WAR's `berserk` when `buff_war` is nil.
+- An alt-config key never beats a job command. However, a job handler that returns `PASS` falls through to Mote, and so to the alt's command of that name. Example: WAR's `berserk` when `buff_war` is nil.
 - `naked` from CommonCommands enables the slots it empties since 2026-11-13, except during a craft session (every slot keeps its gear) and Doom's neck, rings and waist. Before, a locked slot kept its piece while the message said all slots were cleared, and PorterPacker fell back on the client's `/equip <slot> empty`, which crashed the game (0xc0000374, a double free in the client, full dump of 2026-11-13). Never send `/equip <slot> empty` in a row from code: the wardrobe organizer dropped it too (`wardrobe/lib/phases.lua`, Phase 0, see [wardrobe-organizer.md](wardrobe-organizer.md)).
 - `refill` and `lockstyle` always broadcast to the dual-box partner. This includes the `gs c rf` sent by craft and the `gs c ls` / `gs c rf` the wardrobe organizer sends when it finishes.
 - `debugprecast` has an effect only on BRD, RDM and RUN, the jobs that read `_G.PrecastDebugState`. On BST it toggles a different flag.
@@ -606,7 +606,7 @@ Output goes through the `PROFILER` message namespace (`shared/utils/messages/dat
 
 - Add it to `words` in the job's `JobCommands.router` call.
 - Pick a name that is not a common name, a warp alias or `<alias>all`.
-- The router answers the word once the handler has run, error paths included. Return `false` only from a path that should fall through to Mote and then to the alt's command of the same name.
+- The router answers the word once the handler has run, error paths included. Return `PASS` (`JobCommands.PASS`) only from a path that should fall through to Mote and then to the alt's command of the same name.
 - A name that is also a key in `<char>/_common/dualbox/alt/*.lua` runs locally; the alt's version stays reachable as `//gs c alt <name>`.
 
 ### Forwarding arguments
