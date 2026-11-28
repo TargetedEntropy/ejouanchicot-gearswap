@@ -17,12 +17,13 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 -- WHM message formatter, loaded on first command
 local WHMMessageFormatter = nil
+local formatter_tried = false
 
 local function ensure_commands_loaded()
-    if WHMMessageFormatter == nil then
-        local ok, formatter = pcall(require, 'shared/utils/whm/whm_message_formatter')
-        WHMMessageFormatter = ok and formatter or false
-    end
+    if formatter_tried then return end
+    formatter_tried = true
+    local ok, formatter = pcall(require, 'shared/utils/whm/whm_message_formatter')
+    WHMMessageFormatter = ok and formatter or nil
 end
 
 local JobCommands = require('shared/utils/core/job_commands')

@@ -48,7 +48,7 @@ the sets file (structure and set names only).
 | `shared/jobs/whm/functions/WHM_ENGAGED.lua` | 40 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/whm/functions/WHM_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/whm/functions/WHM_BUFFS.lua` | 19 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/whm/functions/WHM_COMMANDS.lua` | 115 | `job_self_command` router, `job_state_change` (`Melee ON` lock, HUD) |
+| `shared/jobs/whm/functions/WHM_COMMANDS.lua` | 116 | `job_self_command` router, `job_state_change` (`Melee ON` lock, HUD) |
 | `shared/jobs/whm/functions/logic/set_builder.lua` | 97 | Idle: town, latent refresh, weapons, movement; engaged: `SupportTier.engaged` (the set's `.Solo` / `.Group` version when it has one), weapons |
 | `shared/utils/whm/cure_manager.lua` | 497 | `CureManager.select_cure_tier` (auto-tier + recast fallback) |
 | `shared/utils/whm/whm_message_formatter.lua` | 262 | Cure tier / Afflatus messages and CureManager debug lines (direct `add_to_chat`, a documented exception: it is a formatter stored outside `utils/messages/`) |
