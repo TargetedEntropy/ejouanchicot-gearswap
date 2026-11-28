@@ -85,7 +85,7 @@ sequenceDiagram
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, require RUN_TP_CONFIG (sets _G.RUNTPConfig)
     E->>E: configs: _G.BluMagicConfig = RUN_BLU_MAGIC
     E->>E: load_job("RUN"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('RUN')
+    E->>F: the job's files (EntryKit.job_files('RUN'))
     E->>E: register_lockstyle_cancel("RUN", ...)
     Note over E: +0.2 s: select_default_macro_book(), lockstyle after 8 s
     Note over E: +0.5 s: RUNKeybinds.bind_all()

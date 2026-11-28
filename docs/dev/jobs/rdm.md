@@ -104,7 +104,7 @@ sequenceDiagram
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, RDM_TP_CONFIG
     E->>E: configs: _G.RDMSaboteurConfig
     E->>E: load_job("RDM"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('RDM')
+    E->>F: the job's files (EntryKit.job_files('RDM'))
     F->>F: lockstyle + macro book install, 8 hook files (no message_buffs)
     E->>E: register_lockstyle_cancel("RDM", ...)
 ```

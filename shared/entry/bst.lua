@@ -99,7 +99,6 @@ _G.start_pet_monitoring = start_pet_monitoring
 _G.stop_pet_monitoring = stop_pet_monitoring
 
 require('shared/utils/core/entry_kit').job('BST', {
-    early_configs = true,
     before_mote = function()
         _G.BSTBeastPetData = require(CharPaths.module('job', 'BST_PET_DATA', 'BST'))
         local eco_ok, eco_data = CharPaths.load('job', 'BST_ECOSYSTEM_DATA', 'BST')
@@ -116,10 +115,9 @@ require('shared/utils/core/entry_kit').job('BST', {
             end
         end
     end,
-    after_ui = function(KeybindUI)
-        _G.KeybindUI = KeybindUI
-    end,
     after_setup = function()
+        -- the HUD, for EcosystemManager's refresh after an ecosystem / species change
+        _G.KeybindUI = try_require('shared/utils/ui/UI_MANAGER')
         -- bst-hud reloaded 2 s later: a counter drops a load a newer reload or file_unload replaced
         _G.bst_hud_load_id = (_G.bst_hud_load_id or 0) + 1
         local my_hud_id = _G.bst_hud_load_id

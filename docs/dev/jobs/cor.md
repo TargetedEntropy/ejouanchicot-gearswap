@@ -112,14 +112,14 @@ sequenceDiagram
     E->>E: _G.LockstyleConfig, _G.UIConfig, RECAST_CONFIG, CORTPConfig
     E->>E: configs: lua unload rolltracker
     E->>E: load_job("COR"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('COR')
+    E->>F: the job's files (EntryKit.job_files('COR'))
     E->>E: register_lockstyle_cancel("COR", ...)
     E->>P: after_load: init_party_tracking() -> PartyTracker.init()
 ```
 
 - `load_job('COR')` cancels what the previous job scheduled, loads the
   files and registers the lockstyle cancel; COR's `configs` step (the rolltracker
-  unload) runs just before it. `load_job_files` installs the lockstyle and macro book, includes
+  unload) runs just before it. `load_job` installs the lockstyle and macro book, includes
   `message_buffs.lua`, the 8 hook files and `COR_MOVEMENT.lua` after
   `COR_COMMANDS` (COR's `JOB_FILES` entry, `movement`), and requires
   `dualbox_manager`.

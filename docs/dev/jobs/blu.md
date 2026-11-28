@@ -97,7 +97,7 @@ sequenceDiagram
     E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.BLUTPConfig
     E->>E: load_job("BLU"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('BLU')
+    E->>F: the job's files (EntryKit.job_files('BLU'))
     F->>F: lockstyle + macro book install, message_buffs + 8 hook files
     E->>E: register_lockstyle_cancel("BLU", ...)
 ```

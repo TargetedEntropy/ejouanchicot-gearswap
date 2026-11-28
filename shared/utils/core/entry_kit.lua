@@ -197,11 +197,11 @@ end
 --- sandbox's globals in the order every job used to write them out. A job hands
 --- in only the steps it adds, each at a fixed point:
 ---
----   get_sets          Profiler, before_mote(), [early configs], Mote-Include,
----                     after_mote, [configs], configs(), load_job, after_load()
+---   get_sets          Profiler, before_mote(), the common configs, Mote-Include,
+---                     after_mote, configs(), load_job, after_load()
 ---   init_gear_sets    the character's <job>_sets.lua, after_sets()
 ---   user_setup        <JOB>_STATES.configure(), after_states(), keybinds
----                     (keybinds_delay s later when set), HUD, after_ui(),
+---                     (keybinds_delay s later when set), HUD,
 ---                     JobChangeManager + first macro book / lockstyle,
 ---                     after_setup(), dual-box manager
 ---   job_update        update(), then the HUD (it shows what update() changed)
@@ -210,9 +210,10 @@ end
 ---                     keys unbound
 ---
 --- The common configs are _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG and
---- _G.<JOB>TPConfig (none with tp_config = false). They are set right after
---- Mote-Include, or before it with early_configs = true, for a job whose
---- user_setup reads them (BRD, BST). The keybind module is _G.<JOB>Keybinds.
+--- _G.<JOB>TPConfig (none with tp_config = false), set before Mote-Include so
+--- that user_setup (inside it) can read them (BRD's song slots, BST's
+--- ecosystems): plain tables, none reads Mote. The keybind module is
+--- _G.<JOB>Keybinds.
 --- @param job string The job's code ('WAR')
 --- @param spec table|nil The job's steps (see above)
 --- @return table LockstyleConfig, table UIConfig (load_configs)
@@ -238,13 +239,12 @@ function EntryKit.job(job, spec)
         local Profiler = require('shared/utils/debug/performance_profiler')
         Profiler.start('get_sets')
         if spec.before_mote then spec.before_mote() end
-        if spec.early_configs then common_configs() end
+        common_configs()
         _G.mote_include_version = 2
         include('Mote-Include.lua')
         Profiler.mark('After Mote-Include')
         -- the shared systems, the data, the spell / ability / weaponskill messages
         after_mote(Profiler)
-        if not spec.early_configs then common_configs() end
         if spec.configs then spec.configs() end
         Profiler.mark('After configs')
         -- what the last job scheduled is cancelled, the job's files loaded, its lockstyle cancel registered
@@ -293,7 +293,6 @@ function EntryKit.job(job, spec)
                 MessageFormatter.show_error('[' .. job .. '] Failed to load UI_MANAGER')
             end
         end
-        if spec.after_ui then spec.after_ui(KeybindUI) end
         if JobChangeManager then
             JobChangeManager.initialize()
             EntryKit.macro_and_lockstyle(LockstyleConfig.initial_load_delay)

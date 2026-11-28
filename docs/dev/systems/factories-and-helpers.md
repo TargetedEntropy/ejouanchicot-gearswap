@@ -135,7 +135,7 @@ The per-job config is `<char>/<job>/display/<JOB>_LOCKSTYLE.lua`. `install()` st
 | `by_subjob` | yes, when there is no `get_style` | since 2026-10-30 `resolve_style` reads `by_subjob[subjob]` itself when the config has no `get_style` (the BLM, BLU, BRD, DRG, MNK, NIN, PUP, RDM, RNG, SAM, SCH, THF and WHM templates); before, their `by_subjob` did nothing. The Atelier's Macros & lockstyle part writes this table (`atelier/app/js/macro_edit.js`) |
 | `style` | no | "backward compatibility" field, no reader |
 
-`_master/config_global/LOCKSTYLE_CONFIG.lua` is deployed to `<char>/_common/display/`. The entries read its `initial_load_delay` (8.0), with a fallback table in `load_configs` (`shared/utils/core/entry_kit.lua:40`), and pass it from `user_setup()` to `EntryKit.macro_and_lockstyle` (`shared/utils/core/entry_kit.lua`), which schedules `select_default_lockstyle` after it. It is the file's only setting: `job_change_delay` and `cooldown`, which nothing read, were removed on 2026-09-29.
+`_master/config_global/LOCKSTYLE_CONFIG.lua` is deployed to `<char>/_common/display/`. The entries read its `initial_load_delay` (8.0), with a fallback table in `load_configs` (`shared/utils/core/entry_kit.lua:38`), and pass it from `user_setup()` to `EntryKit.macro_and_lockstyle` (`shared/utils/core/entry_kit.lua`), which schedules `select_default_lockstyle` after it. It is the file's only setting: `job_change_delay` and `cooldown`, which nothing read, were removed on 2026-09-29.
 
 DressUp management flag: `_G.DRESSUP_MANAGEMENT_ENABLED`. It is initialised on each module load from the presence of `windower.addon_path .. 'data/.dressup_disabled'` (file present = off; `read_dressup_state`). The file is gitignored.
 

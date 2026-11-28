@@ -140,8 +140,9 @@ includes `shared/entry/war.lua`:
    `JobChangeManager` and `UI_MANAGER`, and defines the hook functions.
 2. **`get_sets()`**:
    1. `before_mote()`: job globals that states need before Mote (WAR
-      `_G.WARWSConfig`, PLD `_G.PLDWSConfig`, BRD, BST; BRD and BST also set
-      the common configs of step 5 here, `early_configs`).
+      `_G.WARWSConfig`, PLD `_G.PLDWSConfig`, BRD, BST); then the common
+      configs: `_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`,
+      `_G.<JOB>TPConfig` (not SMN), which `user_setup()` may read.
    2. `include('Mote-Include.lua')` → `init_include()`: Mote states and set
       skeleton, Mote's F9-F12 binds, **`user_setup()`**, then
       **`init_gear_sets()`** (the set file, then `after_sets()`).
@@ -149,8 +150,7 @@ includes `shared/entry/war.lua`:
    4. `require data_loader`, then the three message hooks
       (`init_spell_messages`, `init_ability_messages`, `init_ws_messages`).
       Steps 3-4 are `after_mote(Profiler)`.
-   5. `_G.LockstyleConfig`, `_G.UIConfig`, `_G.RECAST_CONFIG`,
-      `_G.<JOB>TPConfig` (not SMN), then the job's `configs()`.
+   5. The job's `configs()`.
    6. `JobChangeManager.cancel_all()`.
    7. `load_job('<JOB>')`, the job files.
    8. `register_lockstyle_cancel`.
@@ -160,7 +160,7 @@ includes `shared/entry/war.lua`:
 3. **`user_setup()`** (called from step 2.2, so before INIT_SYSTEMS and the
    job files): `<JOB>States.configure()`, `after_states()`, keybinds
    `bind_all()` (RUN 0.5 s later), `KeybindUI.smart_init()` (or an error
-   when `UI_MANAGER` failed to load), `after_ui()`,
+   when `UI_MANAGER` failed to load),
    `JobChangeManager.initialize()` (a seed, not an assignment),
    `EntryKit.macro_and_lockstyle` (macro book 0.2 s later, once the job files
    are loaded; lockstyle after 8 s), `after_setup()`, `pcall(require

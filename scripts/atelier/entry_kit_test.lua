@@ -154,7 +154,7 @@ JCM.register_lockstyle_cancel = function() end
 JCM.on_job_change = function(main, sub) log('change ' .. main .. '/' .. sub) end
 include = function(file)
     if file == 'Mote-Include.lua' then
-        log('mote')
+        log('mote' .. (_G.TSTTPConfig and ' (configs set)' or ''))
         user_setup()
         init_gear_sets()
     elseif file:find('sets/') then
@@ -165,8 +165,8 @@ include = function(file)
 end
 EntryKit.macro_and_lockstyle = function() log('macro') end
 local steps = {}
-for _, k in ipairs({'before_mote', 'configs', 'after_load', 'after_sets', 'after_states', 'after_ui', 'after_setup',
-        'update', 'unload'}) do
+for _, k in ipairs({'before_mote', 'configs', 'after_load', 'after_sets', 'after_states', 'after_setup', 'update',
+        'unload'}) do
     steps[k] = function(arg) log(k .. (arg ~= nil and (' ' .. tostring(arg == 'next.lua' and arg or type(arg))) or '')) end
 end
 EntryKit.job('TST', steps)
@@ -176,9 +176,9 @@ for _, n in ipairs({'init_gear_sets', 'user_setup', 'job_sub_job_change', 'job_u
 end
 get_sets()
 local order = table.concat(trace, ', ')
-check('get_sets order', order:match('^(.-), states'), 'before_mote, mote')
-T.ok('user_setup: states, its step, keys, HUD, after_ui, JobChangeManager, macro book, after_setup',
-    order:find('states, after_states, bind, hud TST 3, after_ui table, jcm, macro, after_setup', 1, true), order)
+check('get_sets order: the common configs before Mote', order:match('^(.-), states'), 'before_mote, mote (configs set)')
+T.ok('user_setup: states, its step, keys, HUD, JobChangeManager, macro book, after_setup',
+    order:find('states, after_states, bind, hud TST 3, jcm, macro, after_setup', 1, true), order)
 T.ok('init_gear_sets after user_setup: the sets, then after_sets', order:find('after_setup, sets sets/tst_sets.lua, after_sets', 1, true), order)
 T.ok('then the common configs, configs(), the job\'s files, after_load',
     order:find('after_sets, configs, cancel, lockstyle TST, file TST_PRECAST', 1, true) and order:find('after_load$'), order)

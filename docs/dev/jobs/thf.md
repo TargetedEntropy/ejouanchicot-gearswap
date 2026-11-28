@@ -103,7 +103,7 @@ sequenceDiagram
     E->>E: after_mote: INIT_SYSTEMS (hooks: belt, DW, TH, midcast fallback, custom, cast time, combat mode), data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.THFTPConfig
     E->>E: load_job("THF"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('THF')
+    E->>F: the job's files (EntryKit.job_files('THF'))
     F->>F: lockstyle + macro book install, message_buffs + 8 hook files, thf_functions.lua (TreasureHunter.init())
     E->>E: register_lockstyle_cancel("THF", ...)
 ```

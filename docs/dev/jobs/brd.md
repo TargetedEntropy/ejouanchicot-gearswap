@@ -41,7 +41,7 @@ function; line numbers are given only where no function name fits.
 
 | Path | Lines | Role |
 |------|------:|------|
-| `shared/entry/brd.lua` | 72 | Entry point (the same for every character; `<Char>_BRD.lua` and its template `_master/entry/Tetsouo_BRD.lua` are one `include` of it): one `EntryKit.job('BRD', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with BRD's steps: `early_configs`, `before_mote` (song and timing configs, `song_rotation_manager`), `after_setup` (song slots, `SongOwner.start`), `update` (song slots, before `update_hud`), `unload` (stops the instrument skill-up loop: `BRDSkillUp.cancel`) |
+| `shared/entry/brd.lua` | 71 | Entry point (the same for every character; `<Char>_BRD.lua` and its template `_master/entry/Tetsouo_BRD.lua` are one `include` of it): one `EntryKit.job('BRD', {...})` call (`shared/utils/core/entry_kit.lua` defines `get_sets`, `init_gear_sets`, `user_setup`, `job_sub_job_change`, `job_update`, `file_unload`), with BRD's steps: `before_mote` (song and timing configs, `song_rotation_manager`), `after_setup` (song slots, `SongOwner.start`), `update` (song slots, before `update_hud`), `unload` (stops the instrument skill-up loop: `BRDSkillUp.cancel`) |
 | `shared/jobs/brd/functions/BRD_PRECAST.lua` | 288 | `job_precast` (guard, `SongRefinement.refine_song`, cooldown, `job_precast_bardsong` Pianissimo, `try_marcato`, WS, `job_precast_bardsong_2` instrument lock) / `job_post_precast` (TP gear; on a song, ammo emptied and the locked instrument put back over the Fast Cast set's `range`; precast debug) |
 | `shared/jobs/brd/functions/BRD_MIDCAST.lua` | 145 | `job_midcast` (empty), `job_customize_midcast_set` (passthrough, never called), `job_post_midcast` (context + skill dispatch to the router) |
 | `shared/jobs/brd/functions/BRD_AFTERCAST.lua` | 73 | `job_aftercast`: watchdog, Pianissimo flag, `SongQueue.on_aftercast`, `DummyNext.on_aftercast`, instrument lock release |
@@ -97,18 +97,18 @@ sequenceDiagram
     GS->>E: run chunk (load_configs: LOCKSTYLE_CONFIG, REGION_CONFIG, UIConfig; JCM, UI_MANAGER)
     GS->>E: get_sets()
     E->>E: before_mote: BRDSongConfig, BRDTimingConfig, require song_rotation_manager (defines _G.update_brd_song_slots)
-    E->>E: early_configs: _G.LockstyleConfig, UIConfig, RECAST_CONFIG, BRDTPConfig
+    E->>E: the common configs: _G.LockstyleConfig, UIConfig, RECAST_CONFIG, BRDTPConfig
     E->>M: include Mote-Include
     M->>E: user_setup() (states, keybinds, UI, JCM, 0.2 s macro/lockstyle, after_setup: song slots + SongOwner, dualbox)
     M->>E: init_gear_sets() -> include sets file
     E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: load_job("BRD"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('BRD')
+    E->>F: the job's files (EntryKit.job_files('BRD'))
     E->>E: register_lockstyle_cancel("BRD", ...)
 ```
 
 - BRD publishes its configs **before** `include('Mote-Include.lua')`
-  (`before_mote`, and the common configs with `early_configs = true`), so they
+  (`before_mote`, then the common configs, set there for every job), so they
   exist during `user_setup()`.
 - The eager `require` of the rotation manager is cached: `config_loader`
   installs the module cache at file level (`module_cache.lua`), so the command

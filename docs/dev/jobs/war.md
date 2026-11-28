@@ -117,7 +117,7 @@ sequenceDiagram
     E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.WARTPConfig
     E->>E: load_job("WAR"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('WAR')
+    E->>F: the job's files (EntryKit.job_files('WAR'))
     F->>F: lockstyle + macro book install, message_buffs + 9 hook files
     E->>E: register_lockstyle_cancel("WAR", ...)
 ```
