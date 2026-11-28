@@ -40,8 +40,8 @@ local function load()
     WSPrecastHandler = require('shared/utils/precast/ws_precast_handler')
 end
 
---- The recast check of an ability or a spell (anything else has none).
-function PrecastPipeline.cooldown(spell, eventArgs)
+--- The recast check of an ability or a spell (anything else has none): the default cooldown step.
+function PrecastPipeline.cooldown(spell, action, spellMap, eventArgs)
     load()
     if spell.action_type == 'Ability' then
         CooldownChecker.check_ability_cooldown(spell, eventArgs)
@@ -51,12 +51,12 @@ function PrecastPipeline.cooldown(spell, eventArgs)
 end
 
 --- One kind of recast check, for a job that chooses which applies (BLM's charges, SCH's tiers).
-function PrecastPipeline.ability_cooldown(spell, eventArgs)
+function PrecastPipeline.ability_cooldown(spell, action, spellMap, eventArgs)
     load()
     CooldownChecker.check_ability_cooldown(spell, eventArgs)
 end
 
-function PrecastPipeline.spell_cooldown(spell, eventArgs)
+function PrecastPipeline.spell_cooldown(spell, action, spellMap, eventArgs)
     load()
     CooldownChecker.check_spell_cooldown(spell, eventArgs)
 end
@@ -70,7 +70,7 @@ end
 --- @return function job_precast, function job_post_precast
 function PrecastPipeline.hooks(job, steps)
     steps = steps or {}
-    local cooldown = steps.cooldown or function(spell, _, _, eventArgs) PrecastPipeline.cooldown(spell, eventArgs) end
+    local cooldown = steps.cooldown or PrecastPipeline.cooldown
     local tp_config
 
     -- the shared modules, the job's own, its TP configuration

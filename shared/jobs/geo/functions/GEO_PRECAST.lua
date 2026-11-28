@@ -63,7 +63,7 @@ job_precast, job_post_precast = PrecastPipeline.hooks('GEO', {
         if tiers then
             TierRefiner.refine(spell, eventArgs, tiers)
         else
-            PrecastPipeline.cooldown(spell, eventArgs)
+            PrecastPipeline.cooldown(spell, action, spellMap, eventArgs)
         end
     end,
     after_cooldown = function(spell, action, spellMap, eventArgs)
