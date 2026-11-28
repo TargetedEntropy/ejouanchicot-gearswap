@@ -150,6 +150,7 @@ local JobCommands = require('shared/utils/core/job_commands')
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 --- The abilities a word uses, and its message: {ability, MessageFormatter function, its argument}.
+--- (scripts/atelier/job_commands_test.lua checks that each named function exists)
 local ABILITIES = {
     soul_voice = {'Soul Voice', 'show_ability_command', 'Soul Voice (1hr)'},
     nightingale = {'Nightingale', 'show_ability_command', 'Nightingale'},

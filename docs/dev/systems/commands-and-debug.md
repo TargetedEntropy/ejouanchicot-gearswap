@@ -607,6 +607,7 @@ Output goes through the `PROFILER` message namespace (`shared/utils/messages/dat
 - Add it to `words` in the job's `JobCommands.router` call.
 - Pick a name that is not a common name, a warp alias or `<alias>all`.
 - The router answers the word once the handler has run, error paths included. Return `PASS` (`JobCommands.PASS`) only from a path that should fall through to Mote and then to the alt's command of the same name.
+- Every `MessageFormatter.<name>(` call, and every `'show_<name>'` a table names (BRD's `ABILITIES`), must exist in `message_formatter.lua`: `scripts/atelier/job_commands_test.lua` fails on a typo, which otherwise only shows in game.
 - A name that is also a key in `<char>/_common/dualbox/alt/*.lua` runs locally; the alt's version stays reachable as `//gs c alt <name>`.
 
 ### Forwarding arguments
