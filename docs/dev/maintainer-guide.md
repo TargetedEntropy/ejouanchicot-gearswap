@@ -592,11 +592,11 @@ The files to create or touch:
 - [ ] `shared/entry/<job>.lua`: one `EntryKit.job('<JOB>', spec)` call;
       copy a similar entry (`shared/entry/sam.lua` when the job adds
       nothing: `require('shared/utils/core/entry_kit').job('<JOB>')`;
-      `war.lua` for a slot lock, `brd.lua` / `bst.lua` for configs `user_setup`
-      reads). Put only the job's own steps in the spec (`before_mote`,
-      `early_configs`, `tp_config = false`, `configs`, `after_load`,
-      `after_sets`, `after_states`, `keybinds_delay`, `after_ui`,
-      `after_setup`, `update`, `unload`; the list is the header of
+      `war.lua` for a slot lock, `brd.lua` / `bst.lua` for globals `user_setup`
+      reads, set in `before_mote`). Put only the job's own steps in the spec (`before_mote`,
+      `tp_config = false`, `configs`, `after_load`, `after_sets`,
+      `after_states`, `keybinds_delay`, `after_setup`, `update`, `unload`;
+      the list is the header of
       `EntryKit.job`); a slot lock is released in `unload`, which runs
       first. A step reaches character files through `CharPaths`
       (`CharPaths.module('job', '<JOB>_..._CONFIG', '<JOB>')`), never a

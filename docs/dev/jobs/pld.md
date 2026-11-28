@@ -112,7 +112,7 @@ sequenceDiagram
     E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, PLD_TP_CONFIG (sets _G.PLDTPConfig), configs: _G.BluMagicConfig
     E->>E: load_job("PLD"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('PLD')
+    E->>F: the job's files (EntryKit.job_files('PLD'))
     F->>F: lockstyle + macro book install, message_buffs + 8 hook files
     E->>E: register_lockstyle_cancel("PLD", ...), after_load: pld_rebuild_ws_slots()
 ```

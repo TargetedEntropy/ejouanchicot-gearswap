@@ -98,7 +98,7 @@ sequenceDiagram
     E->>E: _G.LockstyleConfig, UIConfig, RECAST_CONFIG, DNCTPConfig
     E->>E: configs(): _G.DNCWSConfig, replace _G.cancel_conflicting_buffs
     E->>E: load_job("DNC"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('DNC') -> message_buffs + 8 hooks, refine_waltz override
+    E->>F: the job's files (EntryKit.job_files('DNC')) -> message_buffs + 8 hooks, refine_waltz override
     E->>E: register_lockstyle_cancel("DNC", ...)
 ```
 

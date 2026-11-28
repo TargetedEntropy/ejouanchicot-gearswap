@@ -88,7 +88,7 @@ sequenceDiagram
     E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.SAMTPConfig
     E->>E: load_job('SAM'): JobChangeManager.cancel_all()
-    E->>F: load_job_files('SAM')
+    E->>F: the job's files (EntryKit.job_files('SAM'))
     E->>E: register_lockstyle_cancel('SAM', ...)
 ```
 

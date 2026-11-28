@@ -102,7 +102,7 @@ sequenceDiagram
     E->>E: INIT_SYSTEMS, data_loader, spell / ability / WS message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.BLMTPConfig
     E->>E: load_job("BLM"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('BLM') (message_buffs, 8 hook files, blm_functions.lua)
+    E->>F: the job's files (EntryKit.job_files('BLM')) (message_buffs, 8 hook files, blm_functions.lua)
     E->>E: JobChangeManager.register_lockstyle_cancel("BLM", ...)
 ```
 

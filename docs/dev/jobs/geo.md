@@ -103,7 +103,7 @@ sequenceDiagram
     E->>E: after_mote: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.GEOTPConfig
     E->>E: load_job("GEO"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('GEO')
+    E->>F: the job's files (EntryKit.job_files('GEO'))
     E->>E: register_lockstyle_cancel("GEO", ...)
 ```
 

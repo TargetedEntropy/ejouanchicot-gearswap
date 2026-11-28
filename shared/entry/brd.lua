@@ -48,7 +48,6 @@ end
 
 local _
 _, UIConfig = require('shared/utils/core/entry_kit').job('BRD', {
-    early_configs = true,
     before_mote = function()
         _G.BRDSongConfig = require(CharPaths.module('job', 'BRD_SONG_CONFIG', 'BRD'))
         _G.BRDTimingConfig = require(CharPaths.module('job', 'BRD_TIMING_CONFIG', 'BRD'))

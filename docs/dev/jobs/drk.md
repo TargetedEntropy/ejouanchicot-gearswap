@@ -79,7 +79,7 @@ sequenceDiagram
     E->>E: INIT_SYSTEMS, data_loader, message hooks
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.DRKTPConfig
     E->>E: load_job("DRK"): JobChangeManager.cancel_all()
-    E->>F: load_job_files('DRK')
+    E->>F: the job's files (EntryKit.job_files('DRK'))
     E->>E: register_lockstyle_cancel("DRK", ...)
 ```
 
