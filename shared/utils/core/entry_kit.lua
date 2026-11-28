@@ -118,8 +118,6 @@ local function load_job(job, Profiler, JobChangeManager)
         include(file)
         TIMER(file:match('([^/]+)%.lua$'))
     end
-    -- auto-initialises, and handles the main <-> alt messages
-    require('shared/utils/dualbox/dualbox_manager')
     TIMER('TOTAL ' .. job .. ' files', true)
     Profiler.mark('After ' .. job:lower() .. ' files')
     local cancel = rawget(_G, 'cancel_' .. job:lower() .. '_lockstyle_operations')
@@ -299,7 +297,9 @@ function EntryKit.job(job, spec)
         end
         if spec.after_setup then spec.after_setup() end
         -- the require() starts dualbox_manager (once per gs reload): request_alt_job as MAIN,
-        -- send_job_update as ALT. Covers a main job change: job_sub_job_change is subjob-only.
+        -- send_job_update as ALT, and it handles the main <-> alt messages. Covers a main job
+        -- change: job_sub_job_change is subjob-only. Its only require on the load path:
+        -- user_setup() runs before get_sets() loads the job's files.
         pcall(require, 'shared/utils/dualbox/dualbox_manager')
     end
 
