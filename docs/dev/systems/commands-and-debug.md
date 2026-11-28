@@ -51,10 +51,10 @@ Every `[JOB]_COMMANDS.lua` sets `job_self_command = JobCommands.router('<JOB>', 
 
 - `first`: the words that must win over a common word of the same name (PLD / RUN `aoe`, DRG `jump`, BST `debugprecast`). PLD / RUN `aoe sneak` returns `PASS` and goes on to the common `aoe`;
 - `words`: the job's own words, never a common one;
-- `other`: what runs for a word no table names (PLD / WAR `ws1`..`ws9`, `JobCommands.ws_slots`; RDM's Mote words, Dispelga and cast-by-name);
-- `load`: the job's own modules, loaded at its first command.
+- `other`: what runs for a word no table names (PLD / WAR `ws1`..`ws9`, `JobCommands.ws_slots`; RDM's Mote words, Dispelga and cast-by-name).
 
-The router returns if `cmdParams[1]` is missing, lower-cases it into `command`, runs `load`, then looks the word up in `first`, `JobCommands.shared`, `words`, and finally calls `other`. A job with no command of its own (BLU, DRK, MNK, NIN, RNG) is `JobCommands.router('<JOB>')`.
+A command file requires the modules its words use at its top, when `load_job` includes it (until 2026-11-28 thirteen of them loaded them at the first command, through a `load` option of the router).
+The router returns if `cmdParams[1]` is missing, lower-cases it into `command`, then looks the word up in `first`, `JobCommands.shared`, `words`, and finally calls `other`. A job with no command of its own (BLU, DRK, MNK, NIN, RNG) is `JobCommands.router('<JOB>')`.
 
 `JobCommands.shared` answers, in this order: `watchdog` (`WatchdogCommands.handle_command`, `handled` set when it answers), `altjobupdate` (`DualBoxManager.receive_alt_job(cmdParams[2..7])`, `handled`), `requestjob` (`DualBoxManager.handle_job_request()`, `handled`), every common word (`CommonCommands.handle_command(command, job, unpack(cmdParams, 2))`, `handled` when it returns true), `ui` (`UICommands.handle_ui_command`, `handled`), `debugmidcast` (`MidcastManager.toggle_debug()` and its message, `handled`), `cyclestate` (`eventArgs.handled = CycleHandler.handle_cyclestate(...)`). None of these words is a job command, so their order among themselves changes nothing; a word in a job's `words` is never a common word: `scripts/atelier/job_commands_test.lua` loads every job's command file, reads the tables it gave the router and fails on one (COR's `colors` and WAR's `perf` were such dead branches until 2026-11-27).
 

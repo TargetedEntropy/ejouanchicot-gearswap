@@ -27,18 +27,11 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
--- THF logic modules, loaded on first command
-local SmartbuffManager = nil
-local RangeLock = nil
-
-local function ensure_commands_loaded()
-    if not SmartbuffManager then
-        SmartbuffManager = require('shared/jobs/thf/functions/logic/smartbuff_manager')
-        RangeLock = require('shared/jobs/thf/functions/logic/range_lock')
-    end
-end
+-- THF logic modules
+local SmartbuffManager = require('shared/jobs/thf/functions/logic/smartbuff_manager')
+local RangeLock = require('shared/jobs/thf/functions/logic/range_lock')
 
 local JobCommands = require('shared/utils/core/job_commands')
 
@@ -48,7 +41,6 @@ local JobCommands = require('shared/utils/core/job_commands')
 
 --- THF's words (smartbuff is a common command).
 job_self_command = JobCommands.router('THF', {
-    load = ensure_commands_loaded,
     words = {
         steal = function()
             SmartbuffManager.apply_steal()

@@ -54,7 +54,7 @@ idle overlays of `logic/set_builder.lua` re-read on 2026-09-29.
 | `shared/jobs/bst/functions/BST_ENGAGED.lua` | 41 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/bst/functions/BST_STATUS.lua` | 33 | `job_status_change = LifecycleManager.status_change()`; `job_pet_change`: a pet out says its correlation in the chat |
 | `shared/jobs/bst/functions/BST_BUFFS.lua` | 19 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/bst/functions/BST_COMMANDS.lua` | 301 | `job_self_command` router, local `display_broth_count`; `job_state_change = LifecycleManager.state_change()` |
+| `shared/jobs/bst/functions/BST_COMMANDS.lua` | 281 | `job_self_command` router, local `display_broth_count`; `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/bst/functions/logic/ecosystem_manager.lua` | 280 | `initialize`, `change_ecosystem`, `change_species`, `equip_pet_broth`, `count_species_jugs`; `correlation(eco)`, `show_correlation(eco, pet)`, `ecosystem_of(name)` (the game's pet name has no spaces: letters and digits compared) |
 | `shared/jobs/bst/functions/logic/ready_hold.lua` | 70 | `ReadyHold`: a Ready move's set held until the pet's move lands (8 s at most, LoadGate), laid over any idle / engaged set rebuilt meanwhile (weapons left out) |
 | `shared/jobs/bst/functions/logic/pet_manager.lua` | 170 | Pet-valid cache (`update_pet_mode` / `get_pet_mode`), `engage_pet` / `disengage_pet`, Ready-move list (`update_ready_moves`, 30 s cache) |
@@ -110,7 +110,7 @@ sequenceDiagram
     E->>E: after_mote: INIT_SYSTEMS (AutoMove +0.5 s, hooks), data_loader, message hooks
     E->>E: load_job("BST"): JobChangeManager.cancel_all()
     E->>F: load_job_files('BST')
-    F->>F: lockstyle + macro book install, message_buffs + 9 hook files, require dualbox_manager
+    F->>F: lockstyle + macro book install, message_buffs + 9 hook files
     E->>E: register_lockstyle_cancel("BST", cancel_bst_lockstyle_operations)
 ```
 
@@ -148,8 +148,7 @@ sequenceDiagram
 `load_job('BST')` installs the lockstyle and macro book, then
 includes, in order: `message_buffs.lua`, `BST_PRECAST`, `BST_MIDCAST`,
 `BST_PET_MIDCAST` (BST's `JOB_FILES` entry, `pet_midcast`), `BST_AFTERCAST`,
-`BST_IDLE`, `BST_ENGAGED`, `BST_STATUS`, `BST_BUFFS`, `BST_COMMANDS`, and
-requires `dualbox_manager`. `BST_AFTERCAST` and
+`BST_IDLE`, `BST_ENGAGED`, `BST_STATUS`, `BST_BUFFS`, `BST_COMMANDS`. `BST_AFTERCAST` and
 `BST_PET_MIDCAST` require `pet_manager` / `ready_move_categorizer` at include
 time; the other logic modules load on first use.
 

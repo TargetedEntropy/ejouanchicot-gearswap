@@ -14,22 +14,15 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
--- RUN logic modules, loaded on first command
+-- RUN logic modules
 local JobCommands = require('shared/utils/core/job_commands')
 -- a handler that returns PASS leaves the word unanswered (JobCommands.router)
 local PASS = JobCommands.PASS
 
-local AOEManager = nil
-local RuneManager = nil
-
-local function ensure_commands_loaded()
-    if not AOEManager then
-        AOEManager = require('shared/jobs/run/functions/logic/aoe_manager')
-        RuneManager = require('shared/jobs/run/functions/logic/rune_manager')
-    end
-end
+local AOEManager = require('shared/jobs/run/functions/logic/aoe_manager')
+local RuneManager = require('shared/jobs/run/functions/logic/rune_manager')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   COMMAND HANDLER HOOK
@@ -39,7 +32,6 @@ end
 ---   aoe              Blue Magic AOE rotation (RUN/BLU), ahead of the common aoe
 ---   rune             the rune selected in state.RuneMode
 job_self_command = JobCommands.router('RUN', {
-    load = ensure_commands_loaded,
     first = {
         -- the bare word runs the Blue Magic rotation (RUN/BLU); `aoe sneak|invi|erase` (/SCH) goes on to the
         -- common commands

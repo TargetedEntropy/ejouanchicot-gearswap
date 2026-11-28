@@ -52,7 +52,7 @@ function; line numbers are deliberately not used.
 | `shared/jobs/thf/functions/THF_ENGAGED.lua` | 42 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/thf/functions/THF_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/thf/functions/THF_BUFFS.lua` | 71 | `job_buff_change`: DoomManager, SA/TA pending reset, `gs c update` on SA/TA loss while engaged, Aftermath Lv.3 refresh (`LifecycleManager.refresh_after_buff`) |
-| `shared/jobs/thf/functions/THF_COMMANDS.lua` | 104 | `job_self_command` router, `job_state_change` (`LifecycleManager.state_change` + RangeLock lock/unlock) |
+| `shared/jobs/thf/functions/THF_COMMANDS.lua` | 96 | `job_self_command` router, `job_state_change` (`LifecycleManager.state_change` + RangeLock lock/unlock) |
 | `shared/jobs/thf/functions/logic/sa_ta_manager.lua` | 83 | `apply_variant`: WS variant (`SATA` > `SA` > `TA`) from buffs or pending flags; consumes the flags |
 | `shared/jobs/thf/functions/logic/set_builder.lua` | 236 | Engaged base (Aftermath / HybridMode), weapons or Aby weapons, SA/TA overlay, TH overlay, `sata_th_layer` (laid again after Dual Wield), idle base (`BaseSetBuilder.select_idle_base`: town, HybridMode), movement |
 | `shared/jobs/thf/functions/logic/smartbuff_manager.lua` | 145 | `apply_fbc`, `apply_steal` |
@@ -104,7 +104,7 @@ sequenceDiagram
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, _G.THFTPConfig
     E->>E: load_job("THF"): JobChangeManager.cancel_all()
     E->>F: load_job_files('THF')
-    F->>F: lockstyle + macro book install, message_buffs + 8 hook files, thf_functions.lua (TreasureHunter.init()), require dualbox_manager
+    F->>F: lockstyle + macro book install, message_buffs + 8 hook files, thf_functions.lua (TreasureHunter.init())
     E->>E: register_lockstyle_cancel("THF", ...)
 ```
 
@@ -135,8 +135,7 @@ includes `message_buffs.lua`, `THF_PRECAST`, `THF_MIDCAST`, `THF_AFTERCAST`,
 `THF_IDLE`, `THF_ENGAGED`, `THF_STATUS`, `THF_BUFFS`, `THF_COMMANDS`, then
 `thf_functions.lua` (THF's `JOB_FILES` entry, `own`), which calls the THF
 `TreasureHunter.init()` (sets `_G._treasure_engaged_by_job` to the
-`SetBuilder.sata_th_layer` provider, then the shared `init`), and requires
-`dualbox_manager`. The other logic modules are required lazily by the hooks.
+`SetBuilder.sata_th_layer` provider, then the shared `init`). The other logic modules are required lazily by the hooks.
 
 ### Precast
 

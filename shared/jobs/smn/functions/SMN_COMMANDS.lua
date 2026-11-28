@@ -25,21 +25,12 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
 
-local MessageFormatter = nil
-local BloodPactClassifier = nil
-
-local function ensure_commands_loaded()
-    if MessageFormatter then return end
-
-    MessageFormatter = require('shared/utils/messages/message_formatter')
-
-    local bpc_ok, bpc = pcall(require, 'shared/jobs/smn/functions/logic/blood_pact_classifier')
-    if not bpc_ok then bpc = nil end
-    BloodPactClassifier = bpc
-end
+local try_require = require('shared/utils/core/try_require')
+local MessageFormatter = require('shared/utils/messages/message_formatter')
+local BloodPactClassifier = try_require('shared/jobs/smn/functions/logic/blood_pact_classifier')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   STATIC DATA
@@ -279,7 +270,6 @@ local JobCommands = require('shared/utils/core/job_commands')
 --- @param cmdParams table {'command', 'arg1', 'arg2', ...}
 --- @param eventArgs table Event arguments; set .handled = true when consumed
 job_self_command = JobCommands.router('SMN', {
-    load = ensure_commands_loaded,
     words = {
         -- the Summoning Magic skillup loop
         skillup = function(cmdParams)

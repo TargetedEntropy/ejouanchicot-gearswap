@@ -102,9 +102,7 @@ check('  not handled', ea.handled, nil)
 -- 4. the router: first, then the shared words, then words, then other; it answers unless the handler returns PASS
 local seen = {}
 local function mark(name, ret) return function(cmdParams, command) seen[#seen + 1] = name .. ':' .. command return ret end end
-local loads = 0
 local router = JC.router('TST', {
-    load = function() loads = loads + 1 end,
     first = {reload = mark('first'), aoe = function(cmdParams) if cmdParams[2] then return JC.PASS end seen[#seen + 1] = 'aoe' end},
     words = {rune = mark('word'), cycle = mark('word', JC.PASS), plain = mark('word', false)},
     other = function(cmdParams, command) seen[#seen + 1] = 'other:' .. command if command == 'nothing' then return JC.PASS end end,
@@ -141,7 +139,7 @@ ea = {}
 router({'aoe', 'sneak'}, ea)
 check('first returning PASS lets the word through (aoe is no shared word here: on to other)', seen[8], 'other:aoe')
 router({}, {})
-check('no word: nothing, not even the load', loads, 8)
+check('no word: nothing', #seen, 8)
 
 -- 5. the weaponskill slots
 local cast

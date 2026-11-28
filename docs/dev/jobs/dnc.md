@@ -48,7 +48,7 @@ function; line numbers are given only where no function name fits.
 | `shared/jobs/dnc/functions/DNC_ENGAGED.lua` | 40 | `customize_melee_set` -> `SetBuilder.build_engaged_set` |
 | `shared/jobs/dnc/functions/DNC_STATUS.lua` | 19 | `LifecycleManager.status_change()` |
 | `shared/jobs/dnc/functions/DNC_BUFFS.lua` | 43 | `LifecycleManager.buff_change(on_dance_change)`: Doom, then a gear refresh on Saber/Fan Dance gain or loss |
-| `shared/jobs/dnc/functions/DNC_COMMANDS.lua` | 89 | `job_buff_extra` (global: DNC's part of `//gs c buff`), `job_self_command` router; `job_state_change = LifecycleManager.state_change()` |
+| `shared/jobs/dnc/functions/DNC_COMMANDS.lua` | 80 | `job_buff_extra` (global: DNC's part of `//gs c buff`), `job_self_command` router; `job_state_change = LifecycleManager.state_change()` |
 | `shared/jobs/dnc/functions/logic/climactic_manager.lua` | 84 | `ClimaticManager.auto_trigger`, `has_three_finishing_moves`, `WS_MIN_TP` 1000 |
 | `shared/jobs/dnc/functions/logic/ws_variant_selector.lua` | 126 | `apply_variant`: WS variant from dance buff + Climactic (buff or 5 s timestamp) |
 | `shared/jobs/dnc/functions/logic/step_manager.lua` | 97 | `execute_step`: recast check, Presto, Main/Alt rotation |

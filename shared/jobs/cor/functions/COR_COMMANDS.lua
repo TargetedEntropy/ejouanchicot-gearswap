@@ -17,18 +17,11 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
-local MessageFormatter = nil
-local RollTracker = nil
-
-local function ensure_commands_loaded()
-    if not MessageFormatter then
-        MessageFormatter = require('shared/utils/messages/message_formatter')
-        local ok, tracker = pcall(require, 'shared/jobs/cor/functions/logic/roll_tracker')
-        RollTracker = ok and tracker or nil
-    end
-end
+local try_require = require('shared/utils/core/try_require')
+local MessageFormatter = require('shared/utils/messages/message_formatter')
+local RollTracker = try_require('shared/jobs/cor/functions/logic/roll_tracker')
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   SELECTED ABILITY COMMANDS
@@ -142,7 +135,6 @@ local function selected_ability(_, command)
 end
 
 job_self_command = JobCommands.router('COR', {
-    load = ensure_commands_loaded,
     words = {
     track_roll = track_roll,
     trackroll = track_roll,

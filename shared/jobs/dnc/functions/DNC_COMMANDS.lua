@@ -22,24 +22,16 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
--- DNC logic modules, loaded on first command
-local StepManager = nil
-local SmartbuffManager = nil
-
-local function ensure_commands_loaded()
-    if not StepManager then
-        StepManager = require('shared/jobs/dnc/functions/logic/step_manager')
-        SmartbuffManager = require('shared/jobs/dnc/functions/logic/smartbuff_manager')
-    end
-end
+-- DNC logic modules
+local StepManager = require('shared/jobs/dnc/functions/logic/step_manager')
+local SmartbuffManager = require('shared/jobs/dnc/functions/logic/smartbuff_manager')
 
 --- DNC's part of //gs c buff (shared/utils/buffs/buff_command.lua): the
 --- selected dance, then the selected samba, before the job and subjob lists.
 --- @return table abilities_to_cast, table status_data
 function job_buff_extra()
-    ensure_commands_loaded()
     return SmartbuffManager.collect_extra()
 end
 _G.job_buff_extra = job_buff_extra
@@ -57,7 +49,6 @@ local function dance()
 end
 
 job_self_command = JobCommands.router('DNC', {
-    load = ensure_commands_loaded,
     words = {
         -- Step with Presto
         step = function()

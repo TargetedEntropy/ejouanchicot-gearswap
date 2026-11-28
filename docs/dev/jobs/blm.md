@@ -132,8 +132,7 @@ The entry names no character: every character file is resolved through
 `load_job('BLM')` installs the lockstyle and macro book,
 includes `message_buffs.lua`, then `BLM_PRECAST`, `BLM_MIDCAST`,
 `BLM_AFTERCAST`, `BLM_IDLE`, `BLM_ENGAGED`, `BLM_STATUS`, `BLM_BUFFS`,
-`BLM_COMMANDS`, then `blm_functions.lua` (BLM's `JOB_FILES` entry, `own`), and
-requires `dualbox_manager`. Its per-file timings are no-ops unless
+`BLM_COMMANDS`, then `blm_functions.lua` (BLM's `JOB_FILES` entry, `own`). Its per-file timings are no-ops unless
 `//gs c perf start`. Logic modules load on first use (`ensure_spell_refiner`,
 `ensure_storm_manager` in `blm_functions.lua`).
 

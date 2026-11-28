@@ -23,37 +23,18 @@
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 ---  ═══════════════════════════════════════════════════════════════════════════
----   DEPENDENCIES - LAZY LOADING (Performance Optimization)
+---   DEPENDENCIES
 ---  ═══════════════════════════════════════════════════════════════════════════
 local JobCommands = require('shared/utils/core/job_commands')
 -- a handler that returns PASS leaves the word unanswered (JobCommands.router)
 local PASS = JobCommands.PASS
 
-local MessageFormatter = nil
-local EcosystemManager = nil
-local PetManager = nil
-
-local function ensure_commands_loaded()
-    if not MessageFormatter then
-        MessageFormatter = require('shared/utils/messages/message_formatter')
-
-        -- Ecosystem manager
-        local success_em
-        success_em, EcosystemManager = pcall(require, 'shared/jobs/bst/functions/logic/ecosystem_manager')
-        if not success_em then
-            MessageFormatter.show_error_module_not_loaded('EcosystemManager')
-            EcosystemManager = nil
-        end
-
-        -- Pet manager
-        local success_pm
-        success_pm, PetManager = pcall(require, 'shared/jobs/bst/functions/logic/pet_manager')
-        if not success_pm then
-            MessageFormatter.show_error_module_not_loaded('PetManager')
-            PetManager = nil
-        end
-    end
-end
+local try_require = require('shared/utils/core/try_require')
+local MessageFormatter = require('shared/utils/messages/message_formatter')
+local EcosystemManager = try_require('shared/jobs/bst/functions/logic/ecosystem_manager')
+if not EcosystemManager then MessageFormatter.show_error_module_not_loaded('EcosystemManager') end
+local PetManager = try_require('shared/jobs/bst/functions/logic/pet_manager')
+if not PetManager then MessageFormatter.show_error_module_not_loaded('PetManager') end
 
 ---  ═══════════════════════════════════════════════════════════════════════════
 ---   BROTH COUNT DISPLAY
@@ -138,7 +119,6 @@ end
 ---  ═══════════════════════════════════════════════════════════════════════════
 
 job_self_command = JobCommands.router('BST', {
-    load = ensure_commands_loaded,
     first = {
         debugprecast = function()
             -- Toggle BST-specific precast debug (for Job Abilities)

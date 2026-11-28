@@ -49,7 +49,7 @@ numbers are avoided because they drift.
 | `shared/jobs/pld/functions/PLD_ENGAGED.lua` | 51 | `customize_melee_set` -> `SetBuilder.build_engaged_set` (+ trace) |
 | `shared/jobs/pld/functions/PLD_STATUS.lua` | 20 | `job_status_change = LifecycleManager.status_change()` |
 | `shared/jobs/pld/functions/PLD_BUFFS.lua` | 20 | `job_buff_change = LifecycleManager.buff_change()` |
-| `shared/jobs/pld/functions/PLD_COMMANDS.lua` | 145 | `job_self_command` router (incl. `ws`/`wsN`), local `rebuild_ws_slots` (exported `_G.pld_rebuild_ws_slots`), `job_state_change` (profile, WS slots, ammo lock, keybind refresh) |
+| `shared/jobs/pld/functions/PLD_COMMANDS.lua` | 137 | `job_self_command` router (incl. `ws`/`wsN`), local `rebuild_ws_slots` (exported `_G.pld_rebuild_ws_slots`), `job_state_change` (profile, WS slots, ammo lock, keybind refresh) |
 | `shared/jobs/pld/functions/logic/set_builder.lua` | 415 | Idle/engaged construction: weapon, shield, grip, ammo, HybridMode map, XP, Regen, movement, town; reads `PLD_WEAPONS.lua` (local `weapons_config`); `current_weapon()` is the authority on what is in hand |
 | `shared/jobs/pld/functions/logic/enmity_override.lua` | 149 | /SCH Tanking: FullEnmity spells wear `sets.EnmityMax`; JAs keep their set and gain what EnmityMax adds |
 | `shared/jobs/pld/functions/logic/cure_set_builder.lua` | 54 | CureSelf / CureOther choice for Cure to Cure IV, `is_cure` |
@@ -113,7 +113,7 @@ sequenceDiagram
     E->>E: _G.LockstyleConfig, _G.UIConfig, _G.RECAST_CONFIG, PLD_TP_CONFIG (sets _G.PLDTPConfig), configs: _G.BluMagicConfig
     E->>E: load_job("PLD"): JobChangeManager.cancel_all()
     E->>F: load_job_files('PLD')
-    F->>F: lockstyle + macro book install, message_buffs + 8 hook files, require dualbox_manager
+    F->>F: lockstyle + macro book install, message_buffs + 8 hook files
     E->>E: register_lockstyle_cancel("PLD", ...), after_load: pld_rebuild_ws_slots()
 ```
 
@@ -155,8 +155,8 @@ own, now prints for every job.
 load the files, register the lockstyle cancel), then PLD's `after_load` step runs
 `pld_rebuild_ws_slots()`. `load_job('PLD')` installs the lockstyle and macro book, includes `message_buffs.lua`,
 `PLD_PRECAST`, `PLD_MIDCAST`, `PLD_AFTERCAST`, `PLD_IDLE`, `PLD_ENGAGED`,
-`PLD_STATUS`, `PLD_BUFFS`, `PLD_COMMANDS`, then requires `dualbox_manager`. Logic modules are required lazily by
-the hooks (`ensure_modules_loaded`, `ensure_commands_loaded`, first idle/engage).
+`PLD_STATUS`, `PLD_BUFFS`, `PLD_COMMANDS`. `PLD_COMMANDS.lua` requires the AOE and rune managers at its top;
+the other logic modules are required lazily by the hooks (`ensure_modules_loaded`, first idle/engage).
 
 ### Precast
 
@@ -833,8 +833,7 @@ replay, ammo lock poll, HUD refresh): check those in game with `//gs c trace on`
   still say the shield is decided by SetBuilder), so in DPS and Hoxne the
   engaged off hand stays whatever is already worn; the /SCH Tanking stance swings
   `MainWeapon` while its key is hidden there (`PLD_KEYBINDS.lua` `visible`). 
-- `PLD_COMMANDS.lua` header still says "Updated: 2025-10-06" and the `aoe` / `rune`
-  logic modules are required eagerly in `ensure_commands_loaded` (not a bug).
+- `PLD_COMMANDS.lua` header still says "Updated: 2025-10-06".
 - Pending in-game checks: PLD/SCH `//gs c aoe` shows the /BLU message while
   `aoe sneak` still runs the /SCH chain; Hoxne stance then `//gs c wo` frees the
   ammo slot with a warning, and re-selecting Hoxne locks it again; a refused Majesty
